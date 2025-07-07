@@ -1,129 +1,197 @@
-# hello-uniapp
+# 家庭厨师 - 微信小程序
 
-`uni-app`框架示例，一套代码，同时发行到iOS、Android、H5、小程序等多个平台，请使用手机在下方扫码快速体验`uni-app`的强大功能。[官方文档](https://uniapp.dcloud.net.cn/)
+## 📱 项目简介
 
-## 快速上手
-hello-uniapp 示例工程可以通过两种方式创建， 一种是 HBuilderX, 配套 IDE，集成开发；另一种是 CLI 创建；推荐前者。
-### 通过 HBuilderX 可视化界面创建（推荐）
+家庭厨师是一个专为家庭设计的智能点餐和菜品管理小程序，让每个家庭都能享受美食的乐趣。
 
-可视化的方式比较简单，HBuilderX内置相关环境，开箱即用，无需配置nodejs。
+## ✨ 主要功能
 
-开始之前，开发者需先下载安装如下工具：
+### 🏠 首页
+- 个性化欢迎界面
+- 快捷功能入口
+- 今日推荐菜品
+- 家庭动态展示
+- 统计数据概览
 
-- HBuilderX：[官方IDE下载地址](https://www.dcloud.io/hbuilderx.html)
+### 👨‍👩‍👧‍👦 家庭管理
+- 家庭成员管理
+- 家庭信息展示
+- 成员在线状态
+- 邀请新成员
 
-HBuilderX是通用的前端开发工具，但为`uni-app`做了特别强化，请下载App开发版。
+### 📋 今日菜单
+- 按日期查看菜单
+- 早餐、午餐、晚餐分类
+- 菜品详情展示
+- 一键点餐功能
 
-由于截图在 github 不便浏览，参见官方文档 [HBuilderX 可视化界面创建](https://uniapp.dcloud.net.cn/quickstart?id=_1-%e9%80%9a%e8%bf%87-hbuilderx-%e5%8f%af%e8%a7%86%e5%8c%96%e7%95%8c%e9%9d%a2)
+### 📖 菜谱库
+- 丰富的菜谱资源
+- 分类筛选功能
+- 搜索菜谱
+- 收藏菜谱
 
-### 通过 vue-cli 创建
+### 🍽️ 点餐系统
+- 选择菜品
+- 设置用餐时间
+- 特殊要求备注
+- 订单确认提交
+
+### 👤 个人中心
+- 用户信息管理
+- 个人统计数据
+- 我的订单
+- 我的菜谱
+- 系统设置
+
+## 🛠️ 技术栈
+
+- **框架**: uni-app
+- **前端**: Vue 3 + TypeScript
+- **样式**: CSS3 + Flexbox/Grid
+- **状态管理**: Vue 3 Composition API
+- **构建工具**: Vite
+
+## 📁 项目结构
 
 ```
-npm install -g @vue/cli
+src/
+├── pages/                 # 页面文件
+│   ├── index/            # 首页
+│   ├── family/           # 家庭管理
+│   ├── menu/             # 今日菜单
+│   ├── recipe/           # 菜谱库
+│   ├── order/            # 点餐
+│   └── profile/          # 个人中心
+├── components/           # 公共组件
+├── static/              # 静态资源
+│   ├── tabbar/          # 底部导航图标
+│   ├── images/          # 图片资源
+│   └── icons/           # 图标资源
+├── store/               # 状态管理
+├── utils/               # 工具函数
+├── pages.json           # 页面配置
+├── manifest.json        # 应用配置
+└── App.vue              # 应用入口
 ```
 
-#### 创建uni-app
+## 🚀 快速开始
 
-**使用正式版**（对应HBuilderX最新正式版）
+### 环境要求
+- Node.js >= 16.0.0
+- npm >= 8.0.0
 
-```
-vue create -p dcloudio/uni-preset-vue my-project
-```
-
-**使用alpha版**（对应HBuilderX最新alpha版）
-
-```
-vue create -p dcloudio/uni-preset-vue#alpha my-alpha-project
+### 安装依赖
+```bash
+npm install
 ```
 
-此时，会提示选择项目模板，选择 `hello uni-app` 项目模板，如下所示：
-
-<div>
-<img src="https://img.cdn.aliyun.dcloud.net.cn/guide/uniapp/h5-cli-01.png" width="300">
-</div>
-
-创建好后，进入项目目录
-```
-cd my-project
-```
-
-执行该命令运行到 h5 端
-```
+### 开发模式
+```bash
+# H5开发
 npm run dev:h5
+
+# 微信小程序开发
+npm run dev:mp-weixin
+
+# APP开发
+npm run dev:app
 ```
 
-欢迎提 issues，推荐到[官方社区](https://ask.dcloud.net.cn/explore/)提问。
+### 构建生产版本
+```bash
+# H5构建
+npm run build:h5
 
-## 扫码体验
+# 微信小程序构建
+npm run build:mp-weixin
 
-<div class="quick">
-    <p>一套代码编到10个平台，这不是梦想。眼见为实，扫描10个二维码，亲自体验最全面的跨平台效果！</p>
-    <div style="display: flex;">
-      <a href="//m3w.cn/uniapp" target="_blank" class="clear-style barcode-view">
-        <div class="barcode-img-box">
-          <img src="https://web-assets.dcloud.net.cn/unidoc/zh/uni-android.png" width="160" />
-        </div>
-        <b>Android版</b>
-      </a>
-      <a href="https://itunes.apple.com/cn/app/hello-uni-app/id1417078253?mt=8" target="_blank" class="clear-style barcode-view">
-        <div class="barcode-img-box">
-          <img src="https://web-assets.dcloud.net.cn/unidoc/zh/uni-h5.png" width="160" />
-        </div>
-        <b>iOS版</b>
-      </a>
-      <a href="https://hellouniapp.dcloud.net.cn/" target="_blank" class="clear-style barcode-view">
-        <div class="barcode-img-box">
-          <img src="https://img.cdn.aliyun.dcloud.net.cn/guide/uniapp/uni-h5-hosting-qr.png" width="160" />
-        </div>
-        <b>H5版</b>
-      </a>
-      <a href="//m3w.cn/uniapp" target="_blank" class="clear-style barcode-view">
-        <div class="barcode-img-box"><img src="//img.cdn.aliyun.dcloud.net.cn/guide/uniapp/gh_33446d7f7a26_430.jpg" width="160" /></div>
-        <b>微信小程序版</b>
-      </a>
-      <a href="//m3w.cn/uniapp" target="_blank" class="clear-style barcode-view">
-        <div class="barcode-img-box"><img src="https://web-assets.dcloud.net.cn/unidoc/zh/alipay1.png" width="160" /></div>
-        <b>支付宝小程序版</b>
-      </a>
-    </div>
-    <div class="flex-img-group-view" style="margin-top: 20px;">
-      <a href="//m3w.cn/uniapp" target="_blank" class="clear-style barcode-view">
-        <div class="barcode-img-box"><img src="https://web-assets.dcloud.net.cn/unidoc/zh/baidu-uniapp.png" width="160" /></div>
-        <b>百度小程序版</b>
-      </a>
-      <a href="//m3w.cn/uniapp" target="_blank" class="clear-style barcode-view">
-        <div class="barcode-img-box">
-          <img src="https://img.cdn.aliyun.dcloud.net.cn/guide/uniapp/mp-toutiao.png" width="160" />
-        </div>
-        <b>字节跳动小程序版</b>
-      </a>
-      <a href="//m3w.cn/uniapp" target="_blank" class="clear-style barcode-view">
-        <div class="barcode-img-box">
-          <img src="https://img.cdn.aliyun.dcloud.net.cn/guide/uniapp/hello-uni-qq.png" width="160" />
-        </div>
-        <b>QQ小程序版</b>
-      </a>
-      <a href="//m3w.cn/uniapp" target="_blank" class="clear-style barcode-view">
-        <div class="barcode-img-box">
-          <img src="https://img.cdn.aliyun.dcloud.net.cn/guide/uniapp/hello-uni-qa-union.png" width="160" />
-        </div>
-        <b>快应用</b>
-      </a>
-      <a href="https://so.mp.360.cn/mp.html?appid=qh4j181qqtru354st6" target="_blank" class="clear-style barcode-view">
-        <div class="barcode-img-box">
-          <img src="https://img.cdn.aliyun.dcloud.net.cn/guide/uniapp/hello-uni-mp-360-qr.png" width="160" />
-        </div>
-        <b>360小程序</b>
-      </a>
-    </div>
-    <p>
-        <em>注：某些平台不能提交简单demo，故补充了一些其他功能；hello uni-app示例代码可从[github](https://github.com/dcloudio/hello-uniapp)获取</em></br>
-        <em>快应用仅支持 vivo 、oppo、华为</em></br>
-        <em>360小程序仅 windows平台支持，需要在360浏览器中打开</em></br>
-    </p>
-</div>
+# APP构建
+npm run build:app
+```
 
-`uni-app`官网文档详见[https://uniapp.dcloud.io](https://uniapp.dcloud.io)
+## 🎨 设计规范
 
-更多uni-app的模板、示例详见[插件市场](https://ext.dcloud.net.cn/)
+### 颜色主题
+- **主色调**: #FF6B35 (橙色)
+- **辅助色**: #F7931E (深橙色)
+- **背景色**: #F5F5F5 (浅灰色)
+- **文字色**: #333333 (深灰色)
+
+### 字体规范
+- **标题**: 36rpx, 粗体
+- **正文**: 28rpx, 常规
+- **说明**: 24rpx, 常规
+- **标签**: 22rpx, 常规
+
+### 间距规范
+- **页面边距**: 20rpx
+- **卡片间距**: 30rpx
+- **元素间距**: 20rpx
+- **内部间距**: 16rpx
+
+## 📱 页面说明
+
+### 首页 (pages/index/index.vue)
+- 欢迎区域：显示问候语和用户信息
+- 快捷功能：四个主要功能入口
+- 今日推荐：展示推荐菜品
+- 家庭动态：显示家庭成员活动
+- 统计卡片：展示家庭数据
+
+### 家庭管理 (pages/family/family.vue)
+- 家庭信息卡片
+- 成员列表展示
+- 在线状态显示
+- 家庭功能入口
+
+### 今日菜单 (pages/menu/menu.vue)
+- 日期选择器
+- 按餐次分类展示
+- 菜品详情和点餐
+- 添加菜品功能
+
+### 菜谱库 (pages/recipe/recipe.vue)
+- 搜索功能
+- 分类标签筛选
+- 菜谱列表展示
+- 添加菜谱功能
+
+### 点餐 (pages/order/order.vue)
+- 菜品选择器
+- 数量调整
+- 用餐时间选择
+- 特殊要求输入
+- 订单摘要和提交
+
+### 个人中心 (pages/profile/profile.vue)
+- 用户信息展示
+- 统计数据
+- 功能菜单
+- 退出登录
+
+## 🔧 开发注意事项
+
+1. **图标资源**: 需要替换 `static/tabbar/` 目录下的占位文件为真实图标
+2. **图片资源**: 需要添加 `static/images/` 目录下的菜品和用户头像图片
+3. **API接口**: 需要配置后端API接口地址
+4. **微信小程序**: 需要在微信开发者工具中导入项目
+
+## 📄 许可证
+
+MIT License
+
+## 🤝 贡献指南
+
+欢迎提交 Issue 和 Pull Request 来帮助改进项目。
+
+## 📞 联系方式
+
+如有问题或建议，请通过以下方式联系：
+- 邮箱: [your-email@example.com]
+- 微信: [your-wechat-id]
+
+---
+
+**家庭厨师** - 让每个家庭都能享受美食的乐趣！ 🍽️
 
