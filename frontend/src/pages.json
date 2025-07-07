@@ -1,0 +1,176 @@
+{
+	"pages": [ //pages数组中第一项表示应用启动页，参考：https://uniapp.dcloud.io/collocation/pages
+		{
+			"path": "pages/index/index",
+			"style": {
+				"navigationBarTitleText": "家庭厨师",
+				"navigationBarBackgroundColor": "#FF6B6B",
+				"navigationBarTextStyle": "white"
+			}
+		},
+		{
+			"path": "pages/login/login",
+			"style": {
+				"navigationBarTitleText": "登录",
+				"navigationBarBackgroundColor": "#FF6B6B",
+				"navigationBarTextStyle": "white"
+			}
+		},
+		{
+			"path": "pages/family/create",
+			"style": {
+				"navigationBarTitleText": "创建家庭",
+				"navigationBarBackgroundColor": "#FF6B6B",
+				"navigationBarTextStyle": "white"
+			}
+		},
+		{
+			"path": "pages/family/join",
+			"style": {
+				"navigationBarTitleText": "加入家庭",
+				"navigationBarBackgroundColor": "#FF6B6B",
+				"navigationBarTextStyle": "white"
+			}
+		},
+		{
+			"path": "pages/family/manage",
+			"style": {
+				"navigationBarTitleText": "家庭管理",
+				"navigationBarBackgroundColor": "#FF6B6B",
+				"navigationBarTextStyle": "white"
+			}
+		},
+		{
+			"path": "pages/recipe/list",
+			"style": {
+				"navigationBarTitleText": "菜谱库",
+				"navigationBarBackgroundColor": "#FF6B6B",
+				"navigationBarTextStyle": "white"
+			}
+		},
+		{
+			"path": "pages/recipe/detail",
+			"style": {
+				"navigationBarTitleText": "菜谱详情",
+				"navigationBarBackgroundColor": "#FF6B6B",
+				"navigationBarTextStyle": "white"
+			}
+		},
+		{
+			"path": "pages/recipe/create",
+			"style": {
+				"navigationBarTitleText": "创建菜谱",
+				"navigationBarBackgroundColor": "#FF6B6B",
+				"navigationBarTextStyle": "white"
+			}
+		},
+		{
+			"path": "pages/order/create",
+			"style": {
+				"navigationBarTitleText": "点餐",
+				"navigationBarBackgroundColor": "#FF6B6B",
+				"navigationBarTextStyle": "white"
+			}
+		},
+		{
+			"path": "pages/order/list",
+			"style": {
+				"navigationBarTitleText": "订单列表",
+				"navigationBarBackgroundColor": "#FF6B6B",
+				"navigationBarTextStyle": "white"
+			}
+		},
+		{
+			"path": "pages/order/detail",
+			"style": {
+				"navigationBarTitleText": "订单详情",
+				"navigationBarBackgroundColor": "#FF6B6B",
+				"navigationBarTextStyle": "white"
+			}
+		},
+		{
+			"path": "pages/ingredient/list",
+			"style": {
+				"navigationBarTitleText": "食材管理",
+				"navigationBarBackgroundColor": "#FF6B6B",
+				"navigationBarTextStyle": "white"
+			}
+		},
+		{
+			"path": "pages/ingredient/detail",
+			"style": {
+				"navigationBarTitleText": "食材详情",
+				"navigationBarBackgroundColor": "#FF6B6B",
+				"navigationBarTextStyle": "white"
+			}
+		},
+		{
+			"path": "pages/memory/list",
+			"style": {
+				"navigationBarTitleText": "家宴回忆",
+				"navigationBarBackgroundColor": "#FF6B6B",
+				"navigationBarTextStyle": "white"
+			}
+		},
+		{
+			"path": "pages/memory/detail",
+			"style": {
+				"navigationBarTitleText": "回忆详情",
+				"navigationBarBackgroundColor": "#FF6B6B",
+				"navigationBarTextStyle": "white"
+			}
+		},
+		{
+			"path": "pages/memory/create",
+			"style": {
+				"navigationBarTitleText": "创建回忆",
+				"navigationBarBackgroundColor": "#FF6B6B",
+				"navigationBarTextStyle": "white"
+			}
+		}
+	],
+	"globalStyle": {
+		"navigationBarTextStyle": "black",
+		"navigationBarTitleText": "家庭厨师",
+		"navigationBarBackgroundColor": "#F8F8F8",
+		"backgroundColor": "#F8F8F8"
+	},
+	"tabBar": {
+		"color": "#7A7E83",
+		"selectedColor": "#FF6B6B",
+		"borderStyle": "black",
+		"backgroundColor": "#ffffff",
+		"list": [
+			{
+				"pagePath": "pages/index/index",
+				"iconPath": "static/images/tabbar/home.png",
+				"selectedIconPath": "static/images/tabbar/home-active.png",
+				"text": "首页"
+			},
+			{
+				"pagePath": "pages/recipe/list",
+				"iconPath": "static/images/tabbar/recipe.png",
+				"selectedIconPath": "static/images/tabbar/recipe-active.png",
+				"text": "菜谱"
+			},
+			{
+				"pagePath": "pages/order/list",
+				"iconPath": "static/images/tabbar/order.png",
+				"selectedIconPath": "static/images/tabbar/order-active.png",
+				"text": "订单"
+			},
+			{
+				"pagePath": "pages/ingredient/list",
+				"iconPath": "static/images/tabbar/ingredient.png",
+				"selectedIconPath": "static/images/tabbar/ingredient-active.png",
+				"text": "食材"
+			},
+			{
+				"pagePath": "pages/memory/list",
+				"iconPath": "static/images/tabbar/memory.png",
+				"selectedIconPath": "static/images/tabbar/memory-active.png",
+				"text": "回忆"
+			}
+		]
+	}
+}
