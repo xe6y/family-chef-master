@@ -1,8 +1,95 @@
 # 家庭厨师微信小程序开发步骤
 
-## 第一阶段：环境准备
+## 项目概述
 
-### 1.1 开发环境要求
+### 功能模块分析
+根据项目需求，将功能分为以下核心模块：
+
+#### 🏗️ 基础模块
+- **用户认证**：微信授权登录、用户信息管理
+- **家庭管理**：创建家庭、邀请成员、身份管理
+
+#### 🍳 核心功能模块
+- **菜谱管理**：主厨拿手菜、菜谱库、私家菜谱
+- **点餐系统**：菜单浏览、下单、厨师选择
+- **食材管理**：库存管理、采购清单、成本统计
+
+#### 🎉 扩展功能模块
+- **宴请功能**：客人扫码、临时权限
+- **家宴回忆**：记录分享、照片管理
+- **智能推荐**：随机菜单、个性化推荐
+- **评价系统**：菜品评分、今日最佳
+- **消息通知**：微信订阅消息、系统通知
+
+## 版本迭代计划
+
+### **V1.0 基础版（MVP）- 预计2-3周**
+
+**目标**：实现核心功能，验证产品价值
+
+**功能范围**：
+1. ✅ 用户认证（微信登录）
+2. ✅ 家庭管理（创建、加入、成员管理）
+3. ✅ 基础菜谱管理（增删改查）
+4. ✅ 简单点餐功能
+5. ✅ 基础食材管理
+
+**开发优先级**：
+1. **第一周**：用户认证 + 家庭管理
+2. **第二周**：菜谱管理 + 点餐系统
+3. **第三周**：食材管理 + 基础UI优化
+
+### **V2.0 功能完善版 - 预计3-4周**
+
+**目标**：完善核心功能，提升用户体验
+
+**新增功能**：
+1. 🆕 厨师技能管理（主厨拿手菜）
+2. 🆕 订单状态管理（确认、制作、完成）
+3. 🆕 采购清单功能
+4. 🆕 成本统计功能
+5. 🆕 菜品评价系统
+
+**开发优先级**：
+1. **第一周**：厨师技能 + 订单状态
+2. **第二周**：采购清单 + 成本统计
+3. **第三周**：评价系统 + 数据统计
+4. **第四周**：功能测试 + 性能优化
+
+### **V3.0 智能版 - 预计4-5周**
+
+**目标**：增加智能化功能，提升产品竞争力
+
+**新增功能**：
+1. 🆕 随机菜单生成
+2. 🆕 基于食材的智能推荐
+3. 🆕 宴请功能（客人扫码）
+4. 🆕 家宴回忆功能
+5. 🆕 消息通知系统
+
+**开发优先级**：
+1. **第一周**：随机菜单 + 智能推荐算法
+2. **第二周**：宴请功能 + 临时权限
+3. **第三周**：家宴回忆 + 照片管理
+4. **第四周**：消息通知 + 微信订阅
+5. **第五周**：功能集成测试
+
+### **V4.0 高级版 - 预计3-4周**
+
+**目标**：增加高级功能，提升用户粘性
+
+**新增功能**：
+1. 🆕 个性化推荐算法
+2. 🆕 营养分析功能
+3. 🆕 社交分享功能
+4. 🆕 数据导出功能
+5. 🆕 高级统计分析
+
+## 详细开发路线
+
+### **第一阶段：基础架构搭建（1周）**
+
+#### 1.1 开发环境要求
 - **Go 1.21+** - 后端开发语言
 - **Node.js 18+** - 前端开发环境
 - **MySQL 8.0+** - 数据库
@@ -10,7 +97,7 @@
 - **微信开发者工具** - 小程序开发工具
 - **HBuilderX** - uni-app开发工具（推荐）
 
-### 1.2 安装依赖
+#### 1.2 安装依赖
 ```bash
 # 后端依赖安装
 cd backend
@@ -21,241 +108,306 @@ cd frontend
 npm install
 ```
 
-### 1.3 配置数据库
+#### 1.3 配置数据库
 1. 创建MySQL数据库
 2. 执行 `database/init.sql` 脚本
 3. 修改 `backend/configs/config.yaml` 中的数据库配置
 
-## 第二阶段：后端开发
+#### 1.4 后端基础架构（第1-7天）
 
-### 2.1 完善中间件模块
-创建以下文件：
-- `backend/internal/middleware/cors.go` - 跨域处理
-- `backend/internal/middleware/logger.go` - 日志中间件
-- `backend/internal/middleware/recovery.go` - 错误恢复
-- `backend/internal/middleware/auth.go` - JWT认证
-
-### 2.2 创建路由模块
-创建 `backend/internal/routes/routes.go`，定义API路由：
-```go
-// 用户相关路由
-POST /api/auth/login - 微信登录
-GET /api/user/profile - 获取用户信息
-PUT /api/user/profile - 更新用户信息
-
-// 家庭相关路由
-POST /api/family/create - 创建家庭
-POST /api/family/join - 加入家庭
-GET /api/family/info - 获取家庭信息
-GET /api/family/members - 获取家庭成员
-
-// 菜谱相关路由
-GET /api/recipe/list - 获取菜谱列表
-GET /api/recipe/detail/:id - 获取菜谱详情
-POST /api/recipe/create - 创建菜谱
-PUT /api/recipe/update/:id - 更新菜谱
-
-// 点餐相关路由
-POST /api/order/create - 创建订单
-GET /api/order/list - 获取订单列表
-PUT /api/order/status/:id - 更新订单状态
-
-// 食材相关路由
-GET /api/ingredient/list - 获取食材列表
-POST /api/ingredient/add - 添加食材
-PUT /api/ingredient/update/:id - 更新食材
-
-// 回忆相关路由
-GET /api/memory/list - 获取回忆列表
-POST /api/memory/create - 创建回忆
-GET /api/memory/detail/:id - 获取回忆详情
+**第1-2天：数据库和基础模型**
+```bash
+# 完善数据库设计
+- 实现用户、家庭、菜谱、订单模型
+- 创建数据库迁移脚本
+- 配置GORM连接和初始化
 ```
 
-### 2.3 创建处理器模块
-创建以下处理器：
-- `backend/internal/handlers/auth.go` - 认证相关
-- `backend/internal/handlers/user.go` - 用户相关
-- `backend/internal/handlers/family.go` - 家庭相关
-- `backend/internal/handlers/recipe.go` - 菜谱相关
-- `backend/internal/handlers/order.go` - 订单相关
-- `backend/internal/handlers/ingredient.go` - 食材相关
-- `backend/internal/handlers/memory.go` - 回忆相关
-
-### 2.4 创建服务层
-创建以下服务：
-- `backend/internal/services/wechat.go` - 微信服务
-- `backend/internal/services/jwt.go` - JWT服务
-- `backend/internal/services/upload.go` - 文件上传服务
-- `backend/internal/services/notification.go` - 消息通知服务
-
-### 2.5 创建工具函数
-创建以下工具：
-- `backend/pkg/utils/response.go` - 响应工具
-- `backend/pkg/utils/validator.go` - 验证工具
-- `backend/pkg/utils/helper.go` - 辅助函数
-
-## 第三阶段：前端开发
-
-### 3.1 创建页面组件
-按照 `pages.json` 配置创建以下页面：
-- `frontend/pages/index/index.vue` - 首页
-- `frontend/pages/login/login.vue` - 登录页
-- `frontend/pages/family/create.vue` - 创建家庭
-- `frontend/pages/family/join.vue` - 加入家庭
-- `frontend/pages/recipe/list.vue` - 菜谱列表
-- `frontend/pages/recipe/detail.vue` - 菜谱详情
-- `frontend/pages/order/create.vue` - 点餐页面
-- `frontend/pages/ingredient/list.vue` - 食材管理
-- `frontend/pages/memory/list.vue` - 回忆列表
-
-### 3.2 创建公共组件
-创建以下组件：
-- `frontend/components/RecipeCard.vue` - 菜谱卡片
-- `frontend/components/OrderCard.vue` - 订单卡片
-- `frontend/components/IngredientItem.vue` - 食材项
-- `frontend/components/MemoryCard.vue` - 回忆卡片
-- `frontend/components/ChefAvatar.vue` - 厨师头像
-
-### 3.3 创建API服务
-创建 `frontend/api/index.js`，封装所有API调用：
-```javascript
-// 用户相关API
-export const login = (code) => request.post('/auth/login', { code })
-export const getUserInfo = () => request.get('/user/profile')
-
-// 家庭相关API
-export const createFamily = (data) => request.post('/family/create', data)
-export const joinFamily = (code) => request.post('/family/join', { code })
-
-// 菜谱相关API
-export const getRecipeList = (params) => request.get('/recipe/list', { params })
-export const getRecipeDetail = (id) => request.get(`/recipe/detail/${id}`)
-
-// 订单相关API
-export const createOrder = (data) => request.post('/order/create', data)
-export const getOrderList = (params) => request.get('/order/list', { params })
+**第3-4天：认证系统**
+```bash
+# 实现微信授权登录
+- 创建微信服务接口
+- 实现JWT token管理
+- 创建中间件和权限控制
 ```
 
-### 3.4 创建状态管理
-创建 `frontend/store/index.js`，使用Vuex管理状态：
-```javascript
-export default new Vuex.Store({
-  state: {
-    user: null,
-    family: null,
-    token: null
-  },
-  mutations: {
-    SET_USER(state, user) {
-      state.user = user
-    },
-    SET_FAMILY(state, family) {
-      state.family = family
-    },
-    SET_TOKEN(state, token) {
-      state.token = token
-    }
-  },
-  actions: {
-    async login({ commit }, code) {
-      const res = await login(code)
-      commit('SET_USER', res.data.user)
-      commit('SET_TOKEN', res.data.token)
-    }
-  }
-})
+**第5-7天：基础API**
+```bash
+# 实现基础CRUD操作
+- 实现用户管理API
+- 实现家庭管理API
+- 创建响应工具和验证工具
 ```
 
-### 3.5 创建工具函数
-创建以下工具：
-- `frontend/utils/request.js` - HTTP请求封装
-- `frontend/utils/storage.js` - 本地存储工具
-- `frontend/utils/validate.js` - 验证工具
-- `frontend/utils/format.js` - 格式化工具
+#### 1.5 前端基础架构（第1-7天）
 
-## 第四阶段：功能实现
+**第1-3天：项目搭建**
+```bash
+# 完善uni-app项目结构
+- 实现路由配置
+- 创建基础组件
+- 配置状态管理
+```
 
-### 4.1 用户认证模块
+**第4-7天：基础页面**
+```bash
+# 实现基础页面
+- 实现登录页面
+- 实现首页
+- 实现基础导航
+```
+
+### **第二阶段：核心功能开发（2周）**
+
+#### 2.1 后端核心功能（第1-2周）
+
+**第1周：菜谱和点餐系统**
+```bash
+# 完善中间件模块
+- backend/internal/middleware/cors.go - 跨域处理
+- backend/internal/middleware/logger.go - 日志中间件
+- backend/internal/middleware/recovery.go - 错误恢复
+- backend/internal/middleware/auth.go - JWT认证
+
+# 创建路由模块
+- backend/internal/routes/routes.go - API路由定义
+
+# 创建处理器模块
+- backend/internal/handlers/auth.go - 认证相关
+- backend/internal/handlers/user.go - 用户相关
+- backend/internal/handlers/family.go - 家庭相关
+- backend/internal/handlers/recipe.go - 菜谱相关
+- backend/internal/handlers/order.go - 订单相关
+- backend/internal/handlers/ingredient.go - 食材相关
+- backend/internal/handlers/memory.go - 回忆相关
+
+# 实现核心API
+- 实现菜谱管理API
+- 实现点餐系统API
+- 实现订单管理API
+```
+
+**第2周：食材管理**
+```bash
+# 实现食材管理功能
+- 实现食材管理API
+- 实现库存管理API
+- 实现采购清单API
+```
+
+#### 2.2 前端核心功能（第1-2周）
+
+**第1周：菜谱和点餐页面**
+```bash
+# 创建页面组件
+- frontend/pages/index/index.vue - 首页
+- frontend/pages/login/login.vue - 登录页
+- frontend/pages/family/create.vue - 创建家庭
+- frontend/pages/family/join.vue - 加入家庭
+- frontend/pages/recipe/list.vue - 菜谱列表
+- frontend/pages/recipe/detail.vue - 菜谱详情
+- frontend/pages/order/create.vue - 点餐页面
+- frontend/pages/ingredient/list.vue - 食材管理
+- frontend/pages/memory/list.vue - 回忆列表
+
+# 创建公共组件
+- frontend/components/RecipeCard.vue - 菜谱卡片
+- frontend/components/OrderCard.vue - 订单卡片
+- frontend/components/IngredientItem.vue - 食材项
+- frontend/components/MemoryCard.vue - 回忆卡片
+- frontend/components/ChefAvatar.vue - 厨师头像
+
+# 实现核心页面
+- 实现菜谱列表和详情页
+- 实现点餐页面
+- 实现订单管理页面
+```
+
+**第2周：食材管理页面**
+```bash
+# 实现食材管理页面
+- 实现食材列表和详情页
+- 实现库存管理页面
+- 实现采购清单页面
+```
+
+### **第三阶段：功能完善（2周）**
+
+#### 3.1 后端高级功能（第1-2周）
+
+**第1周：高级功能**
+```bash
+# 创建服务层
+- backend/internal/services/wechat.go - 微信服务
+- backend/internal/services/jwt.go - JWT服务
+- backend/internal/services/upload.go - 文件上传服务
+- backend/internal/services/notification.go - 消息通知服务
+
+# 创建工具函数
+- backend/pkg/utils/response.go - 响应工具
+- backend/pkg/utils/validator.go - 验证工具
+- backend/pkg/utils/helper.go - 辅助函数
+
+# 实现高级功能
+- 实现厨师技能管理
+- 实现评价系统
+- 实现成本统计
+```
+
+**第2周：数据统计和优化**
+```bash
+# 实现数据统计功能
+- 实现数据统计API
+- 实现搜索和筛选
+- 性能优化
+```
+
+#### 3.2 前端高级功能（第1-2周）
+
+**第1周：高级页面**
+```bash
+# 实现高级页面
+- 实现厨师技能页面
+- 实现评价页面
+- 实现统计页面
+```
+
+**第2周：UI优化**
+```bash
+# 完善用户界面
+- 完善页面样式
+- 实现动画效果
+- 优化用户体验
+```
+
+### **第四阶段：功能实现**
+
+#### 4.1 用户认证模块
 1. 实现微信授权登录
 2. 实现JWT token管理
 3. 实现用户信息管理
 
-### 4.2 家庭管理模块
+#### 4.2 家庭管理模块
 1. 实现家庭创建功能
 2. 实现邀请码生成和验证
 3. 实现成员管理功能
 4. 实现角色权限控制
 
-### 4.3 菜谱管理模块
+#### 4.3 菜谱管理模块
 1. 实现菜谱CRUD操作
 2. 实现菜谱分类和标签
 3. 实现私家菜谱功能
 4. 实现菜谱分享功能
 
-### 4.4 点餐系统模块
+#### 4.4 点餐系统模块
 1. 实现点餐下单功能
 2. 实现订单状态管理
 3. 实现厨师选择功能
 4. 实现订单评价功能
 
-### 4.5 食材管理模块
+#### 4.5 食材管理模块
 1. 实现食材CRUD操作
 2. 实现库存管理
 3. 实现采购清单生成
 4. 实现保质期提醒
 
-### 4.6 回忆功能模块
+#### 4.6 回忆功能模块
 1. 实现回忆创建和编辑
 2. 实现照片上传功能
 3. 实现回忆分享功能
 4. 实现回忆导出功能
 
-## 第五阶段：测试和优化
+### **第五阶段：测试和优化**
 
-### 5.1 单元测试
+#### 5.1 单元测试
 为后端创建单元测试：
 ```bash
 cd backend
 go test ./...
 ```
 
-### 5.2 集成测试
+#### 5.2 集成测试
 测试API接口功能：
 ```bash
 # 使用Postman或其他工具测试API
 ```
 
-### 5.3 性能优化
+#### 5.3 性能优化
 1. 数据库查询优化
 2. 缓存策略优化
 3. 前端性能优化
 4. 图片压缩和CDN
 
-### 5.4 安全加固
+#### 5.4 安全加固
 1. 输入验证和过滤
 2. SQL注入防护
 3. XSS攻击防护
 4. 敏感信息加密
 
-## 第六阶段：部署上线
+### **第六阶段：部署上线**
 
-### 6.1 后端部署
+#### 6.1 后端部署
 1. 配置生产环境
 2. 部署到服务器
 3. 配置域名和SSL
 4. 配置监控和日志
 
-### 6.2 前端部署
+#### 6.2 前端部署
 1. 构建生产版本
 2. 上传到微信小程序
 3. 配置CDN加速
 4. 测试线上功能
 
-### 6.3 数据库部署
+#### 6.3 数据库部署
 1. 配置生产数据库
 2. 数据迁移
 3. 备份策略
 4. 性能监控
+
+## 开发建议
+
+### **技术选型建议**
+1. **后端**：继续使用Go + Gin + GORM，稳定性好
+2. **前端**：uni-app + Vue3，跨平台能力强
+3. **数据库**：MySQL 8.0，性能稳定
+4. **缓存**：Redis，提升性能
+5. **文件存储**：腾讯云COS，成本低
+
+### **开发流程建议**
+1. **敏捷开发**：每2周一个迭代
+2. **测试驱动**：先写测试，再写代码
+3. **代码审查**：重要功能需要代码审查
+4. **持续集成**：自动化测试和部署
+
+### **优先级建议**
+1. **高优先级**：用户认证、家庭管理、菜谱管理
+2. **中优先级**：点餐系统、食材管理、评价系统
+3. **低优先级**：智能推荐、宴请功能、家宴回忆
+
+### **风险控制**
+1. **技术风险**：微信小程序审核、API限制
+2. **业务风险**：用户接受度、竞品分析
+3. **时间风险**：功能复杂度、开发周期
+
+## 成功指标
+
+### **V1.0 成功指标**
+- 用户注册率 > 80%
+- 家庭创建率 > 60%
+- 菜谱添加率 > 40%
+- 点餐使用率 > 30%
+
+### **V2.0 成功指标**
+- 日活跃用户 > 100
+- 订单完成率 > 90%
+- 用户留存率 > 70%
+- 评价参与率 > 50%
+
+### **V3.0 成功指标**
+- 月活跃用户 > 1000
+- 功能使用率 > 80%
+- 用户满意度 > 4.5/5
+- 分享传播率 > 20%
 
 ## 开发注意事项
 
@@ -267,19 +419,35 @@ go test ./...
 
 ## 开发时间估算
 
-- **第一阶段**：1-2天（环境准备）
-- **第二阶段**：5-7天（后端开发）
-- **第三阶段**：7-10天（前端开发）
-- **第四阶段**：10-15天（功能实现）
-- **第五阶段**：3-5天（测试优化）
-- **第六阶段**：2-3天（部署上线）
+### **V1.0 基础版**
+- **第一阶段**：1周（基础架构搭建）
+- **第二阶段**：2周（核心功能开发）
+- **测试优化**：3-5天
+- **部署上线**：2-3天
+- **总计**：3-4周
 
-**总计**：28-42天（约1-1.5个月）
+### **V2.0 功能完善版**
+- **功能开发**：3-4周
+- **测试优化**：1周
+- **总计**：4-5周
+
+### **V3.0 智能版**
+- **功能开发**：4-5周
+- **测试优化**：1周
+- **总计**：5-6周
+
+### **V4.0 高级版**
+- **功能开发**：3-4周
+- **测试优化**：1周
+- **总计**：4-5周
+
+**项目总周期**：16-20周（约4-5个月）
 
 ## 下一步行动
 
-1. 按照步骤逐步实现各个模块
-2. 每完成一个模块进行测试
+1. 按照版本迭代计划逐步实现各个模块
+2. 每完成一个版本进行用户测试和反馈收集
 3. 及时记录开发过程中的问题和解决方案
 4. 定期与团队成员沟通进度
-5. 保持代码的版本控制和备份 
+5. 保持代码的版本控制和备份
+6. 根据用户反馈调整后续版本的功能优先级 
