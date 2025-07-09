@@ -1,431 +1,474 @@
 <template>
-	<view class="order-container">
-		<view class="header">
-			<text class="title">点餐</text>
-			<text class="subtitle">选择您喜欢的菜品</text>
-		</view>
-		
-		<view class="category-tabs">
-			<view 
-				class="tab-item" 
-				:class="{ active: activeCategory === category.value }"
-				v-for="category in categories" 
-				:key="category.value"
-				@click="switchCategory(category.value)"
-			>
-				<text class="tab-text">{{ category.label }}</text>
-			</view>
-		</view>
-		
-		<view class="dish-list">
-			<view class="dish-item" v-for="dish in filteredDishes" :key="dish.id">
-				<image class="dish-image" :src="dish.image" mode="aspectFill"></image>
-				<view class="dish-info">
-					<text class="dish-name">{{ dish.name }}</text>
-					<text class="dish-desc">{{ dish.description }}</text>
-					<view class="dish-meta">
-						<text class="chef-name">主厨: {{ dish.chef }}</text>
-						<text class="dish-price">¥{{ dish.price }}</text>
-					</view>
-				</view>
-				<view class="dish-actions">
-					<view class="quantity-control">
-						<button class="qty-btn" @click="decreaseQuantity(dish)" :disabled="getQuantity(dish) === 0">-</button>
-						<text class="qty-text">{{ getQuantity(dish) }}</text>
-						<button class="qty-btn" @click="increaseQuantity(dish)">+</button>
-					</view>
-				</view>
-			</view>
-		</view>
-		
-		<view class="order-summary" v-if="totalQuantity > 0">
-			<view class="summary-content">
-				<view class="summary-info">
-					<text class="summary-text">已选 {{ totalQuantity }} 道菜</text>
-					<text class="summary-price">¥{{ totalPrice }}</text>
-				</view>
-				<button class="submit-btn" @click="submitOrder">提交订单</button>
-			</view>
-		</view>
-		
-		<view class="empty-state" v-if="filteredDishes.length === 0">
-			<text class="empty-icon">🍽️</text>
-			<text class="empty-text">暂无菜品</text>
-		</view>
-	</view>
+  <view class="order-page">
+    <!-- 顶部搜索 -->
+    <view class="search-section">
+      <u-search
+        v-model="searchKeyword"
+        placeholder="搜索菜品"
+        :show-action="false"
+        @search="searchDishes"
+      />
+    </view>
+
+    <!-- 筛选标签 -->
+    <view class="filter-section">
+      <scroll-view class="filter-scroll" scroll-x>
+        <view class="filter-tags">
+          <u-tag
+            v-for="tag in filterTags"
+            :key="tag.id"
+            :text="tag.name"
+            :type="tag.selected ? 'primary' : 'info'"
+            size="mini"
+            @click="toggleFilter(tag)"
+          />
+        </view>
+      </scroll-view>
+    </view>
+
+    <!-- 菜品列表 -->
+    <view class="dish-list">
+      <view
+        class="dish-item"
+        v-for="dish in filteredDishes"
+        :key="dish.id"
+        @click="selectDish(dish)"
+      >
+        <image class="dish-image" :src="dish.image" mode="aspectFill" />
+        <view class="dish-content">
+          <view class="dish-header">
+            <text class="dish-name">{{ dish.name }}</text>
+            <view class="dish-badge" v-if="dish.isSpecialty">
+              <u-tag text="拿手菜" type="warning" size="mini" />
+            </view>
+          </view>
+          <text class="dish-chef">大厨：{{ dish.chef }}</text>
+          <view class="dish-tags">
+            <u-tag
+              v-for="tag in dish.tags"
+              :key="tag"
+              :text="tag"
+              size="mini"
+              type="info"
+            />
+          </view>
+          <view class="dish-actions">
+            <u-button
+              type="primary"
+              size="mini"
+              @click.stop="orderDish(dish)"
+            >
+              点菜
+            </u-button>
+            <u-button
+              type="info"
+              size="mini"
+              @click.stop="viewDetail(dish)"
+            >
+              详情
+            </u-button>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <!-- 点菜弹窗 -->
+    <u-popup v-model="showOrderPopup" mode="bottom" height="60%">
+      <view class="order-popup">
+        <view class="popup-header">
+          <text class="popup-title">点菜详情</text>
+          <u-icon name="close" @click="showOrderPopup = false" />
+        </view>
+        
+        <view class="selected-dish">
+          <image :src="selectedDish?.image" mode="aspectFill" />
+          <view class="dish-info">
+            <text class="dish-name">{{ selectedDish?.name }}</text>
+            <text class="dish-chef">{{ selectedDish?.chef }}</text>
+          </view>
+        </view>
+
+        <view class="order-form">
+          <view class="form-item">
+            <text class="label">选择大厨</text>
+            <u-radio-group v-model="selectedChef">
+              <u-radio
+                v-for="chef in availableChefs"
+                :key="chef.id"
+                :name="chef.id"
+                :label="chef.name"
+              />
+            </u-radio-group>
+          </view>
+
+          <view class="form-item">
+            <text class="label">备注</text>
+            <u-textarea
+              v-model="orderRemark"
+              placeholder="有什么特殊要求吗？"
+              :maxlength="200"
+            />
+          </view>
+
+          <view class="form-item">
+            <text class="label">期望时间</text>
+            <u-datetime-picker
+              v-model="expectedTime"
+              mode="time"
+              placeholder="选择期望时间"
+            />
+          </view>
+        </view>
+
+        <view class="popup-actions">
+          <u-button type="info" @click="showOrderPopup = false">取消</u-button>
+          <u-button type="primary" @click="submitOrder">确认点菜</u-button>
+        </view>
+      </view>
+    </u-popup>
+  </view>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 
-// 响应式数据
-const activeCategory = ref('all')
-const orderItems = ref([])
+// 搜索关键词
+const searchKeyword = ref('')
 
-const categories = ref([
-	{ label: '全部', value: 'all' },
-	{ label: '热菜', value: 'hot' },
-	{ label: '凉菜', value: 'cold' },
-	{ label: '汤类', value: 'soup' },
-	{ label: '主食', value: 'staple' }
+// 筛选标签
+const filterTags = ref([
+  { id: 1, name: '全部', selected: true },
+  { id: 2, name: '家常菜', selected: false },
+  { id: 3, name: '川菜', selected: false },
+  { id: 4, name: '粤菜', selected: false },
+  { id: 5, name: '素食', selected: false },
+  { id: 6, name: '海鲜', selected: false },
+  { id: 7, name: '拿手菜', selected: false }
 ])
 
+// 菜品列表
 const dishes = ref([
-	{
-		id: 1,
-		name: '红烧肉',
-		description: '肥而不腻，入口即化',
-		image: '/static/images/dishes/hongshao.png',
-		chef: '妈妈',
-		price: 25,
-		category: 'hot'
-	},
-	{
-		id: 2,
-		name: '糖醋里脊',
-		description: '酸甜可口，外酥内嫩',
-		image: '/static/images/dishes/tangcu.png',
-		chef: '爸爸',
-		price: 28,
-		category: 'hot'
-	},
-	{
-		id: 3,
-		name: '凉拌黄瓜',
-		description: '清爽开胃，脆嫩爽口',
-		image: '/static/images/dishes/cucumber.png',
-		chef: '小明',
-		price: 8,
-		category: 'cold'
-	},
-	{
-		id: 4,
-		name: '番茄蛋汤',
-		description: '酸甜开胃，营养美味',
-		image: '/static/images/dishes/soup.png',
-		chef: '小红',
-		price: 12,
-		category: 'soup'
-	},
-	{
-		id: 5,
-		name: '白米饭',
-		description: '香软可口，粒粒分明',
-		image: '/static/images/dishes/rice.png',
-		chef: '妈妈',
-		price: 3,
-		category: 'staple'
-	},
-	{
-		id: 6,
-		name: '清炒时蔬',
-		description: '新鲜蔬菜，清淡爽口',
-		image: '/static/images/dishes/vegetables.png',
-		chef: '小明',
-		price: 15,
-		category: 'hot'
-	}
+  {
+    id: 1,
+    name: '红烧肉',
+    chef: '张妈妈',
+    image: '/static/image/dish1.jpg',
+    tags: ['家常菜', '肉类'],
+    isSpecialty: true,
+    category: '家常菜'
+  },
+  {
+    id: 2,
+    name: '清蒸鱼',
+    chef: '李爸爸',
+    image: '/static/image/dish2.jpg',
+    tags: ['海鲜', '清淡'],
+    isSpecialty: false,
+    category: '海鲜'
+  },
+  {
+    id: 3,
+    name: '麻婆豆腐',
+    chef: '王奶奶',
+    image: '/static/image/dish3.jpg',
+    tags: ['川菜', '素食'],
+    isSpecialty: true,
+    category: '川菜'
+  },
+  {
+    id: 4,
+    name: '白切鸡',
+    chef: '陈爷爷',
+    image: '/static/image/dish4.jpg',
+    tags: ['粤菜', '禽类'],
+    isSpecialty: false,
+    category: '粤菜'
+  }
 ])
 
-// 计算属性
+// 可用大厨
+const availableChefs = ref([
+  { id: 1, name: '张妈妈', specialty: '家常菜' },
+  { id: 2, name: '李爸爸', specialty: '海鲜' },
+  { id: 3, name: '王奶奶', specialty: '川菜' },
+  { id: 4, name: '陈爷爷', specialty: '粤菜' }
+])
+
+// 弹窗控制
+const showOrderPopup = ref(false)
+const selectedDish = ref<any>(null)
+const selectedChef = ref('')
+const orderRemark = ref('')
+const expectedTime = ref('')
+
+// 筛选后的菜品
 const filteredDishes = computed(() => {
-	if (activeCategory.value === 'all') {
-		return dishes.value
-	}
-	return dishes.value.filter(dish => dish.category === activeCategory.value)
+  let result = dishes.value
+
+  // 关键词搜索
+  if (searchKeyword.value) {
+    result = result.filter(dish => 
+      dish.name.includes(searchKeyword.value) ||
+      dish.chef.includes(searchKeyword.value) ||
+      dish.tags.some(tag => tag.includes(searchKeyword.value))
+    )
+  }
+
+  // 标签筛选
+  const selectedTags = filterTags.value.filter(tag => tag.selected)
+  if (selectedTags.length > 0 && !selectedTags.find(tag => tag.name === '全部')) {
+    result = result.filter(dish => {
+      return selectedTags.some(tag => {
+        if (tag.name === '拿手菜') {
+          return dish.isSpecialty
+        }
+        return dish.category === tag.name || dish.tags.includes(tag.name)
+      })
+    })
+  }
+
+  return result
 })
 
-const totalQuantity = computed(() => {
-	return orderItems.value.reduce((total, item) => total + item.quantity, 0)
-})
-
-const totalPrice = computed(() => {
-	return orderItems.value.reduce((total, item) => total + (item.price * item.quantity), 0)
-})
-
-// 方法
-const switchCategory = (category) => {
-	activeCategory.value = category
+// 搜索菜品
+const searchDishes = () => {
+  // TODO: 实现搜索逻辑
 }
 
-const getQuantity = (dish) => {
-	const item = orderItems.value.find(item => item.id === dish.id)
-	return item ? item.quantity : 0
+// 切换筛选标签
+const toggleFilter = (tag: any) => {
+  if (tag.name === '全部') {
+    filterTags.value.forEach(t => t.selected = t.id === tag.id)
+  } else {
+    const allTag = filterTags.value.find(t => t.name === '全部')
+    if (allTag) allTag.selected = false
+    tag.selected = !tag.selected
+  }
 }
 
-const increaseQuantity = (dish) => {
-	const existingItem = orderItems.value.find(item => item.id === dish.id)
-	if (existingItem) {
-		existingItem.quantity++
-	} else {
-		orderItems.value.push({
-			id: dish.id,
-			name: dish.name,
-			price: dish.price,
-			quantity: 1
-		})
-	}
+// 选择菜品
+const selectDish = (dish: any) => {
+  selectedDish.value = dish
+  showOrderPopup.value = true
 }
 
-const decreaseQuantity = (dish) => {
-	const existingItem = orderItems.value.find(item => item.id === dish.id)
-	if (existingItem) {
-		if (existingItem.quantity > 1) {
-			existingItem.quantity--
-		} else {
-			orderItems.value = orderItems.value.filter(item => item.id !== dish.id)
-		}
-	}
+// 点菜
+const orderDish = (dish: any) => {
+  selectedDish.value = dish
+  showOrderPopup.value = true
 }
 
+// 查看详情
+const viewDetail = (dish: any) => {
+  uni.navigateTo({
+    url: `/pages/order/dish-detail?id=${dish.id}`
+  })
+}
+
+// 提交点菜
 const submitOrder = () => {
-	if (totalQuantity.value === 0) {
-		uni.showToast({
-			title: '请选择菜品',
-			icon: 'none'
-		})
-		return
-	}
-	
-	uni.showModal({
-		title: '确认订单',
-		content: `共${totalQuantity.value}道菜，总价¥${totalPrice.value}，确认提交吗？`,
-		success: (res) => {
-			if (res.confirm) {
-				// 这里可以调用API提交订单
-				uni.showToast({
-					title: '订单提交成功',
-					icon: 'success'
-				})
-				// 清空购物车
-				orderItems.value = []
-			}
-		}
-	})
+  if (!selectedChef.value) {
+    uni.showToast({
+      title: '请选择大厨',
+      icon: 'none'
+    })
+    return
+  }
+
+  const orderData = {
+    dishId: selectedDish.value.id,
+    dishName: selectedDish.value.name,
+    chefId: selectedChef.value,
+    chefName: availableChefs.value.find(c => c.id === parseInt(selectedChef.value))?.name,
+    remark: orderRemark.value,
+    expectedTime: expectedTime.value,
+    orderTime: new Date().toISOString()
+  }
+
+  // TODO: 调用API提交点菜
+  console.log('提交点菜:', orderData)
+
+  uni.showToast({
+    title: '点菜成功',
+    icon: 'success'
+  })
+
+  showOrderPopup.value = false
+  resetForm()
 }
 
-// 生命周期
+// 重置表单
+const resetForm = () => {
+  selectedDish.value = null
+  selectedChef.value = ''
+  orderRemark.value = ''
+  expectedTime.value = ''
+}
+
+// 页面加载
 onMounted(() => {
-	console.log('点餐页面加载完成')
+  // 获取菜品列表
+  getDishes()
+  // 获取可用大厨
+  getAvailableChefs()
 })
+
+// 获取菜品列表
+const getDishes = () => {
+  // TODO: 调用API获取菜品列表
+}
+
+// 获取可用大厨
+const getAvailableChefs = () => {
+  // TODO: 调用API获取可用大厨
+}
 </script>
 
-<style scoped>
-.order-container {
-	padding: 20rpx;
-	background-color: #f5f5f5;
-	min-height: 100vh;
-	padding-bottom: 120rpx;
+<style lang="scss" scoped>
+.order-page {
+  min-height: 100vh;
+  background-color: #f8f9fa;
 }
 
-.header {
-	text-align: center;
-	margin-bottom: 30rpx;
+.search-section {
+  padding: 20rpx;
+  background: white;
 }
 
-.title {
-	font-size: 36rpx;
-	font-weight: bold;
-	color: #333;
-	display: block;
-	margin-bottom: 10rpx;
+.filter-section {
+  background: white;
+  border-bottom: 1rpx solid #e9ecef;
 }
 
-.subtitle {
-	font-size: 26rpx;
-	color: #666;
+.filter-scroll {
+  white-space: nowrap;
+  padding: 20rpx;
 }
 
-.category-tabs {
-	display: flex;
-	background: white;
-	border-radius: 20rpx;
-	padding: 10rpx;
-	margin-bottom: 30rpx;
-	box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.1);
-	overflow-x: auto;
-}
-
-.tab-item {
-	flex-shrink: 0;
-	padding: 20rpx 30rpx;
-	border-radius: 15rpx;
-	transition: all 0.3s ease;
-	margin-right: 10rpx;
-}
-
-.tab-item:last-child {
-	margin-right: 0;
-}
-
-.tab-item.active {
-	background: #ff6b6b;
-}
-
-.tab-text {
-	font-size: 26rpx;
-	color: #333;
-	font-weight: 500;
-}
-
-.tab-item.active .tab-text {
-	color: white;
+.filter-tags {
+  display: flex;
+  gap: 16rpx;
 }
 
 .dish-list {
-	display: flex;
-	flex-direction: column;
-	gap: 20rpx;
+  padding: 20rpx;
 }
 
 .dish-item {
-	background: white;
-	border-radius: 20rpx;
-	padding: 30rpx;
-	display: flex;
-	align-items: center;
-	box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.1);
+  display: flex;
+  background: white;
+  border-radius: 16rpx;
+  margin-bottom: 20rpx;
+  overflow: hidden;
+  box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.1);
 }
 
 .dish-image {
-	width: 120rpx;
-	height: 120rpx;
-	border-radius: 12rpx;
-	margin-right: 20rpx;
+  width: 200rpx;
+  height: 200rpx;
+  flex-shrink: 0;
 }
 
-.dish-info {
-	flex: 1;
+.dish-content {
+  flex: 1;
+  padding: 20rpx;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.dish-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
 }
 
 .dish-name {
-	font-size: 30rpx;
-	font-weight: bold;
-	color: #333;
-	display: block;
-	margin-bottom: 8rpx;
+  font-size: 32rpx;
+  font-weight: bold;
+  color: #212529;
 }
 
-.dish-desc {
-	font-size: 24rpx;
-	color: #666;
-	display: block;
-	margin-bottom: 12rpx;
+.dish-chef {
+  font-size: 24rpx;
+  color: #6c757d;
+  margin: 8rpx 0;
 }
 
-.dish-meta {
-	display: flex;
-	justify-content: space-between;
-	align-items: center;
-}
-
-.chef-name {
-	font-size: 22rpx;
-	color: #999;
-}
-
-.dish-price {
-	font-size: 26rpx;
-	color: #ff6b6b;
-	font-weight: bold;
+.dish-tags {
+  display: flex;
+  gap: 8rpx;
+  margin-bottom: 16rpx;
 }
 
 .dish-actions {
-	margin-left: 20rpx;
+  display: flex;
+  gap: 16rpx;
 }
 
-.quantity-control {
-	display: flex;
-	align-items: center;
-	background: #f8f9fa;
-	border-radius: 25rpx;
-	padding: 5rpx;
+.order-popup {
+  padding: 30rpx;
 }
 
-.qty-btn {
-	width: 50rpx;
-	height: 50rpx;
-	border-radius: 25rpx;
-	background: white;
-	border: 1rpx solid #ddd;
-	color: #333;
-	font-size: 24rpx;
-	display: flex;
-	align-items: center;
-	justify-content: center;
+.popup-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 30rpx;
+  
+  .popup-title {
+    font-size: 36rpx;
+    font-weight: bold;
+  }
 }
 
-.qty-btn:disabled {
-	color: #ccc;
-	background: #f5f5f5;
+.selected-dish {
+  display: flex;
+  align-items: center;
+  padding: 20rpx;
+  background: #f8f9fa;
+  border-radius: 12rpx;
+  margin-bottom: 30rpx;
+  
+  image {
+    width: 120rpx;
+    height: 120rpx;
+    border-radius: 8rpx;
+    margin-right: 20rpx;
+  }
+  
+  .dish-info {
+    .dish-name {
+      font-size: 28rpx;
+      font-weight: bold;
+      display: block;
+    }
+    
+    .dish-chef {
+      font-size: 24rpx;
+      color: #6c757d;
+      margin-top: 8rpx;
+    }
+  }
 }
 
-.qty-text {
-	width: 60rpx;
-	text-align: center;
-	font-size: 26rpx;
-	color: #333;
-	font-weight: bold;
+.order-form {
+  .form-item {
+    margin-bottom: 30rpx;
+    
+    .label {
+      font-size: 28rpx;
+      font-weight: bold;
+      color: #212529;
+      display: block;
+      margin-bottom: 16rpx;
+    }
+  }
 }
 
-.order-summary {
-	position: fixed;
-	bottom: 0;
-	left: 0;
-	right: 0;
-	background: white;
-	padding: 30rpx;
-	box-shadow: 0 -4rpx 16rpx rgba(0, 0, 0, 0.1);
-	z-index: 999;
-}
-
-.summary-content {
-	display: flex;
-	justify-content: space-between;
-	align-items: center;
-}
-
-.summary-info {
-	display: flex;
-	flex-direction: column;
-}
-
-.summary-text {
-	font-size: 26rpx;
-	color: #666;
-	margin-bottom: 5rpx;
-}
-
-.summary-price {
-	font-size: 32rpx;
-	font-weight: bold;
-	color: #ff6b6b;
-}
-
-.submit-btn {
-	background: #ff6b6b;
-	color: white;
-	padding: 20rpx 40rpx;
-	border-radius: 25rpx;
-	font-size: 28rpx;
-	border: none;
-}
-
-.empty-state {
-	display: flex;
-	flex-direction: column;
-	align-items: center;
-	justify-content: center;
-	padding: 100rpx 0;
-}
-
-.empty-icon {
-	font-size: 100rpx;
-	margin-bottom: 30rpx;
-}
-
-.empty-text {
-	font-size: 28rpx;
-	color: #999;
+.popup-actions {
+  display: flex;
+  gap: 20rpx;
+  margin-top: 40rpx;
 }
 </style> 
