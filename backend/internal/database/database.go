@@ -1,91 +1,52 @@
 package database
 
 import (
-	"family-chef-backend/internal/config"
-	"family-chef-backend/internal/models"
 	"fmt"
 	"log"
-	"os"
-	"time"
 
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
+
+	"family-chef-backend/internal/config"
+	"family-chef-backend/internal/models"
 )
 
 var DB *gorm.DB
 
 // InitDatabase 初始化数据库连接
 func InitDatabase() error {
-	cfg := config.GlobalConfig.Database
-
-	// 配置GORM日志
-	newLogger := logger.New(
-		log.New(os.Stdout, "\r\n", log.LstdFlags),
-		logger.Config{
-			SlowThreshold:             time.Second,
-			LogLevel:                  logger.Info,
-			IgnoreRecordNotFoundError: true,
-			Colorful:                  true,
-		},
+	dsn := fmt.Sprintf("%s:%s@tcp(%s:%d)/%s?charset=utf8mb4&parseTime=True&loc=Local",
+		config.GlobalConfig.Database.Username,
+		config.GlobalConfig.Database.Password,
+		config.GlobalConfig.Database.Host,
+		config.GlobalConfig.Database.Port,
+		config.GlobalConfig.Database.DBName,
 	)
 
-	// 连接数据库
-	db, err := gorm.Open(mysql.Open(cfg.GetDSN()), &gorm.Config{
-		Logger: newLogger,
+	var err error
+	DB, err = gorm.Open(mysql.Open(dsn), &gorm.Config{
+		Logger: logger.Default.LogMode(logger.Info),
 	})
 	if err != nil {
-		return fmt.Errorf("连接数据库失败: %w", err)
+		return fmt.Errorf("连接数据库失败: %v", err)
 	}
-
-	// 配置连接池
-	sqlDB, err := db.DB()
-	if err != nil {
-		return fmt.Errorf("获取数据库实例失败: %w", err)
-	}
-
-	sqlDB.SetMaxIdleConns(cfg.MaxIdleConns)
-	sqlDB.SetMaxOpenConns(cfg.MaxOpenConns)
-	sqlDB.SetConnMaxLifetime(time.Duration(cfg.ConnMaxLifetime) * time.Second)
-
-	DB = db
-	log.Println("数据库连接成功")
 
 	// 自动迁移表结构
-	if err := AutoMigrate(); err != nil {
-		return fmt.Errorf("数据库迁移失败: %w", err)
+	if err := models.AutoMigrate(DB); err != nil {
+		return fmt.Errorf("数据库迁移失败: %v", err)
 	}
 
+	log.Println("数据库初始化成功")
 	return nil
-}
-
-// AutoMigrate 自动迁移数据库表结构
-func AutoMigrate() error {
-	return DB.AutoMigrate(
-		&models.User{},
-		&models.Family{},
-		&models.FamilyMember{},
-		&models.Invitation{},
-		&models.Ingredient{},
-		&models.Recipe{},
-		&models.RecipeIngredient{},
-		&models.ChefSkill{},
-		&models.Order{},
-		&models.OrderItem{},
-		&models.Review{},
-		&models.Memory{},
-		&models.PurchaseItem{},
-	)
 }
 
 // CloseDatabase 关闭数据库连接
-func CloseDatabase() error {
+func CloseDatabase() {
 	if DB != nil {
 		sqlDB, err := DB.DB()
-		if err != nil {
-			return err
+		if err == nil {
+			sqlDB.Close()
 		}
-		return sqlDB.Close()
 	}
-	return nil
 }

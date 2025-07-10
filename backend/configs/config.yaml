@@ -6,10 +6,10 @@ server:
 # 数据库配置
 database:
   driver: mysql
-  host: localhost
+  host: 8.130.46.71
   port: 3306
   username: root
-  password: your_password
+  password: YIhua1shijie
   dbname: family_chef
   charset: utf8mb4
   parse_time: true
@@ -20,7 +20,7 @@ database:
 
 # Redis配置
 redis:
-  host: localhost
+  host: 8.130.46.71
   port: 6379
   password: ""
   db: 0
@@ -39,12 +39,17 @@ jwt:
   expire_hours: 24
 
 # 腾讯云COS配置
-cos:
-  secret_id: your_secret_id
-  secret_key: your_secret_key
-  region: ap-beijing
-  bucket: your_bucket_name
-  domain: your_cos_domain
+# cos:
+#   secret_id: your_secret_id
+#   secret_key: your_secret_key
+#   region: ap-beijing
+#   bucket: your_bucket_name
+#   domain: your_cos_domain
+
+upload:
+  max_size: 10485760  # 10MB
+  allowed_types: ["jpg", "jpeg", "png", "gif"]
+  upload_path: "./uploads"
 
 # 日志配置
 log:

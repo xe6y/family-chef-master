@@ -14,9 +14,10 @@ type Config struct {
 	Redis    RedisConfig    `mapstructure:"redis"`
 	Wechat   WechatConfig   `mapstructure:"wechat"`
 	JWT      JWTConfig      `mapstructure:"jwt"`
-	COS      COSConfig      `mapstructure:"cos"`
-	Log      LogConfig      `mapstructure:"log"`
-	Upload   UploadConfig   `mapstructure:"upload"`
+	// COS      COSConfig      `mapstructure:"cos"`
+	LocalUpload LocalUploadConfig `mapstructure:"local_upload"`
+	Log         LogConfig         `mapstructure:"log"`
+	Upload      UploadConfig      `mapstructure:"upload"`
 }
 
 // ServerConfig 服务器配置
@@ -71,6 +72,13 @@ type COSConfig struct {
 	Region    string `mapstructure:"region"`
 	Bucket    string `mapstructure:"bucket"`
 	Domain    string `mapstructure:"domain"`
+}
+
+// 本地upload配置
+type LocalUploadConfig struct {
+	MaxSize      int64    `mapstructure:"max_size"`
+	AllowedTypes []string `mapstructure:"allowed_types"`
+	UploadPath   string   `mapstructure:"upload_path"`
 }
 
 // LogConfig 日志配置
