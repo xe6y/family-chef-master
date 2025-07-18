@@ -1,0 +1,85 @@
+<view class="order-create">
+    <view class="section">
+        <view class="section-title">选择菜品</view>
+
+        <view class="recipe-list">
+            <view class="recipe-item {{item.selected ? 'selected' : ''}}" wx:for="{{recipes}}" wx:key="id"
+                bindtap="toggleRecipe" data-id="{{item.id}}">
+                <image class="recipe-image" src="{{item.image || '/images/default-recipe.png'}}" mode="aspectFill">
+                </image>
+                <view class="recipe-info">
+                    <text class="recipe-name">{{item.name}}</text>
+                    <view class="recipe-meta">
+                        <text class="recipe-cuisine">{{item.cuisine}}</text>
+                        <text class="recipe-difficulty">难度 {{item.difficulty}}</text>
+                    </view>
+                    <view class="recipe-chef" wx:if="{{item.chefName}}">
+                        <image class="chef-avatar" src="{{item.chefAvatar || '/images/default-avatar.png'}}"></image>
+                        <text class="chef-name">{{item.chefName}}</text>
+                    </view>
+                </view>
+                <view class="recipe-quantity" catchtap="stopPropagation">
+                    <view class="quantity-btn minus {{item.quantity <= 0 ? 'disabled' : ''}}"
+                        catchtap="decreaseQuantity" data-id="{{item.id}}">-</view>
+                    <input class="quantity-input" type="number" value="{{item.quantity}}" disabled="{{!item.selected}}"
+                        data-id="{{item.id}}" bindinput="inputQuantity" />
+                    <view class="quantity-btn plus" catchtap="increaseQuantity" data-id="{{item.id}}">+</view>
+                </view>
+            </view>
+        </view>
+
+        <view class="empty-state" wx:if="{{recipes.length === 0}}">
+            <image class="empty-icon" src="/images/icons/empty-recipe.png"></image>
+            <text class="empty-text">暂无可点菜品</text>
+            <button class="add-btn" bindtap="goToRecipeList">去添加菜谱</button>
+        </view>
+    </view>
+
+    <view class="section">
+        <view class="section-title">选择厨师</view>
+
+        <view class="chef-list">
+            <view class="chef-item {{selectedChefId === item.id ? 'selected' : ''}}" wx:for="{{chefs}}" wx:key="id"
+                bindtap="selectChef" data-id="{{item.id}}">
+                <image class="chef-avatar" src="{{item.avatar || '/images/default-avatar.png'}}" mode="aspectFill">
+                </image>
+                <text class="chef-name">{{item.name}}</text>
+                <view class="chef-skill" wx:if="{{item.skillCount > 0}}">
+                    <text>{{item.skillCount}}道拿手菜</text>
+                </view>
+            </view>
+
+            <view class="chef-item {{selectedChefId === 0 ? 'selected' : ''}}" bindtap="selectChef" data-id="0">
+                <image class="chef-avatar" src="/images/icons/random.png" mode="aspectFill"></image>
+                <text class="chef-name">随机分配</text>
+            </view>
+        </view>
+    </view>
+
+    <view class="section">
+        <view class="section-title">订单信息</view>
+
+        <view class="form-item">
+            <text class="label">期望完成时间</text>
+            <picker mode="time" value="{{expectedTime}}" start="06:00" end="22:00" bindchange="changeExpectedTime">
+                <view class="picker">
+                    <text>{{expectedTime || '请选择'}}</text>
+                    <image class="arrow-icon" src="/images/icons/arrow-down.png"></image>
+                </view>
+            </picker>
+        </view>
+
+        <view class="form-item">
+            <text class="label">备注</text>
+            <textarea class="textarea" placeholder="请输入备注信息" value="{{remark}}" bindinput="inputRemark" />
+        </view>
+    </view>
+
+    <view class="bottom-bar">
+        <view class="order-summary">
+            <text class="order-count">已选 {{selectedCount}} 道菜</text>
+        </view>
+        <button class="submit-btn {{selectedCount === 0 ? 'disabled' : ''}}" bindtap="submitOrder"
+            disabled="{{selectedCount === 0}}" loading="{{loading}}">提交订单</button>
+    </view>
+</view>

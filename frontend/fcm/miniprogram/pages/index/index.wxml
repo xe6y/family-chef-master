@@ -1,0 +1,105 @@
+<view class="home-container">
+  <!-- 顶部用户信息 -->
+  <view class="user-family-bar">
+    <view class="user-info">
+      <image class="user-avatar" src="{{userInfo.avatarUrl || '/images/default-avatar.png'}}"></image>
+      <text class="welcome-text">{{greeting}}，{{userInfo.nickName || '亲爱的用户'}}</text>
+    </view>
+    <view class="family-selector" bindtap="switchFamily">
+      <text>{{currentFamily.name || '选择家庭'}}</text>
+      <image class="arrow-icon" src="/images/icons/arrow-down.png"></image>
+    </view>
+  </view>
+
+  <!-- 轮播图 -->
+  <swiper class="banner-swiper" indicator-dots autoplay circular>
+    <swiper-item wx:for="{{banners}}" wx:key="id">
+      <image src="{{item.image}}" class="banner-image" mode="aspectFill"></image>
+    </swiper-item>
+  </swiper>
+
+  <!-- 功能导航 -->
+  <view class="nav-grid">
+    <view class="nav-item" wx:for="{{navItems}}" wx:key="id" bindtap="navigateTo" data-url="{{item.url}}">
+      <image class="nav-icon" src="{{item.icon}}"></image>
+      <text class="nav-text">{{item.text}}</text>
+    </view>
+  </view>
+
+  <!-- 今日推荐 -->
+  <view class="section">
+    <view class="section-header">
+      <text class="section-title">今日推荐</text>
+      <view class="section-more" bindtap="navigateTo" data-url="/pages/recipe/list/list">
+        <text>更多</text>
+        <image class="arrow-right" src="/images/icons/arrow-right.png"></image>
+      </view>
+    </view>
+    <view class="recipe-scroll-container">
+      <scroll-view class="recipe-scroll" scroll-x>
+        <view class="recipe-card" wx:for="{{recommendRecipes}}" wx:key="id" bindtap="goToRecipeDetail" data-id="{{item.id}}">
+          <image class="recipe-image" src="{{item.image}}" mode="aspectFill"></image>
+          <view class="recipe-info">
+            <text class="recipe-name">{{item.name}}</text>
+            <view class="recipe-meta">
+              <text class="recipe-cuisine">{{item.cuisine}}</text>
+              <text class="recipe-difficulty">难度 {{item.difficulty}}</text>
+            </view>
+          </view>
+        </view>
+      </scroll-view>
+    </view>
+  </view>
+
+  <!-- 待处理订单 -->
+  <view class="section" wx:if="{{pendingOrders.length > 0}}">
+    <view class="section-header">
+      <text class="section-title">待处理订单</text>
+      <view class="section-more" bindtap="navigateTo" data-url="/pages/order/list/list">
+        <text>全部</text>
+        <image class="arrow-right" src="/images/icons/arrow-right.png"></image>
+      </view>
+    </view>
+    <view class="order-list">
+      <view class="order-item" wx:for="{{pendingOrders}}" wx:key="id" bindtap="goToOrderDetail" data-id="{{item.id}}">
+        <view class="order-header">
+          <text class="order-no">订单号: {{item.orderNo}}</text>
+          <text class="order-status">{{item.statusText}}</text>
+        </view>
+        <view class="order-content">
+          <view class="order-recipes">
+            <text wx:for="{{item.recipes}}" wx:for-item="recipe" wx:key="id" class="order-recipe">{{recipe.name}}{{recipe.quantity > 1 ? ' x' + recipe.quantity : ''}}</text>
+          </view>
+          <view class="order-info">
+            <text class="order-time">{{item.createTime}}</text>
+            <text class="order-user">{{item.userName}}</text>
+          </view>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 家宴回忆 -->
+  <view class="section">
+    <view class="section-header">
+      <text class="section-title">家宴回忆</text>
+      <view class="section-more" bindtap="navigateTo" data-url="/pages/memory/list/list">
+        <text>更多</text>
+        <image class="arrow-right" src="/images/icons/arrow-right.png"></image>
+      </view>
+    </view>
+    <view class="memory-list" wx:if="{{memories.length > 0}}">
+      <view class="memory-item" wx:for="{{memories}}" wx:key="id" bindtap="goToMemoryDetail" data-id="{{item.id}}">
+        <image class="memory-image" src="{{item.image}}" mode="aspectFill"></image>
+        <view class="memory-info">
+          <text class="memory-title">{{item.title}}</text>
+          <text class="memory-date">{{item.date}}</text>
+        </view>
+      </view>
+    </view>
+    <view class="empty-memory" wx:else bindtap="navigateTo" data-url="/pages/memory/create/create">
+      <image class="empty-icon" src="/images/icons/add-memory.png"></image>
+      <text class="empty-text">记录美好家宴时刻</text>
+    </view>
+  </view>
+</view>

@@ -1,0 +1,92 @@
+<view class="recipe-list">
+  <!-- 搜索栏 -->
+  <view class="search-bar">
+    <view class="search-input-wrap">
+      <image class="search-icon" src="/images/icons/search.png"></image>
+      <input 
+        class="search-input" 
+        placeholder="搜索菜谱" 
+        value="{{searchKeyword}}"
+        bindinput="onSearchInput"
+        bindconfirm="onSearch"
+      />
+      <image 
+        wx:if="{{searchKeyword}}" 
+        class="clear-icon" 
+        src="/images/icons/clear.png"
+        bindtap="clearSearch"
+      ></image>
+    </view>
+  </view>
+  
+  <!-- 筛选条件 -->
+  <view class="filter-bar">
+    <view class="filter-item {{activeFilter === 'cuisine' ? 'active' : ''}}" bindtap="toggleFilter" data-type="cuisine">
+      <text>菜系</text>
+      <image class="arrow-icon" src="/images/icons/arrow-down.png"></image>
+    </view>
+    <view class="filter-item {{activeFilter === 'taste' ? 'active' : ''}}" bindtap="toggleFilter" data-type="taste">
+      <text>口味</text>
+      <image class="arrow-icon" src="/images/icons/arrow-down.png"></image>
+    </view>
+    <view class="filter-item {{activeFilter === 'ingredient' ? 'active' : ''}}" bindtap="toggleFilter" data-type="ingredient">
+      <text>食材</text>
+      <image class="arrow-icon" src="/images/icons/arrow-down.png"></image>
+    </view>
+  </view>
+  
+  <!-- 筛选面板 -->
+  <view class="filter-panel" wx:if="{{activeFilter}}">
+    <scroll-view scroll-y class="filter-options">
+      <view 
+        class="filter-option {{item.selected ? 'selected' : ''}}" 
+        wx:for="{{filterOptions[activeFilter]}}" 
+        wx:key="value"
+        bindtap="selectFilterOption"
+        data-index="{{index}}"
+      >
+        {{item.label}}
+      </view>
+    </scroll-view>
+    <view class="filter-actions">
+      <button class="reset-btn" bindtap="resetFilter">重置</button>
+      <button class="confirm-btn" bindtap="confirmFilter">确定</button>
+    </view>
+  </view>
+  
+  <!-- 菜谱列表 -->
+  <view class="recipe-grid" wx:if="{{recipes.length > 0}}">
+    <view 
+      class="recipe-item" 
+      wx:for="{{recipes}}" 
+      wx:key="id"
+      bindtap="goToDetail"
+      data-id="{{item.id}}"
+    >
+      <image class="recipe-image" src="{{item.image || '/images/default-recipe.png'}}" mode="aspectFill"></image>
+      <view class="recipe-info">
+        <view class="recipe-name">{{item.name}}</view>
+        <view class="recipe-meta">
+          <text class="recipe-cuisine">{{item.cuisine}}</text>
+          <text class="recipe-difficulty">难度 {{item.difficulty}}</text>
+        </view>
+        <view class="recipe-chef" wx:if="{{item.chefName}}">
+          <image class="chef-avatar" src="{{item.chefAvatar || '/images/default-avatar.png'}}"></image>
+          <text class="chef-name">{{item.chefName}}</text>
+        </view>
+      </view>
+    </view>
+  </view>
+  
+  <!-- 空状态 -->
+  <view class="empty-state" wx:else>
+    <image class="empty-icon" src="/images/icons/empty-recipe.png"></image>
+    <text class="empty-text">暂无菜谱</text>
+    <button class="add-btn" bindtap="goToCreate">添加菜谱</button>
+  </view>
+  
+  <!-- 悬浮添加按钮 -->
+  <view class="float-btn" bindtap="goToCreate">
+    <image src="/images/icons/add.png"></image>
+  </view>
+</view>

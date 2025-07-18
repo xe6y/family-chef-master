@@ -1,0 +1,54 @@
+<view class="manage-family">
+  <view class="family-card">
+    <image class="family-avatar" src="{{family.avatar || '/images/default-family.png'}}" mode="aspectFill"></image>
+    <view class="family-info">
+      <text class="family-name">{{family.name}}</text>
+      <text class="family-desc">{{family.description || '暂无描述'}}</text>
+      <view class="family-meta">
+        <text class="family-member-count">成员: {{family.memberCount || 0}}人</text>
+        <text class="family-create-time">创建于: {{family.createdAt || '未知'}}</text>
+      </view>
+    </view>
+  </view>
+  
+  <view class="action-list">
+    <view class="action-item" bindtap="navigateTo" data-url="/pages/family/members/members">
+      <view class="action-icon">
+        <image src="/images/icons/members.png"></image>
+      </view>
+      <view class="action-content">
+        <text class="action-title">成员管理</text>
+        <text class="action-desc">查看和管理家庭成员</text>
+      </view>
+      <image class="action-arrow" src="/images/icons/arrow-right.png"></image>
+    </view>
+    
+    <view class="action-item" bindtap="showInviteCode">
+      <view class="action-icon">
+        <image src="/images/icons/invite.png"></image>
+      </view>
+      <view class="action-content">
+        <text class="action-title">邀请成员</text>
+        <text class="action-desc">生成邀请码邀请新成员</text>
+      </view>
+      <image class="action-arrow" src="/images/icons/arrow-right.png"></image>
+    </view>
+    
+    <view class="action-item" bindtap="navigateTo" data-url="/pages/family/edit/edit">
+      <view class="action-icon">
+        <image src="/images/icons/edit.png"></image>
+      </view>
+      <view class="action-content">
+        <text class="action-title">编辑家庭</text>
+        <text class="action-desc">修改家庭信息</text>
+      </view>
+      <image class="action-arrow" src="/images/icons/arrow-right.png"></image>
+    </view>
+  </view>
+  
+  <view class="danger-zone">
+    <text class="danger-title">危险操作</text>
+    <button class="danger-btn" bindtap="leaveFamily">退出家庭</button>
+    <button wx:if="{{isOwner}}" class="danger-btn" bindtap="dissolveFamily">解散家庭</button>
+  </view>
+</view>

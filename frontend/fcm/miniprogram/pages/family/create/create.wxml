@@ -1,0 +1,46 @@
+<view class="create-family">
+  <form bindsubmit="submitForm">
+    <view class="form-item">
+      <text class="label">家庭名称</text>
+      <input 
+        class="input" 
+        name="name" 
+        placeholder="请输入家庭名称" 
+        value="{{formData.name}}"
+        bindinput="inputName"
+      />
+      <view class="error" wx:if="{{errors.name}}">{{errors.name}}</view>
+    </view>
+    
+    <view class="form-item">
+      <text class="label">家庭简介</text>
+      <textarea 
+        class="textarea" 
+        name="description" 
+        placeholder="请输入家庭简介" 
+        value="{{formData.description}}"
+        bindinput="inputDescription"
+      />
+    </view>
+    
+    <view class="form-item">
+      <text class="label">家庭头像</text>
+      <view class="avatar-upload" bindtap="chooseImage">
+        <image wx:if="{{formData.avatar}}" src="{{formData.avatar}}" mode="aspectFill" class="avatar-preview"></image>
+        <view wx:else class="upload-placeholder">
+          <image src="/images/icons/camera.png" class="camera-icon"></image>
+          <text>上传头像</text>
+        </view>
+      </view>
+    </view>
+    
+    <view class="submit-area">
+      <button 
+        class="submit-btn" 
+        type="primary" 
+        form-type="submit"
+        loading="{{loading}}"
+      >创建家庭</button>
+    </view>
+  </form>
+</view>

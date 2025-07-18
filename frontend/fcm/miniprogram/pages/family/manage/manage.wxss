@@ -1,0 +1,130 @@
+.manage-family {
+  padding: 30rpx;
+}
+
+.family-card {
+  display: flex;
+  background-color: #fff;
+  border-radius: 12rpx;
+  padding: 30rpx;
+  margin-bottom: 30rpx;
+  box-shadow: 0 2rpx 10rpx rgba(0, 0, 0, 0.05);
+}
+
+.family-avatar {
+  width: 120rpx;
+  height: 120rpx;
+  border-radius: 12rpx;
+  margin-right: 20rpx;
+}
+
+.family-info {
+  flex: 1;
+}
+
+.family-name {
+  font-size: 32rpx;
+  font-weight: bold;
+  color: #333;
+  margin-bottom: 10rpx;
+  display: block;
+}
+
+.family-desc {
+  font-size: 26rpx;
+  color: #666;
+  margin-bottom: 15rpx;
+  display: block;
+}
+
+.family-meta {
+  display: flex;
+  justify-content: space-between;
+}
+
+.family-member-count, .family-create-time {
+  font-size: 24rpx;
+  color: #999;
+}
+
+.action-list {
+  background-color: #fff;
+  border-radius: 12rpx;
+  margin-bottom: 30rpx;
+  box-shadow: 0 2rpx 10rpx rgba(0, 0, 0, 0.05);
+}
+
+.action-item {
+  display: flex;
+  align-items: center;
+  padding: 30rpx;
+  border-bottom: 1rpx solid #f5f5f5;
+}
+
+.action-item:last-child {
+  border-bottom: none;
+}
+
+.action-icon {
+  width: 80rpx;
+  height: 80rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 20rpx;
+}
+
+.action-icon image {
+  width: 48rpx;
+  height: 48rpx;
+}
+
+.action-content {
+  flex: 1;
+}
+
+.action-title {
+  font-size: 28rpx;
+  color: #333;
+  margin-bottom: 6rpx;
+  display: block;
+}
+
+.action-desc {
+  font-size: 24rpx;
+  color: #999;
+  display: block;
+}
+
+.action-arrow {
+  width: 32rpx;
+  height: 32rpx;
+}
+
+.danger-zone {
+  background-color: #fff;
+  border-radius: 12rpx;
+  padding: 30rpx;
+  box-shadow: 0 2rpx 10rpx rgba(0, 0, 0, 0.05);
+}
+
+.danger-title {
+  font-size: 28rpx;
+  color: #ff4d4f;
+  margin-bottom: 20rpx;
+  display: block;
+}
+
+.danger-btn {
+  width: 100%;
+  height: 90rpx;
+  border-radius: 45rpx;
+  font-size: 32rpx;
+  color: #fff;
+  background-color: #ff4d4f;
+  margin-bottom: 20rpx;
+}
+
+.danger-btn:last-child {
+  margin-bottom: 0;
+}
