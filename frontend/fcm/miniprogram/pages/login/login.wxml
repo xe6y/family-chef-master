@@ -6,7 +6,17 @@
   </view>
   
   <view class="login-form">
+    <!-- Loading状态 -->
+    <view wx:if="{{loading}}" class="loading-container">
+      <view class="loading-spinner">
+        <view class="spinner"></view>
+      </view>
+      <text class="loading-text">登录中...</text>
+    </view>
+    
+    <!-- 正常登录按钮 -->
     <button 
+      wx:else
       class="login-btn" 
       type="primary" 
       open-type="getUserInfo" 
