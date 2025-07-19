@@ -9,21 +9,21 @@
     "pages/recipe/list/list",
     "pages/recipe/detail/detail",
     "pages/recipe/create/create",
-    "pages/order/create/create",
-    "pages/order/list/list",
-    "pages/order/detail/detail",
+    "pages/ingredients/list/list",
+    "pages/ingredients/detail/detail",
+    "pages/ingredients/create/create",
     "pages/user/profile/profile",
     "pages/user/settings/settings"
   ],
   "window": {
     "backgroundTextStyle": "light",
-    "navigationBarBackgroundColor": "#FF6B6B",
+    "navigationBarBackgroundColor": "#E9941E",
     "navigationBarTitleText": "Family Chef Master",
     "navigationBarTextStyle": "white"
   },
   "tabBar": {
-    "color": "#999999",
-    "selectedColor": "#FF6B6B",
+    "color": "#000000",
+    "selectedColor": "#E9941E",
     "backgroundColor": "#ffffff",
     "borderStyle": "black",
     "list": [
@@ -40,10 +40,10 @@
         "selectedIconPath": "images/tabbar/recipe_selected.png"
       },
       {
-        "pagePath": "pages/order/create/create",
+        "pagePath": "pages/ingredients/list/list",
         "text": "食材",
-        "iconPath": "images/tabbar/order.png",
-        "selectedIconPath": "images/tabbar/order_selected.png"
+        "iconPath": "images/tabbar/ingredients.png",
+        "selectedIconPath": "images/tabbar/ingredients_selected.png"
       },
       {
         "pagePath": "pages/user/profile/profile",
