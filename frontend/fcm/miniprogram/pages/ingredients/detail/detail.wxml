@@ -1,109 +1,105 @@
-<view class="order-detail">
-  <!-- 订单状态 -->
-  <view class="status-card">
-    <view class="status-icon {{order.statusClass}}">
-      <image src="/images/icons/status-{{order.status}}.png"></image>
-    </view>
-    <view class="status-info">
-      <text class="status-text">{{order.statusText}}</text>
-      <text class="status-desc">{{order.statusDesc}}</text>
-    </view>
-  </view>
-  
-  <!-- 订单信息 -->
-  <view class="info-card">
-    <view class="info-item">
-      <text class="info-label">订单号</text>
-      <text class="info-value">{{order.orderNo}}</text>
-    </view>
-    <view class="info-item">
-      <text class="info-label">下单时间</text>
-      <text class="info-value">{{order.createTime}}</text>
-    </view>
-    <view class="info-item">
-      <text class="info-label">期望完成时间</text>
-      <text class="info-value">{{order.expectedTime || '尽快完成'}}</text>
-    </view>
-    <view class="info-item">
-      <text class="info-label">厨师</text>
-      <text class="info-value">{{order.chefName || '随机分配'}}</text>
-    </view>
-    <view class="info-item" wx:if="{{order.completedTime}}">
-      <text class="info-label">完成时间</text>
-      <text class="info-value">{{order.completedTime}}</text>
+<view class="ingredient-detail">
+  <!-- 顶部图片区域 -->
+  <view class="image-section">
+    <image class="ingredient-image" src="{{ingredient.image || '/images/default-recipe.png'}}" mode="aspectFill"></image>
+    <view class="image-overlay">
+      <view class="back-btn" bindtap="goBack">
+        <image class="back-icon" src="/images/icons/arrow-right.png"></image>
+      </view>
+      <view class="action-buttons">
+        <view class="action-btn" bindtap="toggleFavorite">
+          <image class="action-icon" src="{{isFavorite ? '/images/icons/favorite-filled.png' : '/images/icons/favorite.png'}}"></image>
+        </view>
+        <view class="action-btn" bindtap="shareIngredient">
+          <image class="action-icon" src="/images/icons/share.png"></image>
+        </view>
+      </view>
     </view>
   </view>
-  
-  <!-- 菜品列表 -->
-  <view class="recipes-card">
-    <view class="card-title">菜品列表</view>
-    <view class="recipe-list">
-      <view class="recipe-item" wx:for="{{order.recipes}}" wx:key="id">
+
+  <!-- 基本信息 -->
+  <view class="info-section">
+    <view class="ingredient-header">
+      <text class="ingredient-name">{{ingredient.name}}</text>
+      <view class="price-tag">
+        <text class="price">¥{{ingredient.price || '免费'}}</text>
+      </view>
+    </view>
+    
+    <view class="ingredient-meta">
+      <view class="meta-item">
+        <text class="meta-label">分类</text>
+        <text class="meta-value">{{ingredient.category}}</text>
+      </view>
+      <view class="meta-item">
+        <text class="meta-label">库存</text>
+        <text class="meta-value {{ingredient.stock > 0 ? 'in-stock' : 'out-of-stock'}}">
+          {{ingredient.stock > 0 ? ingredient.stock + '件' : '缺货'}}
+        </text>
+      </view>
+      <view class="meta-item">
+        <text class="meta-label">单位</text>
+        <text class="meta-value">{{ingredient.unit || '件'}}</text>
+      </view>
+    </view>
+
+    <view class="description-section">
+      <text class="section-title">描述</text>
+      <text class="description-text">{{ingredient.description || '暂无描述'}}</text>
+    </view>
+  </view>
+
+  <!-- 营养成分 -->
+  <view class="nutrition-section" wx:if="{{ingredient.nutrition}}">
+    <text class="section-title">营养成分</text>
+    <view class="nutrition-grid">
+      <view class="nutrition-item" wx:for="{{ingredient.nutrition}}" wx:key="name">
+        <text class="nutrition-name">{{item.name}}</text>
+        <text class="nutrition-value">{{item.value}}</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 存储建议 -->
+  <view class="storage-section" wx:if="{{ingredient.storage}}">
+    <text class="section-title">存储建议</text>
+    <text class="storage-text">{{ingredient.storage}}</text>
+  </view>
+
+  <!-- 使用建议 -->
+  <view class="usage-section" wx:if="{{ingredient.usage}}">
+    <text class="section-title">使用建议</text>
+    <text class="usage-text">{{ingredient.usage}}</text>
+  </view>
+
+  <!-- 相关菜谱 -->
+  <view class="recipes-section" wx:if="{{relatedRecipes.length > 0}}">
+    <view class="section-header">
+      <text class="section-title">相关菜谱</text>
+      <text class="more-link" bindtap="viewMoreRecipes">查看更多</text>
+    </view>
+    <scroll-view class="recipes-scroll" scroll-x="true">
+      <view class="recipe-card" wx:for="{{relatedRecipes}}" wx:key="id" bindtap="goToRecipe" data-id="{{item.id}}">
         <image class="recipe-image" src="{{item.image || '/images/default-recipe.png'}}" mode="aspectFill"></image>
-        <view class="recipe-info">
-          <text class="recipe-name">{{item.name}}</text>
-          <view class="recipe-meta">
-            <text class="recipe-cuisine">{{item.cuisine}}</text>
-            <text wx:if="{{item.isChefSkill}}" class="recipe-skill">拿手菜</text>
-          </view>
-        </view>
-        <view class="recipe-quantity">
-          <text>x{{item.quantity}}</text>
-        </view>
+        <text class="recipe-name">{{item.name}}</text>
       </view>
-    </view>
+    </scroll-view>
   </view>
-  
-  <!-- 备注 -->
-  <view class="remark-card" wx:if="{{order.remark}}">
-    <view class="card-title">备注</view>
-    <view class="remark-content">
-      <text>{{order.remark}}</text>
-    </view>
-  </view>
-  
-  <!-- 评价 -->
-  <view class="review-card" wx:if="{{order.status === 3}}">
-    <view class="card-title">评价</view>
-    <view class="review-content" wx:if="{{order.review}}">
-      <view class="review-rating">
-        <image 
-          wx:for="{{[1, 2, 3, 4, 5]}}" 
-          wx:key="index" 
-          src="{{item <= order.review.rating ? '/images/icons/star-filled.png' : '/images/icons/star.png'}}"
-        ></image>
-      </view>
-      <text class="review-text">{{order.review.content}}</text>
-      <view class="review-images" wx:if="{{order.review.images && order.review.images.length > 0}}">
-        <image 
-          wx:for="{{order.review.images}}" 
-          wx:key="index" 
-          src="{{item}}" 
-          mode="aspectFill"
-          bindtap="previewImage"
-          data-url="{{item}}"
-          data-urls="{{order.review.images}}"
-        ></image>
-      </view>
-      <text class="review-time">{{order.review.createdAt}}</text>
-    </view>
-    <view class="no-review" wx:else>
-      <text>暂无评价</text>
-      <button class="review-btn" bindtap="goToReview">去评价</button>
-    </view>
-  </view>
-  
+
   <!-- 底部操作栏 -->
-  <view class="bottom-bar" wx:if="{{order.status !== 3 && order.status !== 4}}">
-    <block wx:if="{{order.status === 0}}">
-      <button class="action-btn cancel" bindtap="cancelOrder">取消订单</button>
-      <button wx:if="{{isChef}}" class="action-btn confirm" bindtap="confirmOrder">接单</button>
-    </block>
-    <block wx:if="{{order.status === 1 && isChef}}">
-      <button class="action-btn cooking" bindtap="startCooking">开始制作</button>
-    </block>
-    <block wx:if="{{order.status === 2 && isChef}}">
-      <button class="action-btn complete" bindtap="completeOrder">完成</button>
-    </block>
+  <view class="bottom-bar">
+    <view class="quantity-control">
+      <text class="quantity-label">数量</text>
+      <view class="quantity-buttons">
+        <view class="quantity-btn minus {{quantity <= 1 ? 'disabled' : ''}}" bindtap="decreaseQuantity">-</view>
+        <text class="quantity-text">{{quantity}}</text>
+        <view class="quantity-btn plus" bindtap="increaseQuantity">+</view>
+      </view>
+    </view>
+    
+    <view class="action-buttons">
+      <button class="edit-btn" bindtap="editIngredient">编辑</button>
+      <button class="delete-btn" bindtap="deleteIngredient">删除</button>
+    </view>
   </view>
-</view>
+</view> 

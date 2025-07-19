@@ -1,280 +1,193 @@
-// pages/order/create/create.js
+// pages/ingredients/create/create.js
 Page({
   data: {
-    recipes: [],
-    chefs: [],
-    selectedChefId: 0,
-    expectedTime: '',
-    remark: '',
-    selectedCount: 0,
-    loading: false
+    isEdit: false,
+    ingredientId: null,
+    saving: false,
+    categories: ['蔬菜', '肉类', '海鲜', '乳制品', '谷物', '调味料'],
+    categoryIndex: 0,
+    formData: {
+      name: '',
+      category: '',
+      price: '',
+      stock: '',
+      unit: '',
+      description: '',
+      nutrition: [],
+      storage: '',
+      usage: '',
+      image: ''
+    }
   },
 
   onLoad: function(options) {
-    // 如果有指定菜谱ID，则预选该菜谱
-    const recipeId = options.recipeId;
-    
-    this.loadRecipes(recipeId);
-    this.loadChefs();
-  },
-
-  // 加载菜谱列表
-  loadRecipes: function(selectedId) {
-    // 模拟加载菜谱列表
-    setTimeout(() => {
-      const mockRecipes = [
-        {
-          id: 1,
-          name: '红烧肉',
-          image: 'https://img.yzcdn.cn/vant/cat.jpeg',
-          cuisine: '川菜',
-          difficulty: 3,
-          chefName: '张大厨',
-          chefAvatar: 'https://img.yzcdn.cn/vant/cat.jpeg',
-          selected: selectedId == 1,
-          quantity: selectedId == 1 ? 1 : 0
-        },
-        {
-          id: 2,
-          name: '糖醋排骨',
-          image: 'https://img.yzcdn.cn/vant/cat.jpeg',
-          cuisine: '粤菜',
-          difficulty: 4,
-          selected: selectedId == 2,
-          quantity: selectedId == 2 ? 1 : 0
-        },
-        {
-          id: 3,
-          name: '麻婆豆腐',
-          image: 'https://img.yzcdn.cn/vant/cat.jpeg',
-          cuisine: '川菜',
-          difficulty: 2,
-          chefName: '李师傅',
-          chefAvatar: 'https://img.yzcdn.cn/vant/cat.jpeg',
-          selected: selectedId == 3,
-          quantity: selectedId == 3 ? 1 : 0
-        },
-        {
-          id: 4,
-          name: '鱼香肉丝',
-          image: 'https://img.yzcdn.cn/vant/cat.jpeg',
-          cuisine: '湘菜',
-          difficulty: 3,
-          selected: selectedId == 4,
-          quantity: selectedId == 4 ? 1 : 0
-        }
-      ];
-      
-      this.setData({
-        recipes: mockRecipes,
-        selectedCount: selectedId ? 1 : 0
+    const id = options.id;
+    if (id) {
+      this.setData({ 
+        isEdit: true, 
+        ingredientId: id 
       });
-    }, 500);
-  },
-
-  // 加载厨师列表
-  loadChefs: function() {
-    // 模拟加载厨师列表
-    setTimeout(() => {
-      const mockChefs = [
-        {
-          id: 1,
-          name: '张大厨',
-          avatar: 'https://img.yzcdn.cn/vant/cat.jpeg',
-          skillCount: 3
-        },
-        {
-          id: 2,
-          name: '李师傅',
-          avatar: 'https://img.yzcdn.cn/vant/cat.jpeg',
-          skillCount: 2
-        },
-        {
-          id: 3,
-          name: '王厨师',
-          avatar: 'https://img.yzcdn.cn/vant/cat.jpeg',
-          skillCount: 1
-        }
-      ];
-      
-      this.setData({
-        chefs: mockChefs
-      });
-    }, 500);
-  },
-
-  // 选择/取消选择菜谱
-  toggleRecipe: function(e) {
-    const id = e.currentTarget.dataset.id;
-    const recipes = this.data.recipes;
-    const index = recipes.findIndex(item => item.id === id);
-    
-    if (index !== -1) {
-      const selected = !recipes[index].selected;
-      recipes[index].selected = selected;
-      recipes[index].quantity = selected ? 1 : 0;
-      
-      let selectedCount = 0;
-      recipes.forEach(item => {
-        if (item.selected) {
-          selectedCount += item.quantity;
-        }
-      });
-      
-      this.setData({
-        recipes,
-        selectedCount
-      });
+      this.loadIngredientData(id);
     }
   },
 
-  // 阻止事件冒泡
-  stopPropagation: function(e) {
-    return;
+  // 加载食材数据（编辑模式）
+  loadIngredientData: function(id) {
+    // 模拟加载食材数据
+    const ingredient = {
+      id: parseInt(id),
+      name: '土豆',
+      category: '蔬菜',
+      price: '3.5',
+      stock: '50',
+      unit: '斤',
+      description: '新鲜土豆，富含淀粉和维生素C，适合各种烹饪方式。',
+      nutrition: [
+        { name: '热量', value: '77千卡' },
+        { name: '蛋白质', value: '2.0g' },
+        { name: '脂肪', value: '0.1g' }
+      ],
+      storage: '存放在阴凉干燥处，避免阳光直射。',
+      usage: '土豆去皮后可以切丝、切片、切块等不同形状。',
+      image: '/images/default-recipe.png'
+    };
+
+    const categoryIndex = this.data.categories.findIndex(cat => cat === ingredient.category);
+    
+    this.setData({
+      formData: ingredient,
+      categoryIndex: categoryIndex >= 0 ? categoryIndex : 0
+    });
   },
 
-  // 减少菜品数量
-  decreaseQuantity: function(e) {
-    const id = e.currentTarget.dataset.id;
-    const recipes = this.data.recipes;
-    const index = recipes.findIndex(item => item.id === id);
-    
-    if (index !== -1 && recipes[index].quantity > 0) {
-      recipes[index].quantity--;
-      
-      if (recipes[index].quantity === 0) {
-        recipes[index].selected = false;
+  // 选择图片
+  chooseImage: function() {
+    wx.chooseImage({
+      count: 1,
+      sizeType: ['compressed'],
+      sourceType: ['album', 'camera'],
+      success: (res) => {
+        this.setData({
+          'formData.image': res.tempFilePaths[0]
+        });
       }
-      
-      let selectedCount = 0;
-      recipes.forEach(item => {
-        if (item.selected) {
-          selectedCount += item.quantity;
-        }
-      });
-      
-      this.setData({
-        recipes,
-        selectedCount
-      });
-    }
+    });
   },
 
-  // 增加菜品数量
-  increaseQuantity: function(e) {
-    const id = e.currentTarget.dataset.id;
-    const recipes = this.data.recipes;
-    const index = recipes.findIndex(item => item.id === id);
+  // 输入处理函数
+  onNameInput: function(e) {
+    this.setData({ 'formData.name': e.detail.value });
+  },
+
+  onCategoryChange: function(e) {
+    const index = e.detail.value;
+    this.setData({
+      categoryIndex: index,
+      'formData.category': this.data.categories[index]
+    });
+  },
+
+  onPriceInput: function(e) {
+    this.setData({ 'formData.price': e.detail.value });
+  },
+
+  onStockInput: function(e) {
+    this.setData({ 'formData.stock': e.detail.value });
+  },
+
+  onUnitInput: function(e) {
+    this.setData({ 'formData.unit': e.detail.value });
+  },
+
+  onDescriptionInput: function(e) {
+    this.setData({ 'formData.description': e.detail.value });
+  },
+
+  onStorageInput: function(e) {
+    this.setData({ 'formData.storage': e.detail.value });
+  },
+
+  onUsageInput: function(e) {
+    this.setData({ 'formData.usage': e.detail.value });
+  },
+
+  // 营养成分管理
+  addNutrition: function() {
+    const nutrition = this.data.formData.nutrition;
+    nutrition.push({ name: '', value: '' });
+    this.setData({ 'formData.nutrition': nutrition });
+  },
+
+  deleteNutrition: function(e) {
+    const index = e.currentTarget.dataset.index;
+    const nutrition = this.data.formData.nutrition;
+    nutrition.splice(index, 1);
+    this.setData({ 'formData.nutrition': nutrition });
+  },
+
+  onNutritionNameInput: function(e) {
+    const index = e.currentTarget.dataset.index;
+    const nutrition = this.data.formData.nutrition;
+    nutrition[index].name = e.detail.value;
+    this.setData({ 'formData.nutrition': nutrition });
+  },
+
+  onNutritionValueInput: function(e) {
+    const index = e.currentTarget.dataset.index;
+    const nutrition = this.data.formData.nutrition;
+    nutrition[index].value = e.detail.value;
+    this.setData({ 'formData.nutrition': nutrition });
+  },
+
+  // 表单验证
+  validateForm: function() {
+    const formData = this.data.formData;
     
-    if (index !== -1) {
-      recipes[index].quantity++;
-      recipes[index].selected = true;
-      
-      let selectedCount = 0;
-      recipes.forEach(item => {
-        if (item.selected) {
-          selectedCount += item.quantity;
-        }
+    if (!formData.name.trim()) {
+      wx.showToast({
+        title: '请输入食材名称',
+        icon: 'none'
       });
-      
-      this.setData({
-        recipes,
-        selectedCount
-      });
+      return false;
     }
-  },
 
-  // 输入菜品数量
-  inputQuantity: function(e) {
-    const id = e.currentTarget.dataset.id;
-    const value = parseInt(e.detail.value) || 0;
-    const recipes = this.data.recipes;
-    const index = recipes.findIndex(item => item.id === id);
-    
-    if (index !== -1) {
-      recipes[index].quantity = value;
-      recipes[index].selected = value > 0;
-      
-      let selectedCount = 0;
-      recipes.forEach(item => {
-        if (item.selected) {
-          selectedCount += item.quantity;
-        }
+    if (!formData.category) {
+      wx.showToast({
+        title: '请选择分类',
+        icon: 'none'
       });
-      
-      this.setData({
-        recipes,
-        selectedCount
-      });
+      return false;
     }
+
+    return true;
   },
 
-  // 选择厨师
-  selectChef: function(e) {
-    const id = e.currentTarget.dataset.id;
-    this.setData({
-      selectedChefId: id
-    });
-  },
-
-  // 选择期望完成时间
-  changeExpectedTime: function(e) {
-    this.setData({
-      expectedTime: e.detail.value
-    });
-  },
-
-  // 输入备注
-  inputRemark: function(e) {
-    this.setData({
-      remark: e.detail.value
-    });
-  },
-
-  // 跳转到菜谱列表
-  goToRecipeList: function() {
-    wx.switchTab({
-      url: '/pages/recipe/list/list'
-    });
-  },
-
-  // 提交订单
-  submitOrder: function() {
-    if (this.data.selectedCount === 0) {
+  // 保存食材
+  saveIngredient: function() {
+    if (!this.validateForm()) {
       return;
     }
-    
-    this.setData({ loading: true });
-    
-    // 构建订单数据
-    const orderData = {
-      chefId: this.data.selectedChefId,
-      expectedTime: this.data.expectedTime,
-      remark: this.data.remark,
-      items: this.data.recipes
-        .filter(item => item.selected && item.quantity > 0)
-        .map(item => ({
-          recipeId: item.id,
-          quantity: item.quantity
-        }))
-    };
-    
-    // 模拟提交订单
+
+    this.setData({ saving: true });
+
+    // 模拟保存操作
     setTimeout(() => {
-      console.log('提交订单:', orderData);
-      
       wx.showToast({
-        title: '下单成功',
+        title: this.data.isEdit ? '更新成功' : '添加成功',
         icon: 'success'
       });
-      
+
+      this.setData({ saving: false });
+
+      // 返回上一页
       setTimeout(() => {
-        wx.redirectTo({
-          url: '/pages/order/list/list'
-        });
+        wx.navigateBack();
       }, 1500);
-      
-      this.setData({ loading: false });
     }, 1000);
+  },
+
+  // 返回上一页
+  goBack: function() {
+    wx.navigateBack();
   }
-});
+}); 

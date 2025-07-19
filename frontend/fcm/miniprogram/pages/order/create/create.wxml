@@ -1,0 +1,143 @@
+<view class="order-page">
+  <!-- 顶部搜索栏 -->
+  <view class="search-bar">
+    <view class="search-input-wrapper">
+      <image class="search-icon" src="/images/icons/search.png"></image>
+      <input class="search-input" placeholder="搜索菜品、厨师" value="{{searchKeyword}}" bindinput="onSearchInput" />
+      <image wx:if="{{searchKeyword}}" class="clear-icon" src="/images/icons/clear.png" bindtap="clearSearch"></image>
+    </view>
+  </view>
+
+  <!-- 分类标签 -->
+  <view class="category-tabs">
+    <scroll-view class="tabs-scroll" scroll-x="true">
+      <view class="tab-item {{currentCategory === item.id ? 'active' : ''}}" 
+            wx:for="{{categories}}" wx:key="id" 
+            bindtap="switchCategory" data-id="{{item.id}}">
+        {{item.name}}
+      </view>
+    </scroll-view>
+  </view>
+
+  <!-- 主要内容区域 -->
+  <view class="content-area">
+    <!-- 左侧菜品列表 -->
+    <view class="recipe-list">
+      <view class="recipe-item" wx:for="{{filteredRecipes}}" wx:key="id">
+        <image class="recipe-image" src="{{item.image || '/images/default-recipe.png'}}" mode="aspectFill"></image>
+        <view class="recipe-info">
+          <text class="recipe-name">{{item.name}}</text>
+          <text class="recipe-desc">{{item.description || '暂无描述'}}</text>
+          <view class="recipe-tags">
+            <text class="tag" wx:if="{{item.cuisine}}">{{item.cuisine}}</text>
+            <text class="tag difficulty-{{item.difficulty}}" wx:if="{{item.difficulty}}">难度{{item.difficulty}}</text>
+          </view>
+          <view class="recipe-chef" wx:if="{{item.chefName}}">
+            <image class="chef-avatar" src="{{item.chefAvatar || '/images/default-avatar.png'}}"></image>
+            <text class="chef-name">{{item.chefName}}</text>
+          </view>
+        </view>
+        <view class="recipe-action">
+          <view class="price-info">
+            <text class="price">¥{{item.price || '免费'}}</text>
+          </view>
+          <view class="quantity-control">
+            <view class="quantity-btn minus {{item.quantity <= 0 ? 'disabled' : ''}}" 
+                  catchtap="decreaseQuantity" data-id="{{item.id}}">-</view>
+            <text class="quantity-text" wx:if="{{item.quantity > 0}}">{{item.quantity}}</text>
+            <view class="quantity-btn plus" catchtap="increaseQuantity" data-id="{{item.id}}">+</view>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <!-- 右侧购物车 -->
+    <view class="cart-panel" wx:if="{{selectedCount > 0}}">
+      <view class="cart-header">
+        <text class="cart-title">已选菜品</text>
+        <text class="cart-count">{{selectedCount}}道</text>
+      </view>
+      
+      <scroll-view class="cart-list" scroll-y="true">
+        <view class="cart-item" wx:for="{{selectedRecipes}}" wx:key="id">
+          <image class="cart-item-image" src="{{item.image || '/images/default-recipe.png'}}" mode="aspectFill"></image>
+          <view class="cart-item-info">
+            <text class="cart-item-name">{{item.name}}</text>
+            <text class="cart-item-price">¥{{item.price || '免费'}}</text>
+          </view>
+          <view class="cart-item-control">
+            <view class="quantity-btn minus" catchtap="decreaseQuantity" data-id="{{item.id}}">-</view>
+            <text class="quantity-text">{{item.quantity}}</text>
+            <view class="quantity-btn plus" catchtap="increaseQuantity" data-id="{{item.id}}">+</view>
+          </view>
+        </view>
+      </scroll-view>
+
+      <view class="cart-footer">
+        <view class="total-info">
+          <text class="total-label">总计</text>
+          <text class="total-price">¥{{totalPrice}}</text>
+        </view>
+        <button class="checkout-btn" bindtap="showCheckoutModal" loading="{{loading}}">
+          去结算
+        </button>
+      </view>
+    </view>
+  </view>
+
+  <!-- 底部操作栏 -->
+  <view class="bottom-bar" wx:if="{{selectedCount === 0}}">
+    <view class="empty-cart">
+      <image class="empty-cart-icon" src="/images/icons/favorite.png"></image>
+      <text class="empty-cart-text">购物车空空如也</text>
+      <text class="empty-cart-hint">快去选择心仪的菜品吧~</text>
+    </view>
+  </view>
+
+  <!-- 结算弹窗 -->
+  <view class="checkout-modal" wx:if="{{showCheckoutModal}}" bindtap="hideCheckoutModal">
+    <view class="modal-content" catchtap="stopPropagation">
+      <view class="modal-header">
+        <text class="modal-title">确认订单</text>
+        <image class="close-btn" src="/images/icons/close.png" bindtap="hideCheckoutModal"></image>
+      </view>
+      
+      <view class="order-details">
+        <view class="detail-item">
+          <text class="detail-label">选择厨师</text>
+          <picker mode="selector" range="{{chefOptions}}" value="{{selectedChefIndex}}" bindchange="onChefChange">
+            <view class="picker-value">
+              <text>{{chefOptions[selectedChefIndex]}}</text>
+              <image class="arrow-icon" src="/images/icons/arrow-right.png"></image>
+            </view>
+          </picker>
+        </view>
+        
+        <view class="detail-item">
+          <text class="detail-label">期望时间</text>
+          <picker mode="time" value="{{expectedTime}}" start="06:00" end="22:00" bindchange="onTimeChange">
+            <view class="picker-value">
+              <text>{{expectedTime || '请选择'}}</text>
+              <image class="arrow-icon" src="/images/icons/arrow-right.png"></image>
+            </view>
+          </picker>
+        </view>
+        
+        <view class="detail-item">
+          <text class="detail-label">备注</text>
+          <textarea class="remark-input" placeholder="请输入备注信息" value="{{remark}}" bindinput="onRemarkInput" />
+        </view>
+      </view>
+      
+      <view class="modal-footer">
+        <view class="order-summary">
+          <text class="summary-text">{{selectedCount}}道菜</text>
+          <text class="summary-price">¥{{totalPrice}}</text>
+        </view>
+        <button class="submit-btn" bindtap="submitOrder" loading="{{submitting}}">
+          提交订单
+        </button>
+      </view>
+    </view>
+  </view>
+</view>

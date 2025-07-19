@@ -1,201 +1,182 @@
-// pages/order/detail/detail.js
+// pages/ingredients/detail/detail.js
 Page({
   data: {
-    order: {},
-    isChef: false,
-    loading: false
+    ingredient: {},
+    isFavorite: false,
+    quantity: 1,
+    relatedRecipes: []
   },
 
   onLoad: function(options) {
     const id = options.id;
-    
-    // 检查用户是否是厨师
-    this.checkUserRole();
-    
-    // 加载订单详情
-    this.loadOrderDetail(id);
+    if (id) {
+      this.loadIngredientDetail(id);
+      this.loadRelatedRecipes(id);
+    }
   },
 
-  // 检查用户角色
-  checkUserRole: function() {
-    // 模拟检查用户角色
-    setTimeout(() => {
-      this.setData({
-        isChef: true // 假设当前用户是厨师
-      });
-    }, 300);
+  // 加载食材详情
+  loadIngredientDetail: function(id) {
+    // 模拟食材详情数据
+    const ingredient = {
+      id: parseInt(id),
+      name: '土豆',
+      description: '新鲜土豆，富含淀粉和维生素C，适合各种烹饪方式。可以炒、煮、烤、炸等多种做法，是家庭烹饪的常用食材。',
+      image: '/images/default-recipe.png',
+      category: '蔬菜',
+      stock: 50,
+      price: 3.5,
+      unit: '斤',
+      nutrition: [
+        { name: '热量', value: '77千卡' },
+        { name: '蛋白质', value: '2.0g' },
+        { name: '脂肪', value: '0.1g' },
+        { name: '碳水化合物', value: '17.2g' },
+        { name: '膳食纤维', value: '2.2g' },
+        { name: '维生素C', value: '27mg' }
+      ],
+      storage: '存放在阴凉干燥处，避免阳光直射。室温下可保存1-2周，冰箱冷藏可保存更长时间。',
+      usage: '土豆去皮后可以切丝、切片、切块等不同形状。炒制时注意火候，避免糊锅。煮制时加入适量盐调味。'
+    };
+
+    this.setData({ ingredient: ingredient });
   },
 
-  // 加载订单详情
-  loadOrderDetail: function(id) {
-    this.setData({ loading: true });
-    
-    // 模拟加载订单详情
-    setTimeout(() => {
-      // 模拟订单数据
-      const mockOrder = {
-        id: parseInt(id),
-        orderNo: `O202507180000${id}`,
-        status: 0,
-        statusText: '待确认',
-        statusClass: 'pending',
-        statusDesc: '等待厨师接单',
-        recipes: [
-          { 
-            id: 1, 
-            name: '红烧肉', 
-            image: 'https://img.yzcdn.cn/vant/cat.jpeg', 
-            cuisine: '川菜',
-            quantity: 1,
-            isChefSkill: true
-          },
-          { 
-            id: 2, 
-            name: '糖醋排骨', 
-            image: 'https://img.yzcdn.cn/vant/cat.jpeg', 
-            cuisine: '粤菜',
-            quantity: 2,
-            isChefSkill: false
-          }
-        ],
-        chefName: '张大厨',
-        expectedTime: '12:30',
-        createTime: '2025-07-18 10:30',
-        completedTime: '',
-        remark: '排骨不要太甜，红烧肉多放点葱姜蒜',
-        review: null
-      };
-      
-      // 根据ID调整状态
-      if (id == 2) {
-        mockOrder.status = 1;
-        mockOrder.statusText = '已确认';
-        mockOrder.statusClass = 'confirmed';
-        mockOrder.statusDesc = '厨师已接单，准备制作';
-      } else if (id == 3) {
-        mockOrder.status = 2;
-        mockOrder.statusText = '制作中';
-        mockOrder.statusClass = 'cooking';
-        mockOrder.statusDesc = '厨师正在制作中';
-      } else if (id == 4) {
-        mockOrder.status = 3;
-        mockOrder.statusText = '已完成';
-        mockOrder.statusClass = 'completed';
-        mockOrder.statusDesc = '订单已完成';
-        mockOrder.completedTime = '2025-07-17 19:15';
-        mockOrder.review = {
-          rating: 5,
-          content: '非常好吃，肥而不腻，入口即化！',
-          images: ['https://img.yzcdn.cn/vant/cat.jpeg', 'https://img.yzcdn.cn/vant/cat.jpeg'],
-          createdAt: '2025-07-17 19:30'
-        };
-      } else if (id == 5) {
-        mockOrder.status = 3;
-        mockOrder.statusText = '已完成';
-        mockOrder.statusClass = 'completed';
-        mockOrder.statusDesc = '订单已完成';
-        mockOrder.completedTime = '2025-07-17 19:45';
+  // 加载相关菜谱
+  loadRelatedRecipes: function(ingredientId) {
+    // 模拟相关菜谱数据
+    const recipes = [
+      {
+        id: 1,
+        name: '土豆丝炒肉',
+        image: '/images/default-recipe.png'
+      },
+      {
+        id: 2,
+        name: '土豆炖牛肉',
+        image: '/images/default-recipe.png'
+      },
+      {
+        id: 3,
+        name: '土豆泥',
+        image: '/images/default-recipe.png'
+      },
+      {
+        id: 4,
+        name: '炸薯条',
+        image: '/images/default-recipe.png'
       }
-      
-      this.setData({
-        order: mockOrder,
-        loading: false
-      });
-    }, 500);
+    ];
+
+    this.setData({ relatedRecipes: recipes });
   },
 
-  // 预览图片
-  previewImage: function(e) {
-    const url = e.currentTarget.dataset.url;
-    const urls = e.currentTarget.dataset.urls || [url];
+  // 返回上一页
+  goBack: function() {
+    wx.navigateBack();
+  },
+
+  // 切换收藏状态
+  toggleFavorite: function() {
+    const isFavorite = !this.data.isFavorite;
+    this.setData({ isFavorite: isFavorite });
     
-    wx.previewImage({
-      current: url,
-      urls: urls
+    wx.showToast({
+      title: isFavorite ? '已收藏' : '已取消收藏',
+      icon: 'success'
     });
   },
 
-  // 取消订单
-  cancelOrder: function() {
+  // 分享食材
+  shareIngredient: function() {
+    wx.showShareMenu({
+      withShareTicket: true,
+      menus: ['shareAppMessage', 'shareTimeline']
+    });
+  },
+
+  // 增加数量
+  increaseQuantity: function() {
+    this.setData({
+      quantity: this.data.quantity + 1
+    });
+  },
+
+  // 减少数量
+  decreaseQuantity: function() {
+    if (this.data.quantity > 1) {
+      this.setData({
+        quantity: this.data.quantity - 1
+      });
+    }
+  },
+
+  // 查看更多菜谱
+  viewMoreRecipes: function() {
+    wx.navigateTo({
+      url: '/pages/recipe/list/list?ingredient=' + this.data.ingredient.name
+    });
+  },
+
+  // 跳转到菜谱详情
+  goToRecipe: function(e) {
+    const id = e.currentTarget.dataset.id;
+    wx.navigateTo({
+      url: `/pages/recipe/detail/detail?id=${id}`
+    });
+  },
+
+  // 编辑食材
+  editIngredient: function() {
+    wx.navigateTo({
+      url: `/pages/ingredients/create/create?id=${this.data.ingredient.id}`
+    });
+  },
+
+  // 删除食材
+  deleteIngredient: function() {
     wx.showModal({
-      title: '确认取消',
-      content: '确定要取消该订单吗？',
+      title: '确认删除',
+      content: '确定要删除这个食材吗？删除后无法恢复。',
+      confirmText: '删除',
+      confirmColor: '#f5222d',
       success: (res) => {
         if (res.confirm) {
-          this.setData({
-            'order.status': 4,
-            'order.statusText': '已取消',
-            'order.statusClass': 'canceled',
-            'order.statusDesc': '订单已取消'
+          // 模拟删除操作
+          wx.showLoading({
+            title: '删除中...'
           });
           
-          wx.showToast({
-            title: '已取消订单',
-            icon: 'success'
-          });
+          setTimeout(() => {
+            wx.hideLoading();
+            wx.showToast({
+              title: '删除成功',
+              icon: 'success'
+            });
+            
+            // 返回上一页
+            setTimeout(() => {
+              wx.navigateBack();
+            }, 1500);
+          }, 1000);
         }
       }
     });
   },
 
-  // 接单（确认订单）
-  confirmOrder: function() {
-    this.setData({
-      'order.status': 1,
-      'order.statusText': '已确认',
-      'order.statusClass': 'confirmed',
-      'order.statusDesc': '厨师已接单，准备制作'
-    });
-    
-    wx.showToast({
-      title: '已接单',
-      icon: 'success'
-    });
+  // 分享配置
+  onShareAppMessage: function() {
+    return {
+      title: `${this.data.ingredient.name} - 食材详情`,
+      path: `/pages/ingredients/detail/detail?id=${this.data.ingredient.id}`,
+      imageUrl: this.data.ingredient.image
+    };
   },
 
-  // 开始制作
-  startCooking: function() {
-    this.setData({
-      'order.status': 2,
-      'order.statusText': '制作中',
-      'order.statusClass': 'cooking',
-      'order.statusDesc': '厨师正在制作中'
-    });
-    
-    wx.showToast({
-      title: '开始制作',
-      icon: 'success'
-    });
-  },
-
-  // 完成订单
-  completeOrder: function() {
-    const now = new Date();
-    const year = now.getFullYear();
-    const month = String(now.getMonth() + 1).padStart(2, '0');
-    const day = String(now.getDate()).padStart(2, '0');
-    const hours = String(now.getHours()).padStart(2, '0');
-    const minutes = String(now.getMinutes()).padStart(2, '0');
-    const completedTime = `${year}-${month}-${day} ${hours}:${minutes}`;
-    
-    this.setData({
-      'order.status': 3,
-      'order.statusText': '已完成',
-      'order.statusClass': 'completed',
-      'order.statusDesc': '订单已完成',
-      'order.completedTime': completedTime
-    });
-    
-    wx.showToast({
-      title: '订单已完成',
-      icon: 'success'
-    });
-  },
-
-  // 跳转到评价页面
-  goToReview: function() {
-    wx.navigateTo({
-      url: `/pages/order/review/review?id=${this.data.order.id}`
-    });
+  onShareTimeline: function() {
+    return {
+      title: `${this.data.ingredient.name} - 食材详情`,
+      imageUrl: this.data.ingredient.image
+    };
   }
-});
+}); 

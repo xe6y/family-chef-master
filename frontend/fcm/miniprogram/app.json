@@ -9,6 +9,9 @@
     "pages/recipe/list/list",
     "pages/recipe/detail/detail",
     "pages/recipe/create/create",
+    "pages/order/create/create",
+    "pages/order/list/list",
+    "pages/order/detail/detail",
     "pages/ingredients/list/list",
     "pages/ingredients/detail/detail",
     "pages/ingredients/create/create",
@@ -38,6 +41,12 @@
         "text": "菜谱",
         "iconPath": "images/tabbar/recipe.png",
         "selectedIconPath": "images/tabbar/recipe_selected.png"
+      },
+      {
+        "pagePath": "pages/order/create/create",
+        "text": "点餐",
+        "iconPath": "images/tabbar/order.png",
+        "selectedIconPath": "images/tabbar/order_selected.png"
       },
       {
         "pagePath": "pages/ingredients/list/list",

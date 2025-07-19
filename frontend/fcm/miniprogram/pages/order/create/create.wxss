@@ -1,0 +1,465 @@
+/* 页面整体布局 */
+.order-page {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background-color: #f8f8f8;
+}
+
+/* 搜索栏 */
+.search-bar {
+  background: #fff;
+  padding: 20rpx 30rpx;
+  border-bottom: 1rpx solid #f0f0f0;
+}
+
+.search-input-wrapper {
+  display: flex;
+  align-items: center;
+  background: #f5f5f5;
+  border-radius: 25rpx;
+  padding: 15rpx 20rpx;
+}
+
+.search-icon {
+  width: 32rpx;
+  height: 32rpx;
+  margin-right: 15rpx;
+}
+
+.search-input {
+  flex: 1;
+  font-size: 28rpx;
+  color: #333;
+}
+
+.clear-icon {
+  width: 32rpx;
+  height: 32rpx;
+  margin-left: 15rpx;
+}
+
+/* 分类标签 */
+.category-tabs {
+  background: #fff;
+  border-bottom: 1rpx solid #f0f0f0;
+}
+
+.tabs-scroll {
+  white-space: nowrap;
+  padding: 0 30rpx;
+}
+
+.tab-item {
+  display: inline-block;
+  padding: 20rpx 30rpx;
+  margin-right: 20rpx;
+  font-size: 28rpx;
+  color: #666;
+  border-bottom: 4rpx solid transparent;
+  transition: all 0.3s;
+}
+
+.tab-item.active {
+  color: #E9941E;
+  border-bottom-color: #E9941E;
+  font-weight: 500;
+}
+
+/* 主要内容区域 */
+.content-area {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+}
+
+/* 菜品列表 */
+.recipe-list {
+  flex: 1;
+  padding: 20rpx;
+  overflow-y: auto;
+}
+
+.recipe-item {
+  background: #fff;
+  border-radius: 16rpx;
+  margin-bottom: 20rpx;
+  padding: 20rpx;
+  display: flex;
+  box-shadow: 0 2rpx 12rpx rgba(0, 0, 0, 0.05);
+}
+
+.recipe-image {
+  width: 120rpx;
+  height: 120rpx;
+  border-radius: 12rpx;
+  margin-right: 20rpx;
+}
+
+.recipe-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.recipe-name {
+  font-size: 32rpx;
+  font-weight: 500;
+  color: #333;
+  margin-bottom: 8rpx;
+}
+
+.recipe-desc {
+  font-size: 24rpx;
+  color: #999;
+  margin-bottom: 12rpx;
+  line-height: 1.4;
+}
+
+.recipe-tags {
+  display: flex;
+  gap: 10rpx;
+  margin-bottom: 12rpx;
+}
+
+.tag {
+  font-size: 22rpx;
+  padding: 4rpx 12rpx;
+  background: #f0f0f0;
+  color: #666;
+  border-radius: 12rpx;
+}
+
+.tag.difficulty-1 { background: #e8f5e8; color: #52c41a; }
+.tag.difficulty-2 { background: #fff7e6; color: #fa8c16; }
+.tag.difficulty-3 { background: #fff1f0; color: #f5222d; }
+
+.recipe-chef {
+  display: flex;
+  align-items: center;
+}
+
+.chef-avatar {
+  width: 32rpx;
+  height: 32rpx;
+  border-radius: 50%;
+  margin-right: 8rpx;
+}
+
+.chef-name {
+  font-size: 24rpx;
+  color: #666;
+}
+
+.recipe-action {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  justify-content: space-between;
+}
+
+.price-info {
+  text-align: right;
+}
+
+.price {
+  font-size: 32rpx;
+  font-weight: 600;
+  color: #E9941E;
+}
+
+.quantity-control {
+  display: flex;
+  align-items: center;
+  gap: 15rpx;
+}
+
+.quantity-btn {
+  width: 50rpx;
+  height: 50rpx;
+  border-radius: 50%;
+  background: #E9941E;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28rpx;
+  font-weight: 500;
+}
+
+.quantity-btn.disabled {
+  background: #f0f0f0;
+  color: #ccc;
+}
+
+.quantity-text {
+  font-size: 28rpx;
+  color: #333;
+  min-width: 40rpx;
+  text-align: center;
+}
+
+/* 购物车面板 */
+.cart-panel {
+  width: 300rpx;
+  background: #fff;
+  border-left: 1rpx solid #f0f0f0;
+  display: flex;
+  flex-direction: column;
+}
+
+.cart-header {
+  padding: 20rpx;
+  border-bottom: 1rpx solid #f0f0f0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.cart-title {
+  font-size: 28rpx;
+  font-weight: 500;
+  color: #333;
+}
+
+.cart-count {
+  font-size: 24rpx;
+  color: #E9941E;
+  background: #fff7e6;
+  padding: 4rpx 12rpx;
+  border-radius: 12rpx;
+}
+
+.cart-list {
+  flex: 1;
+  padding: 20rpx;
+}
+
+.cart-item {
+  display: flex;
+  align-items: center;
+  padding: 15rpx 0;
+  border-bottom: 1rpx solid #f5f5f5;
+}
+
+.cart-item-image {
+  width: 60rpx;
+  height: 60rpx;
+  border-radius: 8rpx;
+  margin-right: 15rpx;
+}
+
+.cart-item-info {
+  flex: 1;
+}
+
+.cart-item-name {
+  font-size: 26rpx;
+  color: #333;
+  margin-bottom: 4rpx;
+}
+
+.cart-item-price {
+  font-size: 24rpx;
+  color: #E9941E;
+}
+
+.cart-item-control {
+  display: flex;
+  align-items: center;
+  gap: 10rpx;
+}
+
+.cart-item-control .quantity-btn {
+  width: 40rpx;
+  height: 40rpx;
+  font-size: 24rpx;
+}
+
+.cart-item-control .quantity-text {
+  font-size: 24rpx;
+  min-width: 30rpx;
+}
+
+.cart-footer {
+  padding: 20rpx;
+  border-top: 1rpx solid #f0f0f0;
+}
+
+.total-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20rpx;
+}
+
+.total-label {
+  font-size: 28rpx;
+  color: #333;
+}
+
+.total-price {
+  font-size: 32rpx;
+  font-weight: 600;
+  color: #E9941E;
+}
+
+.checkout-btn {
+  width: 100%;
+  height: 80rpx;
+  background: #E9941E;
+  color: #fff;
+  border-radius: 40rpx;
+  font-size: 28rpx;
+  font-weight: 500;
+  border: none;
+}
+
+/* 底部空购物车 */
+.bottom-bar {
+  background: #fff;
+  padding: 40rpx;
+  text-align: center;
+}
+
+.empty-cart {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.empty-cart-icon {
+  width: 120rpx;
+  height: 120rpx;
+  margin-bottom: 20rpx;
+  opacity: 0.5;
+}
+
+.empty-cart-text {
+  font-size: 28rpx;
+  color: #999;
+  margin-bottom: 10rpx;
+}
+
+.empty-cart-hint {
+  font-size: 24rpx;
+  color: #ccc;
+}
+
+/* 结算弹窗 */
+.checkout-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: flex-end;
+  z-index: 1000;
+}
+
+.modal-content {
+  background: #fff;
+  border-radius: 24rpx 24rpx 0 0;
+  width: 100%;
+  max-height: 80vh;
+  overflow: hidden;
+}
+
+.modal-header {
+  padding: 30rpx;
+  border-bottom: 1rpx solid #f0f0f0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.modal-title {
+  font-size: 32rpx;
+  font-weight: 500;
+  color: #333;
+}
+
+.close-btn {
+  width: 40rpx;
+  height: 40rpx;
+}
+
+.order-details {
+  padding: 30rpx;
+}
+
+.detail-item {
+  margin-bottom: 30rpx;
+}
+
+.detail-label {
+  font-size: 28rpx;
+  color: #333;
+  margin-bottom: 15rpx;
+  display: block;
+}
+
+.picker-value {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20rpx;
+  background: #f8f8f8;
+  border-radius: 12rpx;
+  font-size: 28rpx;
+  color: #333;
+}
+
+.arrow-icon {
+  width: 24rpx;
+  height: 24rpx;
+}
+
+.remark-input {
+  width: 100%;
+  min-height: 120rpx;
+  padding: 20rpx;
+  background: #f8f8f8;
+  border-radius: 12rpx;
+  font-size: 28rpx;
+  color: #333;
+  border: none;
+}
+
+.modal-footer {
+  padding: 30rpx;
+  border-top: 1rpx solid #f0f0f0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.order-summary {
+  display: flex;
+  flex-direction: column;
+}
+
+.summary-text {
+  font-size: 24rpx;
+  color: #666;
+  margin-bottom: 5rpx;
+}
+
+.summary-price {
+  font-size: 32rpx;
+  font-weight: 600;
+  color: #E9941E;
+}
+
+.submit-btn {
+  background: #E9941E;
+  color: #fff;
+  border-radius: 40rpx;
+  padding: 20rpx 40rpx;
+  font-size: 28rpx;
+  font-weight: 500;
+  border: none;
+}

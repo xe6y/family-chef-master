@@ -1,85 +1,109 @@
-<view class="order-create">
-    <view class="section">
-        <view class="section-title">选择菜品</view>
+<view class="ingredient-form">
+  <!-- 顶部操作栏 -->
+  <view class="form-header">
+    <view class="back-btn" bindtap="goBack">
+      <image class="back-icon" src="/images/icons/arrow-right.png"></image>
+    </view>
+    <text class="form-title">{{isEdit ? '编辑食材' : '添加食材'}}</text>
+    <view class="save-btn" bindtap="saveIngredient" loading="{{saving}}">
+      <text class="save-text">保存</text>
+    </view>
+  </view>
 
-        <view class="recipe-list">
-            <view class="recipe-item {{item.selected ? 'selected' : ''}}" wx:for="{{recipes}}" wx:key="id"
-                bindtap="toggleRecipe" data-id="{{item.id}}">
-                <image class="recipe-image" src="{{item.image || '/images/default-recipe.png'}}" mode="aspectFill">
-                </image>
-                <view class="recipe-info">
-                    <text class="recipe-name">{{item.name}}</text>
-                    <view class="recipe-meta">
-                        <text class="recipe-cuisine">{{item.cuisine}}</text>
-                        <text class="recipe-difficulty">难度 {{item.difficulty}}</text>
-                    </view>
-                    <view class="recipe-chef" wx:if="{{item.chefName}}">
-                        <image class="chef-avatar" src="{{item.chefAvatar || '/images/default-avatar.png'}}"></image>
-                        <text class="chef-name">{{item.chefName}}</text>
-                    </view>
-                </view>
-                <view class="recipe-quantity" catchtap="stopPropagation">
-                    <view class="quantity-btn minus {{item.quantity <= 0 ? 'disabled' : ''}}"
-                        catchtap="decreaseQuantity" data-id="{{item.id}}">-</view>
-                    <input class="quantity-input" type="number" value="{{item.quantity}}" disabled="{{!item.selected}}"
-                        data-id="{{item.id}}" bindinput="inputQuantity" />
-                    <view class="quantity-btn plus" catchtap="increaseQuantity" data-id="{{item.id}}">+</view>
-                </view>
-            </view>
+  <!-- 表单内容 -->
+  <view class="form-content">
+    <!-- 图片上传 -->
+    <view class="form-section">
+      <text class="section-title">食材图片</text>
+      <view class="image-upload" bindtap="chooseImage">
+        <image wx:if="{{formData.image}}" class="uploaded-image" src="{{formData.image}}" mode="aspectFill"></image>
+        <view wx:else class="upload-placeholder">
+          <image class="upload-icon" src="/images/icons/camera.png"></image>
+          <text class="upload-text">点击上传图片</text>
         </view>
-
-        <view class="empty-state" wx:if="{{recipes.length === 0}}">
-            <image class="empty-icon" src="/images/icons/empty-recipe.png"></image>
-            <text class="empty-text">暂无可点菜品</text>
-            <button class="add-btn" bindtap="goToRecipeList">去添加菜谱</button>
-        </view>
+      </view>
     </view>
 
-    <view class="section">
-        <view class="section-title">选择厨师</view>
+    <!-- 基本信息 -->
+    <view class="form-section">
+      <text class="section-title">基本信息</text>
+      
+      <view class="form-item">
+        <text class="form-label">食材名称 *</text>
+        <input class="form-input" placeholder="请输入食材名称" value="{{formData.name}}" bindinput="onNameInput" />
+      </view>
 
-        <view class="chef-list">
-            <view class="chef-item {{selectedChefId === item.id ? 'selected' : ''}}" wx:for="{{chefs}}" wx:key="id"
-                bindtap="selectChef" data-id="{{item.id}}">
-                <image class="chef-avatar" src="{{item.avatar || '/images/default-avatar.png'}}" mode="aspectFill">
-                </image>
-                <text class="chef-name">{{item.name}}</text>
-                <view class="chef-skill" wx:if="{{item.skillCount > 0}}">
-                    <text>{{item.skillCount}}道拿手菜</text>
-                </view>
-            </view>
+      <view class="form-item">
+        <text class="form-label">分类 *</text>
+        <picker mode="selector" range="{{categories}}" value="{{categoryIndex}}" bindchange="onCategoryChange">
+          <view class="picker-wrapper">
+            <text class="picker-text">{{categories[categoryIndex] || '请选择分类'}}</text>
+            <image class="picker-arrow" src="/images/icons/arrow-down.png"></image>
+          </view>
+        </picker>
+      </view>
 
-            <view class="chef-item {{selectedChefId === 0 ? 'selected' : ''}}" bindtap="selectChef" data-id="0">
-                <image class="chef-avatar" src="/images/icons/random.png" mode="aspectFill"></image>
-                <text class="chef-name">随机分配</text>
-            </view>
-        </view>
+      <view class="form-item">
+        <text class="form-label">价格</text>
+        <input class="form-input" type="digit" placeholder="请输入价格" value="{{formData.price}}" bindinput="onPriceInput" />
+      </view>
+
+      <view class="form-item">
+        <text class="form-label">库存数量</text>
+        <input class="form-input" type="number" placeholder="请输入库存数量" value="{{formData.stock}}" bindinput="onStockInput" />
+      </view>
+
+      <view class="form-item">
+        <text class="form-label">单位</text>
+        <input class="form-input" placeholder="如：斤、个、包" value="{{formData.unit}}" bindinput="onUnitInput" />
+      </view>
     </view>
 
-    <view class="section">
-        <view class="section-title">订单信息</view>
-
-        <view class="form-item">
-            <text class="label">期望完成时间</text>
-            <picker mode="time" value="{{expectedTime}}" start="06:00" end="22:00" bindchange="changeExpectedTime">
-                <view class="picker">
-                    <text>{{expectedTime || '请选择'}}</text>
-                    <image class="arrow-icon" src="/images/icons/arrow-down.png"></image>
-                </view>
-            </picker>
-        </view>
-
-        <view class="form-item">
-            <text class="label">备注</text>
-            <textarea class="textarea" placeholder="请输入备注信息" value="{{remark}}" bindinput="inputRemark" />
-        </view>
+    <!-- 详细描述 -->
+    <view class="form-section">
+      <text class="section-title">详细描述</text>
+      <textarea class="form-textarea" placeholder="请描述食材的特点、用途等信息" value="{{formData.description}}" bindinput="onDescriptionInput" />
     </view>
 
-    <view class="bottom-bar">
-        <view class="order-summary">
-            <text class="order-count">已选 {{selectedCount}} 道菜</text>
+    <!-- 营养成分 -->
+    <view class="form-section">
+      <view class="section-header">
+        <text class="section-title">营养成分</text>
+        <view class="add-btn" bindtap="addNutrition">
+          <image class="add-icon" src="/images/icons/add.png"></image>
+          <text class="add-text">添加</text>
         </view>
-        <button class="submit-btn {{selectedCount === 0 ? 'disabled' : ''}}" bindtap="submitOrder"
-            disabled="{{selectedCount === 0}}" loading="{{loading}}">提交订单</button>
+      </view>
+      
+      <view class="nutrition-list">
+        <view class="nutrition-item" wx:for="{{formData.nutrition}}" wx:key="index">
+          <input class="nutrition-name-input" placeholder="营养成分名称" value="{{item.name}}" data-index="{{index}}" bindinput="onNutritionNameInput" />
+          <input class="nutrition-value-input" placeholder="含量" value="{{item.value}}" data-index="{{index}}" bindinput="onNutritionValueInput" />
+          <view class="delete-btn" bindtap="deleteNutrition" data-index="{{index}}">
+            <image class="delete-icon" src="/images/icons/delete.png"></image>
+          </view>
+        </view>
+      </view>
     </view>
-</view>
+
+    <!-- 存储建议 -->
+    <view class="form-section">
+      <text class="section-title">存储建议</text>
+      <textarea class="form-textarea" placeholder="请描述食材的存储方法和注意事项" value="{{formData.storage}}" bindinput="onStorageInput" />
+    </view>
+
+    <!-- 使用建议 -->
+    <view class="form-section">
+      <text class="section-title">使用建议</text>
+      <textarea class="form-textarea" placeholder="请描述食材的使用方法和烹饪建议" value="{{formData.usage}}" bindinput="onUsageInput" />
+    </view>
+  </view>
+
+  <!-- 底部操作栏 -->
+  <view class="bottom-bar">
+    <button class="cancel-btn" bindtap="goBack">取消</button>
+    <button class="submit-btn" bindtap="saveIngredient" loading="{{saving}}">
+      {{isEdit ? '更新' : '添加'}}
+    </button>
+  </view>
+</view> 

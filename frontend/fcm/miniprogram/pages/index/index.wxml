@@ -5,77 +5,26 @@
       <image class="user-avatar" src="{{userInfo.avatarUrl || '/images/default-avatar.png'}}"></image>
       <text class="welcome-text">{{greeting}}，{{userInfo.nickName || '亲爱的用户'}}</text>
     </view>
-    <view class="family-selector" bindtap="switchFamily">
-      <text>{{currentFamily.name || '选择家庭'}}</text>
-      <image class="arrow-icon" src="/images/icons/arrow-down.png"></image>
-    </view>
   </view>
 
-  <!-- 轮播图 -->
-  <swiper class="banner-swiper" indicator-dots autoplay circular>
-    <swiper-item wx:for="{{banners}}" wx:key="id">
-      <image src="{{item.image}}" class="banner-image" mode="aspectFill"></image>
-    </swiper-item>
-  </swiper>
-
-  <!-- 功能导航 -->
-  <view class="nav-grid">
-    <view class="nav-item" wx:for="{{navItems}}" wx:key="id" bindtap="navigateTo" data-url="{{item.url}}">
-      <image class="nav-icon" src="{{item.icon}}"></image>
-      <text class="nav-text">{{item.text}}</text>
-    </view>
-  </view>
-
-  <!-- 今日推荐 -->
+  <!-- 今日菜单，纵向排列 -->
   <view class="section">
     <view class="section-header">
-      <text class="section-title">今日推荐</text>
-      <view class="section-more" bindtap="navigateTo" data-url="/pages/recipe/list/list">
-        <text>更多</text>
-        <image class="arrow-right" src="/images/icons/arrow-right.png"></image>
-      </view>
+      <text class="section-title">今日菜单</text>
     </view>
-    <view class="recipe-scroll-container">
-      <scroll-view class="recipe-scroll" scroll-x>
-        <view class="recipe-card" wx:for="{{recommendRecipes}}" wx:key="id" bindtap="goToRecipeDetail" data-id="{{item.id}}">
-          <image class="recipe-image" src="{{item.image}}" mode="aspectFill"></image>
-          <view class="recipe-info">
-            <text class="recipe-name">{{item.name}}</text>
-            <view class="recipe-meta">
-              <text class="recipe-cuisine">{{item.cuisine}}</text>
-              <text class="recipe-difficulty">难度 {{item.difficulty}}</text>
-            </view>
-          </view>
-        </view>
-      </scroll-view>
+    <view class="menu-list">
+      <view class="menu-item" wx:for="{{menuList}}" wx:key="id">
+        <image src="{{item.image}}" class="menu-image" mode="aspectFill"></image>
+        <button class="btn-primary" bindtap="navigateTo" data-url="/pages/ingredients/list/list">已完成</button>
+      </view>
     </view>
   </view>
 
-  <!-- 待处理订单 -->
-  <view class="section" wx:if="{{pendingOrders.length > 0}}">
-    <view class="section-header">
-      <text class="section-title">待处理订单</text>
-      <view class="section-more" bindtap="navigateTo" data-url="/pages/order/list/list">
-        <text>全部</text>
-        <image class="arrow-right" src="/images/icons/arrow-right.png"></image>
-      </view>
-    </view>
-    <view class="order-list">
-      <view class="order-item" wx:for="{{pendingOrders}}" wx:key="id" bindtap="goToOrderDetail" data-id="{{item.id}}">
-        <view class="order-header">
-          <text class="order-no">订单号: {{item.orderNo}}</text>
-          <text class="order-status">{{item.statusText}}</text>
-        </view>
-        <view class="order-content">
-          <view class="order-recipes">
-            <text wx:for="{{item.recipes}}" wx:for-item="recipe" wx:key="id" class="order-recipe">{{recipe.name}}{{recipe.quantity > 1 ? ' x' + recipe.quantity : ''}}</text>
-          </view>
-          <view class="order-info">
-            <text class="order-time">{{item.createTime}}</text>
-            <text class="order-user">{{item.userName}}</text>
-          </view>
-        </view>
-      </view>
+  <!-- 我想吃/我想做 -->
+  <view class="section">
+    <view class="quick-actions-row">
+      <button class="btn-primary quick-action-btn" bindtap="navigateTo" data-url="/pages/ingredients/list/list">我想吃</button>
+      <button class="btn-primary quick-action-btn" bindtap="navigateTo" data-url="/pages/ingredients/list/list">我想做</button>
     </view>
   </view>
 
