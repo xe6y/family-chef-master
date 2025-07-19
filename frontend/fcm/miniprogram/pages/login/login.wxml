@@ -1,8 +1,8 @@
 <view class="login-container">
   <view class="logo-area">
     <image class="logo" src="/images/logo.png" mode="aspectFit"></image>
-    <text class="app-name">家庭厨师</text>
-    <text class="slogan">让每个家庭都能享受美食的乐趣</text>
+    <text class="app-name">Family Chef Master</text>
+    <text class="slogan">今天吃点什么呢~</text>
   </view>
   
   <view class="login-form">
@@ -11,7 +11,7 @@
       type="primary" 
       open-type="getUserInfo" 
       bindgetuserinfo="handleUserInfo">
-      微信一键登录
+      登录/注册
     </button>
     
     <view class="agreement">

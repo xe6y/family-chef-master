@@ -18,7 +18,7 @@
   "window": {
     "backgroundTextStyle": "light",
     "navigationBarBackgroundColor": "#FF6B6B",
-    "navigationBarTitleText": "家庭厨师",
+    "navigationBarTitleText": "Family Chef Master",
     "navigationBarTextStyle": "white"
   },
   "tabBar": {
@@ -41,7 +41,7 @@
       },
       {
         "pagePath": "pages/order/create/create",
-        "text": "点餐",
+        "text": "食材",
         "iconPath": "images/tabbar/order.png",
         "selectedIconPath": "images/tabbar/order_selected.png"
       },
