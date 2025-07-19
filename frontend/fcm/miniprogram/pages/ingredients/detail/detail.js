@@ -1,10 +1,13 @@
 // pages/ingredients/detail/detail.js
+const ingredientService = require('../../../services/ingredient');
+
 Page({
   data: {
     ingredient: {},
     isFavorite: false,
     quantity: 1,
-    relatedRecipes: []
+    relatedRecipes: [],
+    loading: false
   },
 
   onLoad: function(options) {
@@ -17,7 +20,40 @@ Page({
 
   // 加载食材详情
   loadIngredientDetail: function(id) {
-    // 模拟食材详情数据
+    this.setData({ loading: true });
+
+    ingredientService.getIngredient(id)
+      .then(ingredient => {
+        // 转换数据格式
+        const formattedIngredient = {
+          id: ingredient.id,
+          name: ingredient.name,
+          description: ingredient.description || '暂无描述',
+          image: ingredient.image || '/images/default-recipe.png',
+          category: ingredient.category || '其他',
+          stock: ingredient.stock || 0,
+          price: ingredient.price || 0,
+          unit: ingredient.unit || '件',
+          nutrition: ingredient.nutrition || [],
+          storage: ingredient.storage || '',
+          usage: ingredient.usage || ''
+        };
+
+        this.setData({ 
+          ingredient: formattedIngredient,
+          loading: false
+        });
+      })
+      .catch(err => {
+        console.error('加载食材详情失败:', err);
+        // 如果接口失败，使用模拟数据
+        this.loadMockIngredientDetail(id);
+        this.setData({ loading: false });
+      });
+  },
+
+  // 加载模拟食材详情数据（接口失败时的备用方案）
+  loadMockIngredientDetail: function(id) {
     const ingredient = {
       id: parseInt(id),
       name: '土豆',
@@ -44,7 +80,8 @@ Page({
 
   // 加载相关菜谱
   loadRelatedRecipes: function(ingredientId) {
-    // 模拟相关菜谱数据
+    // 这里可以调用菜谱服务获取相关菜谱
+    // 暂时使用模拟数据
     const recipes = [
       {
         id: 1,
@@ -142,23 +179,31 @@ Page({
       confirmColor: '#f5222d',
       success: (res) => {
         if (res.confirm) {
-          // 模拟删除操作
           wx.showLoading({
             title: '删除中...'
           });
           
-          setTimeout(() => {
-            wx.hideLoading();
-            wx.showToast({
-              title: '删除成功',
-              icon: 'success'
+          ingredientService.deleteIngredient(this.data.ingredient.id)
+            .then(() => {
+              wx.hideLoading();
+              wx.showToast({
+                title: '删除成功',
+                icon: 'success'
+              });
+              
+              // 返回上一页
+              setTimeout(() => {
+                wx.navigateBack();
+              }, 1500);
+            })
+            .catch(err => {
+              wx.hideLoading();
+              console.error('删除食材失败:', err);
+              wx.showToast({
+                title: '删除失败，请重试',
+                icon: 'none'
+              });
             });
-            
-            // 返回上一页
-            setTimeout(() => {
-              wx.navigateBack();
-            }, 1500);
-          }, 1000);
         }
       }
     });

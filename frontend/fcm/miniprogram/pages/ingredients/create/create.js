@@ -1,4 +1,6 @@
 // pages/ingredients/create/create.js
+const ingredientService = require('../../../services/ingredient');
+
 Page({
   data: {
     isEdit: false,
@@ -33,7 +35,35 @@ Page({
 
   // 加载食材数据（编辑模式）
   loadIngredientData: function(id) {
-    // 模拟加载食材数据
+    ingredientService.getIngredient(id)
+      .then(ingredient => {
+        const categoryIndex = this.data.categories.findIndex(cat => cat === ingredient.category);
+        
+        this.setData({
+          formData: {
+            name: ingredient.name || '',
+            category: ingredient.category || '',
+            price: ingredient.price ? ingredient.price.toString() : '',
+            stock: ingredient.stock ? ingredient.stock.toString() : '',
+            unit: ingredient.unit || '',
+            description: ingredient.description || '',
+            nutrition: ingredient.nutrition || [],
+            storage: ingredient.storage || '',
+            usage: ingredient.usage || '',
+            image: ingredient.image || ''
+          },
+          categoryIndex: categoryIndex >= 0 ? categoryIndex : 0
+        });
+      })
+      .catch(err => {
+        console.error('加载食材数据失败:', err);
+        // 如果接口失败，使用模拟数据
+        this.loadMockIngredientData(id);
+      });
+  },
+
+  // 加载模拟食材数据（接口失败时的备用方案）
+  loadMockIngredientData: function(id) {
     const ingredient = {
       id: parseInt(id),
       name: '土豆',
@@ -170,20 +200,47 @@ Page({
 
     this.setData({ saving: true });
 
-    // 模拟保存操作
-    setTimeout(() => {
-      wx.showToast({
-        title: this.data.isEdit ? '更新成功' : '添加成功',
-        icon: 'success'
+    // 准备提交数据
+    const submitData = {
+      name: this.data.formData.name,
+      category: this.data.formData.category,
+      price: parseFloat(this.data.formData.price) || 0,
+      stock: parseInt(this.data.formData.stock) || 0,
+      unit: this.data.formData.unit,
+      description: this.data.formData.description,
+      nutrition: this.data.formData.nutrition.filter(item => item.name && item.value),
+      storage: this.data.formData.storage,
+      usage: this.data.formData.usage,
+      image: this.data.formData.image
+    };
+
+    // 调用后端接口
+    const savePromise = this.data.isEdit 
+      ? ingredientService.updateIngredient(this.data.ingredientId, submitData)
+      : ingredientService.createIngredient(submitData);
+
+    savePromise
+      .then(result => {
+        wx.showToast({
+          title: this.data.isEdit ? '更新成功' : '添加成功',
+          icon: 'success'
+        });
+
+        this.setData({ saving: false });
+
+        // 返回上一页
+        setTimeout(() => {
+          wx.navigateBack();
+        }, 1500);
+      })
+      .catch(err => {
+        console.error('保存食材失败:', err);
+        this.setData({ saving: false });
+        wx.showToast({
+          title: '保存失败，请重试',
+          icon: 'none'
+        });
       });
-
-      this.setData({ saving: false });
-
-      // 返回上一页
-      setTimeout(() => {
-        wx.navigateBack();
-      }, 1500);
-    }, 1000);
   },
 
   // 返回上一页

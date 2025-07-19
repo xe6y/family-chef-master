@@ -1,5 +1,7 @@
 // utils/request.js
-const BASE_URL = 'https://api.example.com/api/v1';
+const config = require('../config/api');
+
+const BASE_URL = config.BASE_URL;
 const TOKEN_KEY = 'token';
 
 // 获取存储的token
@@ -29,24 +31,52 @@ const request = (options) => {
         'Content-Type': 'application/json',
         ...options.header
       },
+      timeout: config.REQUEST_CONFIG.TIMEOUT,
       success: (res) => {
         // 请求成功，处理响应
         if (res.statusCode >= 200 && res.statusCode < 300) {
-          resolve(res.data);
-        } else if (res.statusCode === 401) {
+          // 检查后端返回的数据格式
+          if (res.data && res.data.code === config.ERROR_CODES.SUCCESS) {
+            resolve(res.data.data);
+          } else {
+            // 后端返回错误
+            const errorMsg = res.data.message || '请求失败';
+            wx.showToast({
+              title: errorMsg,
+              icon: 'none'
+            });
+            reject(new Error(errorMsg));
+          }
+        } else if (res.statusCode === config.ERROR_CODES.UNAUTHORIZED) {
           // 未授权，清除token并跳转到登录页
           clearToken();
-          wx.navigateTo({
-            url: '/pages/login/login'
+          wx.showToast({
+            title: '登录已过期，请重新登录',
+            icon: 'none'
           });
+          setTimeout(() => {
+            wx.navigateTo({
+              url: '/pages/login/login'
+            });
+          }, 1500);
           reject(new Error('未授权，请重新登录'));
         } else {
           // 其他错误
-          reject(new Error(res.data.message || '请求失败'));
+          const errorMsg = res.data.message || '请求失败';
+          wx.showToast({
+            title: errorMsg,
+            icon: 'none'
+          });
+          reject(new Error(errorMsg));
         }
       },
       fail: (err) => {
         // 请求失败
+        console.error('请求失败:', err);
+        wx.showToast({
+          title: '网络请求失败',
+          icon: 'none'
+        });
         reject(err);
       }
     };
@@ -102,12 +132,46 @@ const del = (url, data = {}, options = {}) => {
   });
 };
 
+// 文件上传
+const uploadFile = (filePath, options = {}) => {
+  return new Promise((resolve, reject) => {
+    const token = getToken();
+    const uploadOptions = {
+      url: config.UPLOAD_URL,
+      filePath: filePath,
+      name: 'file',
+      header: {
+        'Authorization': token ? `Bearer ${token}` : ''
+      },
+      success: (res) => {
+        if (res.statusCode === 200) {
+          const data = JSON.parse(res.data);
+          if (data.code === config.ERROR_CODES.SUCCESS) {
+            resolve(data.data);
+          } else {
+            reject(new Error(data.message || '上传失败'));
+          }
+        } else {
+          reject(new Error('上传失败'));
+        }
+      },
+      fail: (err) => {
+        reject(err);
+      },
+      ...options
+    };
+
+    wx.uploadFile(uploadOptions);
+  });
+};
+
 module.exports = {
   request,
   get,
   post,
   put,
   del,
+  uploadFile,
   getToken,
   setToken,
   clearToken

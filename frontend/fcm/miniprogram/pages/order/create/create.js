@@ -1,5 +1,7 @@
 // pages/order/create/create.js
 const app = getApp();
+const menuService = require('../../../services/menu');
+const orderService = require('../../../services/order');
 
 Page({
   data: {
@@ -42,7 +44,41 @@ Page({
 
   // 加载菜品数据
   loadRecipes: function() {
-    // 模拟菜品数据
+    this.setData({ loading: true });
+
+    // 获取公共菜谱
+    menuService.getPublicMenus(1, 50)
+      .then(data => {
+        // 转换数据格式
+        const recipes = (data.list || data).map(item => ({
+          id: item.id,
+          name: item.name,
+          description: item.description || '暂无描述',
+          image: item.image || '/images/default-recipe.png',
+          cuisine: item.cuisine || '中餐',
+          difficulty: item.difficulty || 1,
+          price: item.price || 0,
+          chefName: item.chef_name,
+          chefAvatar: item.chef_avatar || '/images/default-avatar.png',
+          quantity: 0
+        }));
+
+        this.setData({
+          recipes: recipes,
+          filteredRecipes: recipes,
+          loading: false
+        });
+      })
+      .catch(err => {
+        console.error('加载菜谱失败:', err);
+        // 如果接口失败，使用模拟数据
+        this.loadMockRecipes();
+        this.setData({ loading: false });
+      });
+  },
+
+  // 加载模拟数据（接口失败时的备用方案）
+  loadMockRecipes: function() {
     const recipes = [
       {
         id: 1,
@@ -249,37 +285,51 @@ Page({
 
     // 构建订单数据
     const orderData = {
-      recipes: this.data.selectedRecipes,
-      chef: this.data.chefOptions[this.data.selectedChefIndex],
-      expectedTime: this.data.expectedTime,
+      user_id: app.globalData.userInfo.id,
+      family_id: app.globalData.userInfo.familyID,
+      chef_name: this.data.chefOptions[this.data.selectedChefIndex],
+      expected_time: this.data.expectedTime,
       remark: this.data.remark,
-      totalPrice: this.data.totalPrice,
-      totalCount: this.data.selectedCount
+      total_price: this.data.totalPrice,
+      items: this.data.selectedRecipes.map(item => ({
+        menu_id: item.id,
+        quantity: item.quantity,
+        price: item.price
+      }))
     };
 
-    // 模拟提交订单
-    setTimeout(() => {
-      wx.showToast({
-        title: '订单提交成功',
-        icon: 'success'
-      });
-
-      // 清空购物车
-      const recipes = this.data.recipes.map(item => ({ ...item, quantity: 0 }));
-      this.setData({
-        recipes: recipes,
-        submitting: false,
-        showCheckoutModal: false
-      });
-      this.updateCart();
-      this.filterRecipes();
-
-      // 跳转到订单列表
-      setTimeout(() => {
-        wx.switchTab({
-          url: '/pages/order/list/list'
+    // 提交订单到后端
+    orderService.createOrder(orderData)
+      .then(result => {
+        wx.showToast({
+          title: '订单提交成功',
+          icon: 'success'
         });
-      }, 1500);
-    }, 1000);
+
+        // 清空购物车
+        const recipes = this.data.recipes.map(item => ({ ...item, quantity: 0 }));
+        this.setData({
+          recipes: recipes,
+          submitting: false,
+          showCheckoutModal: false
+        });
+        this.updateCart();
+        this.filterRecipes();
+
+        // 跳转到订单列表
+        setTimeout(() => {
+          wx.switchTab({
+            url: '/pages/order/list/list'
+          });
+        }, 1500);
+      })
+      .catch(err => {
+        console.error('提交订单失败:', err);
+        this.setData({ submitting: false });
+        wx.showToast({
+          title: '提交订单失败，请重试',
+          icon: 'none'
+        });
+      });
   }
 });

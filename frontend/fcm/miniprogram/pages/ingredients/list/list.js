@@ -1,4 +1,6 @@
 // pages/ingredients/list/list.js
+const ingredientService = require('../../../services/ingredient');
+
 Page({
   data: {
     // 搜索和筛选
@@ -16,7 +18,8 @@ Page({
     
     // 食材数据
     ingredients: [],
-    filteredIngredients: []
+    filteredIngredients: [],
+    loading: false
   },
 
   onLoad: function(options) {
@@ -28,9 +31,48 @@ Page({
     this.loadIngredients();
   },
 
+  onPullDownRefresh: function() {
+    // 下拉刷新
+    this.loadIngredients().then(() => {
+      wx.stopPullDownRefresh();
+    });
+  },
+
   // 加载食材数据
   loadIngredients: function() {
-    // 模拟食材数据
+    this.setData({ loading: true });
+
+    // 获取食材列表
+    ingredientService.listIngredients(1, 100)
+      .then(data => {
+        // 转换数据格式
+        const ingredients = (data.list || data).map(item => ({
+          id: item.id,
+          name: item.name,
+          description: item.description || '暂无描述',
+          image: item.image || '/images/default-recipe.png',
+          category: item.category || '其他',
+          stock: item.stock || 0,
+          price: item.price || 0,
+          unit: item.unit || '件'
+        }));
+
+        this.setData({
+          ingredients: ingredients,
+          filteredIngredients: ingredients,
+          loading: false
+        });
+      })
+      .catch(err => {
+        console.error('加载食材失败:', err);
+        // 如果接口失败，使用模拟数据
+        this.loadMockIngredients();
+        this.setData({ loading: false });
+      });
+  },
+
+  // 加载模拟数据（接口失败时的备用方案）
+  loadMockIngredients: function() {
     const ingredients = [
       {
         id: 1,
@@ -39,7 +81,8 @@ Page({
         image: '/images/default-recipe.png',
         category: '蔬菜',
         stock: 50,
-        price: 3.5
+        price: 3.5,
+        unit: '斤'
       },
       {
         id: 2,
@@ -48,7 +91,8 @@ Page({
         image: '/images/default-recipe.png',
         category: '蔬菜',
         stock: 30,
-        price: 2.8
+        price: 2.8,
+        unit: '斤'
       },
       {
         id: 3,
@@ -57,7 +101,8 @@ Page({
         image: '/images/default-recipe.png',
         category: '肉类',
         stock: 20,
-        price: 25.0
+        price: 25.0,
+        unit: '斤'
       },
       {
         id: 4,
@@ -66,7 +111,8 @@ Page({
         image: '/images/default-recipe.png',
         category: '乳制品',
         stock: 100,
-        price: 1.2
+        price: 1.2,
+        unit: '个'
       },
       {
         id: 5,
@@ -75,7 +121,8 @@ Page({
         image: '/images/default-recipe.png',
         category: '谷物',
         stock: 200,
-        price: 5.5
+        price: 5.5,
+        unit: '斤'
       },
       {
         id: 6,
@@ -84,7 +131,8 @@ Page({
         image: '/images/default-recipe.png',
         category: '调味料',
         stock: 0,
-        price: 2.0
+        price: 2.0,
+        unit: '包'
       }
     ];
 
