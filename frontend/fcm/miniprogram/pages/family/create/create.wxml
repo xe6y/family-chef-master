@@ -1,46 +1,62 @@
-<view class="create-family">
-  <form bindsubmit="submitForm">
+<!--pages/family/create/create.wxml-->
+<view class="container">
+  <view class="header">
+    <view class="title">创建家庭</view>
+    <view class="subtitle">为你的家庭起个名字，让家人更容易找到</view>
+  </view>
+
+  <view class="form">
     <view class="form-item">
-      <text class="label">家庭名称</text>
+      <view class="label">家庭名称 <text class="required">*</text></view>
       <input 
-        class="input" 
-        name="name" 
-        placeholder="请输入家庭名称" 
+        class="input {{errors.name ? 'error' : ''}}"
+        placeholder="请输入家庭名称"
         value="{{formData.name}}"
         bindinput="inputName"
+        maxlength="20"
       />
-      <view class="error" wx:if="{{errors.name}}">{{errors.name}}</view>
+      <view class="error-text" wx:if="{{errors.name}}">{{errors.name}}</view>
     </view>
-    
+
     <view class="form-item">
-      <text class="label">家庭简介</text>
+      <view class="label">家庭描述</view>
       <textarea 
-        class="textarea" 
-        name="description" 
-        placeholder="请输入家庭简介" 
+        class="textarea {{errors.description ? 'error' : ''}}"
+        placeholder="介绍一下你的家庭（可选）"
         value="{{formData.description}}"
         bindinput="inputDescription"
+        maxlength="100"
       />
+      <view class="error-text" wx:if="{{errors.description}}">{{errors.description}}</view>
     </view>
-    
+
     <view class="form-item">
-      <text class="label">家庭头像</text>
-      <view class="avatar-upload" bindtap="chooseImage">
-        <image wx:if="{{formData.avatar}}" src="{{formData.avatar}}" mode="aspectFill" class="avatar-preview"></image>
-        <view wx:else class="upload-placeholder">
-          <image src="/images/icons/camera.png" class="camera-icon"></image>
-          <text>上传头像</text>
+      <view class="label">家庭头像</view>
+      <view class="avatar-section">
+        <view class="avatar-preview" bindtap="chooseAvatar">
+          <image 
+            wx:if="{{formData.avatar}}" 
+            src="{{formData.avatar}}" 
+            mode="aspectFill"
+            class="avatar-image"
+          />
+          <view wx:else class="avatar-placeholder">
+            <image src="/images/icons/camera.png" class="camera-icon" />
+            <text>点击选择头像</text>
+          </view>
         </view>
       </view>
     </view>
-    
-    <view class="submit-area">
-      <button 
-        class="submit-btn" 
-        type="primary" 
-        form-type="submit"
-        loading="{{loading}}"
-      >创建家庭</button>
-    </view>
-  </form>
+  </view>
+
+  <view class="footer">
+    <button 
+      class="submit-btn {{loading ? 'loading' : ''}}"
+      disabled="{{loading}}"
+      bindtap="submitCreate"
+    >
+      {{loading ? '创建中...' : '创建家庭'}}
+    </button>
+    <button class="skip-btn" bindtap="skipCreate">跳过</button>
+  </view>
 </view>

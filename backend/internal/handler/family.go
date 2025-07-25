@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"strconv"
 
+	"family-chef-backend/internal/dto"
 	"family-chef-backend/internal/models"
 	"family-chef-backend/internal/service"
 
@@ -24,21 +25,38 @@ func NewFamilyHandler() *FamilyHandler {
 
 // CreateFamily 创建家庭
 func (h *FamilyHandler) CreateFamily(c *gin.Context) {
-	var family models.SystemFamily
-	if err := c.ShouldBindJSON(&family); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "参数错误: " + err.Error()})
+	var req dto.CreateFamilyRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, dto.ErrorResponse(400, "参数错误: "+err.Error()))
 		return
 	}
 
-	if err := h.familyService.CreateFamily(&family); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "创建家庭失败: " + err.Error()})
+	// 生成邀请码
+	inviteCode := h.familyService.GenerateInviteCode()
+
+	family := &models.SystemFamily{
+		Name:        req.Name,
+		Description: req.Description,
+		OwnerID:     req.OwnerID,
+		InviteCode:  inviteCode,
+	}
+
+	if err := h.familyService.CreateFamily(family); err != nil {
+		c.JSON(http.StatusInternalServerError, dto.ErrorResponse(500, "创建家庭失败: "+err.Error()))
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"message": "家庭创建成功",
-		"data":    family,
-	})
+	response := dto.FamilyResponse{
+		ID:          family.ID,
+		Name:        family.Name,
+		Description: family.Description,
+		Avatar:      family.Avatar,
+		OwnerID:     family.OwnerID,
+		InviteCode:  family.InviteCode,
+		CreateTime:  family.CreateTime,
+	}
+
+	c.JSON(http.StatusOK, dto.SuccessResponse(response))
 }
 
 // GetFamily 获取家庭信息
@@ -46,17 +64,43 @@ func (h *FamilyHandler) GetFamily(c *gin.Context) {
 	idStr := c.Param("id")
 	id, err := strconv.ParseInt(idStr, 10, 64)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "无效的家庭ID"})
+		c.JSON(http.StatusBadRequest, dto.ErrorResponse(400, "无效的家庭ID"))
 		return
 	}
 
 	family, err := h.familyService.GetFamilyByID(id)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "家庭不存在"})
+		c.JSON(http.StatusNotFound, dto.ErrorResponse(404, "家庭不存在"))
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"data": family,
-	})
+	response := dto.FamilyResponse{
+		ID:          family.ID,
+		Name:        family.Name,
+		Description: family.Description,
+		Avatar:      family.Avatar,
+		OwnerID:     family.OwnerID,
+		InviteCode:  family.InviteCode,
+		CreateTime:  family.CreateTime,
+	}
+
+	c.JSON(http.StatusOK, dto.SuccessResponse(response))
+}
+
+// JoinFamily 加入家庭
+func (h *FamilyHandler) JoinFamily(c *gin.Context) {
+	var req dto.JoinFamilyRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, dto.ErrorResponse(400, "参数错误: "+err.Error()))
+		return
+	}
+
+	if err := h.familyService.JoinFamilyByInviteCode(req.InviteCode, req.UserID); err != nil {
+		c.JSON(http.StatusBadRequest, dto.ErrorResponse(400, "加入家庭失败: "+err.Error()))
+		return
+	}
+
+	c.JSON(http.StatusOK, dto.SuccessResponse(gin.H{
+		"message": "成功加入家庭",
+	}))
 }

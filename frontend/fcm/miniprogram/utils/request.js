@@ -33,14 +33,17 @@ const request = (options) => {
       },
       timeout: config.REQUEST_CONFIG.TIMEOUT,
       success: (res) => {
+        console.log('API响应:', res);
         // 请求成功，处理响应
         if (res.statusCode >= 200 && res.statusCode < 300) {
           // 检查后端返回的数据格式
           if (res.data && res.data.code === config.ERROR_CODES.SUCCESS) {
+            console.log('API成功，返回数据:', res.data.data);
             resolve(res.data.data);
           } else {
             // 后端返回错误
             const errorMsg = res.data.message || '请求失败';
+            console.error('API错误:', errorMsg, res.data);
             wx.showToast({
               title: errorMsg,
               icon: 'none'

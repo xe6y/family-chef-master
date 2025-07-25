@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"log"
 	"net/http"
 	"strconv"
 
@@ -130,10 +131,13 @@ func (h *UserHandler) UpdateUser(c *gin.Context) {
 	}
 
 	user := &models.SystemUser{
-		ID:       id,
-		Nickname: req.Nickname,
-		Avatar:   req.Avatar,
-		Phone:    req.Phone,
+		ID:         id,
+		Nickname:   req.Nickname,
+		Avatar:     req.Avatar,
+		Phone:      req.Phone,
+		Role:       req.Role,
+		FamilyID:   req.FamilyID,
+		FamilyRole: req.FamilyRole,
 	}
 
 	if err := h.userService.UpdateUser(user); err != nil {
@@ -141,15 +145,23 @@ func (h *UserHandler) UpdateUser(c *gin.Context) {
 		return
 	}
 
+	// 重新获取用户信息以确保数据正确
+	updatedUser, err := h.userService.GetUserByID(id)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, dto.ErrorResponse(500, "获取用户信息失败: "+err.Error()))
+		return
+	}
+
 	response := dto.UserResponse{
-		ID:         user.ID,
-		OpenID:     user.OpenID,
-		Nickname:   user.Nickname,
-		Avatar:     user.Avatar,
-		Phone:      user.Phone,
-		FamilyID:   user.FamilyID,
-		FamilyRole: user.FamilyRole,
-		CreateTime: user.CreateTime,
+		ID:         updatedUser.ID,
+		OpenID:     updatedUser.OpenID,
+		Nickname:   updatedUser.Nickname,
+		Avatar:     updatedUser.Avatar,
+		Phone:      updatedUser.Phone,
+		Role:       updatedUser.Role,
+		FamilyID:   updatedUser.FamilyID,
+		FamilyRole: updatedUser.FamilyRole,
+		CreateTime: updatedUser.CreateTime,
 	}
 
 	c.JSON(http.StatusOK, dto.SuccessResponse(response))
@@ -200,6 +212,7 @@ func (h *UserHandler) ListUsers(c *gin.Context) {
 			Nickname:   user.Nickname,
 			Avatar:     user.Avatar,
 			Phone:      user.Phone,
+			Role:       user.Role,
 			FamilyID:   user.FamilyID,
 			FamilyRole: user.FamilyRole,
 			CreateTime: user.CreateTime,
@@ -237,6 +250,7 @@ func (h *UserHandler) SearchUsers(c *gin.Context) {
 			Nickname:   user.Nickname,
 			Avatar:     user.Avatar,
 			Phone:      user.Phone,
+			Role:       user.Role,
 			FamilyID:   user.FamilyID,
 			FamilyRole: user.FamilyRole,
 			CreateTime: user.CreateTime,
@@ -256,10 +270,10 @@ func (h *UserHandler) GetUserStats(c *gin.Context) {
 	}
 
 	response := dto.UserStatsResponse{
-		TotalUsers:  stats["total_users"].(int64),
-		TodayUsers:  stats["today_users"].(int64),
-		FamilyUsers: stats["family_users"].(int64),
-		LonelyUsers: stats["lonely_users"].(int64),
+		TotalUsers:  stats["total_users"],
+		TodayUsers:  stats["today_users"],
+		FamilyUsers: stats["family_users"],
+		LonelyUsers: stats["lonely_users"],
 	}
 
 	c.JSON(http.StatusOK, dto.SuccessResponse(response))
@@ -280,4 +294,94 @@ func (h *UserHandler) DeleteUser(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, dto.SuccessResponse("用户删除成功"))
+}
+
+// Register 用户注册
+func (h *UserHandler) Register(c *gin.Context) {
+	var req dto.RegisterRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, dto.ErrorResponse(400, "参数错误: "+err.Error()))
+		return
+	}
+
+	// 检查用户是否已存在
+	existingUser, err := h.userService.GetUserByOpenID(req.OpenID)
+	if err == nil && existingUser != nil {
+		c.JSON(http.StatusBadRequest, dto.ErrorResponse(400, "用户已存在"))
+		return
+	}
+
+	// 执行注册
+	response, err := h.userService.RegisterUser(&req)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, dto.ErrorResponse(500, "注册失败: "+err.Error()))
+		return
+	}
+
+	c.JSON(http.StatusOK, dto.SuccessResponse(response))
+}
+
+// WechatLogin 微信登录
+func (h *UserHandler) WechatLogin(c *gin.Context) {
+	var req struct {
+		Code     string `json:"code" binding:"required"` // 微信登录code
+		UserInfo struct {
+			NickName  string `json:"nickName"`
+			AvatarUrl string `json:"avatarUrl"`
+			Gender    int    `json:"gender"`
+		} `json:"userInfo"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		log.Printf("微信登录参数错误: %v", err)
+		c.JSON(http.StatusBadRequest, dto.ErrorResponse(400, "参数错误: "+err.Error()))
+		return
+	}
+
+	log.Printf("微信登录请求: code=%s, userInfo=%+v", req.Code, req.UserInfo)
+
+	// 调用微信接口获取OpenID
+	openID, err := h.userService.Code2Session(req.Code)
+	if err != nil {
+		log.Printf("微信登录失败 - Code2Session错误: %v", err)
+		c.JSON(http.StatusInternalServerError, dto.ErrorResponse(500, "微信登录失败: "+err.Error()))
+		return
+	}
+
+	log.Printf("获取到OpenID: %s", openID)
+
+	// 检查用户是否已注册
+	user, err := h.userService.GetUserByOpenID(openID)
+	if err != nil {
+		// 用户不存在，返回未注册状态
+		log.Printf("用户未注册: OpenID=%s", openID)
+		response := map[string]interface{}{
+			"isRegistered": false,
+			"openID":       openID,
+			"userInfo":     req.UserInfo,
+		}
+		c.JSON(http.StatusOK, dto.SuccessResponse(response))
+		return
+	}
+
+	// 用户已注册，返回用户信息
+	log.Printf("用户已注册: ID=%d, OpenID=%s", user.ID, user.OpenID)
+	userResponse := dto.UserResponse{
+		ID:         user.ID,
+		OpenID:     user.OpenID,
+		Nickname:   user.Nickname,
+		Avatar:     user.Avatar,
+		Phone:      user.Phone,
+		Role:       user.Role,
+		FamilyID:   user.FamilyID,
+		FamilyRole: user.FamilyRole,
+		CreateTime: user.CreateTime,
+	}
+
+	response := map[string]interface{}{
+		"isRegistered": true,
+		"user":         userResponse,
+	}
+
+	c.JSON(http.StatusOK, dto.SuccessResponse(response))
 }

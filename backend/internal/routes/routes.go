@@ -13,6 +13,7 @@ func RegisterRoutes(r *gin.Engine) {
 	familyHandler := handler.NewFamilyHandler()
 	menuHandler := handler.NewMenuHandler()
 	orderHandler := handler.NewOrderHandler()
+	uploadHandler := handler.NewUploadHandler()
 
 	// API 版本组
 	v1 := r.Group("/api/v1")
@@ -39,11 +40,19 @@ func RegisterRoutes(r *gin.Engine) {
 			userRoutes.DELETE("/:id", userHandler.DeleteUser)               // 删除用户
 		}
 
+		// 微信登录路由
+		authRoutes := v1.Group("/auth")
+		{
+			authRoutes.POST("/wechat-login", userHandler.WechatLogin) // 微信登录
+			authRoutes.POST("/register", userHandler.Register)        // 用户注册
+		}
+
 		// 家庭相关路由
 		familyRoutes := v1.Group("/families")
 		{
 			familyRoutes.POST("/", familyHandler.CreateFamily)
 			familyRoutes.GET("/:id", familyHandler.GetFamily)
+			familyRoutes.POST("/join", familyHandler.JoinFamily)
 		}
 
 		// 菜谱相关路由
@@ -59,5 +68,8 @@ func RegisterRoutes(r *gin.Engine) {
 			orderRoutes.POST("/", orderHandler.CreateOrder)
 			orderRoutes.GET("/", orderHandler.GetOrders)
 		}
+
+		// 文件上传路由
+		v1.POST("/upload", uploadHandler.UploadFile)
 	}
 }

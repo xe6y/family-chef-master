@@ -43,22 +43,53 @@ Page({
 
   // 微信登录处理
   loginWithWechat: function(code, userInfo) {
-    // 先尝试根据OpenID获取用户信息
-    userService.getUserByOpenID(code)
-      .then(user => {
-        // 用户已存在，直接登录
-        this.loginSuccess(user, userInfo);
+    // 调用后端微信登录接口
+    const { post } = require('../../utils/request');
+    
+    post('/auth/wechat-login', {
+      code: code,
+      userInfo: userInfo
+    })
+      .then(response => {
+        // 检查用户是否已注册
+        if (response.isRegistered) {
+          // 用户已注册，直接登录成功
+          this.loginSuccess(response.user, userInfo);
+        } else {
+          // 用户未注册，跳转到注册页面
+          this.goToRegister(response.openID, userInfo);
+        }
       })
       .catch(err => {
-        // 用户不存在，创建新用户
-        this.createNewUser(code, userInfo);
+        // 登录失败
+        this.setData({ loading: false });
+        console.error('微信登录失败:', err);
+        wx.showToast({
+          title: '登录失败，请重试',
+          icon: 'none'
+        });
       });
+  },
+
+  // 跳转到注册页面
+  goToRegister: function(openID, userInfo) {
+    // 将用户信息传递给注册页面
+    const userInfoStr = encodeURIComponent(JSON.stringify({
+      ...userInfo,
+      openid: openID
+    }));
+    
+    wx.navigateTo({
+      url: `/pages/register/register?userInfo=${userInfoStr}`
+    });
+    
+    this.setData({ loading: false });
   },
 
   // 创建新用户
   createNewUser: function(openID, userInfo) {
     const userData = {
-      open_id: openID,
+      openid: openID,        // 改为 openid
       nickname: userInfo.nickName,
       avatar: userInfo.avatarUrl,
       phone: ''
@@ -84,7 +115,8 @@ Page({
     app.globalData.userInfo = {
       ...userInfo,
       id: user.id,
-      openID: user.open_id,
+      openID: user.openid,
+      role: user.role,
       familyID: user.family_id,
       familyRole: user.family_role
     };

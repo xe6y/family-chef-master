@@ -104,6 +104,10 @@ func LoadConfig(configPath string) error {
 	viper.SetConfigFile(configPath)
 	viper.SetConfigType("yaml")
 
+	// 支持环境变量
+	viper.AutomaticEnv()
+	viper.SetEnvPrefix("APP")
+
 	if err := viper.ReadInConfig(); err != nil {
 		return fmt.Errorf("读取配置文件失败: %w", err)
 	}
@@ -119,7 +123,7 @@ func LoadConfig(configPath string) error {
 
 // GetDSN 获取数据库连接字符串
 func (c *DatabaseConfig) GetDSN() string {
-	return fmt.Sprintf("%s:%s@tcp(%s:%d)/%s?charset=%s&parseTime=%t&loc=%s",
+	return fmt.Sprintf("%s:%s@tcp(%s:%d)/%s?charset=%s&parseTime=%t&loc=%s&sql_mode='NO_ENGINE_SUBSTITUTION'",
 		c.Username, c.Password, c.Host, c.Port, c.DBName, c.Charset, c.ParseTime, c.Loc)
 }
 

@@ -9,9 +9,10 @@ type SystemUser struct {
 	Nickname   string    `gorm:"type:varchar(255);column:nickname"`
 	Avatar     string    `gorm:"type:varchar(255);column:avatar"`
 	Phone      string    `gorm:"type:varchar(20);column:phone"`
+	Role       string    `gorm:"type:varchar(50);column:role"` // 用户角色：chef(大厨), foodie(美食家)
 	FamilyID   int64     `gorm:"index;column:family_id"`
 	FamilyRole string    `gorm:"type:varchar(50);column:family_role"`
-	CreateTime time.Time `gorm:"autoCreateTime;column:create_time"`
+	CreateTime time.Time `gorm:"autoCreateTime;column:create_time;autoUpdateTime:false"`
 }
 
 // TableName 指定表名

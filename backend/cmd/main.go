@@ -43,6 +43,9 @@ func main() {
 	// 注册路由
 	routes.RegisterRoutes(r)
 
+	// 静态文件服务
+	r.Static("/uploads", "./uploads")
+
 	// 创建HTTP服务器
 	srv := &http.Server{
 		Addr:    fmt.Sprintf(":%d", config.GlobalConfig.Server.Port),

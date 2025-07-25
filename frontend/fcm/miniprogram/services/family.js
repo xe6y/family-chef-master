@@ -41,6 +41,11 @@ const familyService = {
   // 更新成员角色
   updateMemberRole: (familyId, memberId, role) => {
     return put(`/families/${familyId}/members/${memberId}/role`, { role });
+  },
+
+  // 加入家庭
+  joinFamily: (inviteCode) => {
+    return post('/families/join', { invite_code: inviteCode });
   }
 };
 

@@ -9,7 +9,7 @@ database:
   host: 8.130.46.71
   port: 3306
   username: root
-  password: YIhua1shijie
+  password: _YIhua1shijie
   dbname: family_chef
   charset: utf8mb4
   parse_time: true
@@ -28,8 +28,8 @@ redis:
 
 # 微信小程序配置
 wechat:
-  app_id: your_app_id
-  app_secret: your_app_secret
+  app_id: wx054a43dbe543603e
+  app_secret: a110948295c1f66dd8f853a75ff73807
   token: your_token
   encoding_aes_key: your_encoding_aes_key
 
@@ -53,14 +53,8 @@ upload:
 
 # 日志配置
 log:
-  level: info  # debug, info, warn, error
+  level: debug  # debug, info, warn, error
   filename: logs/app.log
   max_size: 100
   max_age: 30
   max_backups: 10
-
-# 文件上传配置
-upload:
-  max_size: 10485760  # 10MB
-  allowed_types: ["jpg", "jpeg", "png", "gif"]
-  upload_path: "./uploads" 

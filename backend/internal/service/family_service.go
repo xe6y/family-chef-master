@@ -2,6 +2,7 @@ package service
 
 import (
 	"errors"
+	"math/rand"
 
 	"family-chef-backend/internal/database"
 	"family-chef-backend/internal/models"
@@ -251,4 +252,53 @@ func (s *FamilyService) SearchFamilies(keyword string, page, pageSize int) ([]mo
 	}
 
 	return families, total, nil
+}
+
+// JoinFamilyByInviteCode 通过邀请码加入家庭
+func (s *FamilyService) JoinFamilyByInviteCode(inviteCode string, userID int64) error {
+	// 查找邀请码对应的家庭
+	var family models.SystemFamily
+	if err := database.DB.Where("invite_code = ?", inviteCode).First(&family).Error; err != nil {
+		return errors.New("邀请码无效或已过期")
+	}
+
+	// 检查用户是否已在其他家庭
+	var user models.SystemUser
+	if err := database.DB.First(&user, userID).Error; err != nil {
+		return errors.New("用户不存在")
+	}
+
+	if user.FamilyID > 0 && user.FamilyID != family.ID {
+		return errors.New("用户已在其他家庭中")
+	}
+
+	// 检查用户是否已在该家庭中
+	if user.FamilyID == family.ID {
+		return errors.New("用户已在该家庭中")
+	}
+
+	// 使用事务更新用户家庭信息
+	return database.DB.Transaction(func(tx *gorm.DB) error {
+		updates := map[string]interface{}{
+			"family_id":   family.ID,
+			"family_role": "member",
+		}
+
+		if err := tx.Model(&models.SystemUser{}).Where("id = ?", userID).Updates(updates).Error; err != nil {
+			return err
+		}
+
+		return nil
+	})
+}
+
+// GenerateInviteCode 生成邀请码
+func (s *FamilyService) GenerateInviteCode() string {
+	// 生成6位随机邀请码
+	const charset = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+	code := make([]byte, 6)
+	for i := range code {
+		code[i] = charset[rand.Intn(len(charset))]
+	}
+	return string(code)
 }
