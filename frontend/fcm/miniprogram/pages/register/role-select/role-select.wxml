@@ -1,0 +1,62 @@
+<!--pages/register/role-select/role-select.wxml-->
+<view class="container">
+  <!-- 背景装饰 -->
+  <view class="background-decoration">
+    <view class="circle circle-1"></view>
+    <view class="circle circle-2"></view>
+  </view>
+
+  <!-- 主要内容 -->
+  <view class="main-content">
+    <!-- 头部 -->
+    <view class="header">
+      <view class="back-button" bindtap="goBack">
+        <image src="/images/icons/arrow-left.png" mode="aspectFit"></image>
+      </view>
+      <view class="header-content">
+        <view class="title">选择你的身份</view>
+        <view class="subtitle">选择最适合你的身份，开始你的美食之旅</view>
+      </view>
+    </view>
+
+    <!-- 角色列表 -->
+    <view class="role-container">
+      <view class="role-card">
+        <view 
+          class="role-item {{selectedRole === item.id ? 'selected' : ''}}"
+          wx:for="{{roles}}"
+          wx:key="id"
+          data-role="{{item.id}}"
+          bindtap="selectRole"
+        >
+          <view class="role-content">
+            <view class="role-icon">
+              <text class="icon-text">{{item.icon}}</text>
+            </view>
+            <view class="role-info">
+              <view class="role-name">{{item.name}}</view>
+              <view class="role-description">{{item.description}}</view>
+            </view>
+          </view>
+          <view class="role-check">
+            <view class="check-circle {{selectedRole === item.id ? 'checked' : ''}}"></view>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <!-- 底部按钮 -->
+    <view class="footer">
+      <button 
+        class="confirm-button {{selectedRole ? 'active' : ''}}"
+        disabled="{{!selectedRole || loading}}"
+        bindtap="confirmRole"
+      >
+        <view class="button-content">
+          <text class="button-text">{{loading ? '处理中...' : '确认选择'}}</text>
+        </view>
+        <view class="button-background"></view>
+      </button>
+    </view>
+  </view>
+</view> 

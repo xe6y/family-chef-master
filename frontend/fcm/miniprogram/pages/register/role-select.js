@@ -82,5 +82,10 @@ Page({
       .finally(() => {
         this.setData({ loading: false });
       });
+  },
+
+  // 返回上一页
+  goBack: function() {
+    wx.navigateBack();
   }
 }); 

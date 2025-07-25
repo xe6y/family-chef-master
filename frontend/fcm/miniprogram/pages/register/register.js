@@ -53,6 +53,11 @@ Page({
     });
   },
 
+  // 返回上一页
+  goBack: function() {
+    wx.navigateBack();
+  },
+
   // 切换邀请码输入显示
   toggleInviteInput: function() {
     this.setData({
