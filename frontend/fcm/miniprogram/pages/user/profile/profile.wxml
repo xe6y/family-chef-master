@@ -1,7 +1,7 @@
 <view class="profile-container">
   <!-- 用户信息卡片 -->
   <view class="user-card">
-    <view class="user-info">
+    <view class="user-header">
       <image class="user-avatar" src="{{userInfo.avatarUrl || '/images/default-avatar.png'}}" mode="aspectFill"></image>
       <view class="user-details">
         <text class="user-name">{{userInfo.nickName || '未登录'}}</text>
@@ -25,74 +25,90 @@
   </view>
   
   <!-- 功能菜单 -->
-  <view class="menu-list">
-    <view class="menu-group">
-      <view class="menu-item" bindtap="navigateTo" data-url="/pages/family/manage/manage">
-        <view class="menu-icon">
-          <image src="/images/icons/family.png"></image>
+  <view class="menu-sections">
+    <!-- 家庭管理组 -->
+    <view class="menu-section">
+      <view class="section-title">家庭管理</view>
+      <view class="menu-list">
+        <view class="menu-item" bindtap="navigateTo" data-url="/pages/family/manage/manage">
+          <view class="menu-icon">
+            <image src="/images/icons/family.png"></image>
+          </view>
+          <view class="menu-content">
+            <text class="menu-title">家庭管理</text>
+            <text class="menu-subtitle">管理家庭成员和设置</text>
+          </view>
+          <image class="menu-arrow" src="/images/icons/arrow-right.png"></image>
         </view>
-        <view class="menu-content">
-          <text class="menu-title">家庭管理</text>
+        
+        <view class="menu-item" bindtap="navigateTo" data-url="/pages/user/chef-skills/chef-skills">
+          <view class="menu-icon">
+            <image src="/images/icons/chef.png"></image>
+          </view>
+          <view class="menu-content">
+            <text class="menu-title">我的拿手菜</text>
+            <text class="menu-subtitle">展示你的烹饪技能</text>
+          </view>
+          <image class="menu-arrow" src="/images/icons/arrow-right.png"></image>
         </view>
-        <image class="menu-arrow" src="/images/icons/arrow-right.png"></image>
-      </view>
-      
-      <view class="menu-item" bindtap="navigateTo" data-url="/pages/user/chef-skills/chef-skills">
-        <view class="menu-icon">
-          <image src="/images/icons/chef.png"></image>
+        
+        <view class="menu-item" bindtap="navigateTo" data-url="/pages/user/favorites/favorites">
+          <view class="menu-icon">
+            <image src="/images/icons/favorite.png"></image>
+          </view>
+          <view class="menu-content">
+            <text class="menu-title">我的收藏</text>
+            <text class="menu-subtitle">查看收藏的菜谱</text>
+          </view>
+          <image class="menu-arrow" src="/images/icons/arrow-right.png"></image>
         </view>
-        <view class="menu-content">
-          <text class="menu-title">我的拿手菜</text>
-        </view>
-        <image class="menu-arrow" src="/images/icons/arrow-right.png"></image>
-      </view>
-      
-      <view class="menu-item" bindtap="navigateTo" data-url="/pages/user/favorites/favorites">
-        <view class="menu-icon">
-          <image src="/images/icons/favorite.png"></image>
-        </view>
-        <view class="menu-content">
-          <text class="menu-title">我的收藏</text>
-        </view>
-        <image class="menu-arrow" src="/images/icons/arrow-right.png"></image>
       </view>
     </view>
     
-    <view class="menu-group">
-      <view class="menu-item" bindtap="navigateTo" data-url="/pages/user/settings/settings">
-        <view class="menu-icon">
-          <image src="/images/icons/settings.png"></image>
+    <!-- 设置组 -->
+    <view class="menu-section">
+      <view class="section-title">设置</view>
+      <view class="menu-list">
+        <view class="menu-item" bindtap="navigateTo" data-url="/pages/user/settings/settings">
+          <view class="menu-icon">
+            <image src="/images/icons/settings.png"></image>
+          </view>
+          <view class="menu-content">
+            <text class="menu-title">设置</text>
+            <text class="menu-subtitle">应用设置和偏好</text>
+          </view>
+          <image class="menu-arrow" src="/images/icons/arrow-right.png"></image>
         </view>
-        <view class="menu-content">
-          <text class="menu-title">设置</text>
+        
+        <view class="menu-item" bindtap="navigateTo" data-url="/pages/user/about/about">
+          <view class="menu-icon">
+            <image src="/images/icons/about.png"></image>
+          </view>
+          <view class="menu-content">
+            <text class="menu-title">关于我们</text>
+            <text class="menu-subtitle">了解更多信息</text>
+          </view>
+          <image class="menu-arrow" src="/images/icons/arrow-right.png"></image>
         </view>
-        <image class="menu-arrow" src="/images/icons/arrow-right.png"></image>
-      </view>
-      
-      <view class="menu-item" bindtap="navigateTo" data-url="/pages/user/about/about">
-        <view class="menu-icon">
-          <image src="/images/icons/about.png"></image>
+        
+        <view class="menu-item" bindtap="navigateTo" data-url="/pages/user/feedback/feedback">
+          <view class="menu-icon">
+            <image src="/images/icons/feedback.png"></image>
+          </view>
+          <view class="menu-content">
+            <text class="menu-title">意见反馈</text>
+            <text class="menu-subtitle">帮助我们改进</text>
+          </view>
+          <image class="menu-arrow" src="/images/icons/arrow-right.png"></image>
         </view>
-        <view class="menu-content">
-          <text class="menu-title">关于我们</text>
-        </view>
-        <image class="menu-arrow" src="/images/icons/arrow-right.png"></image>
-      </view>
-      
-      <view class="menu-item" bindtap="navigateTo" data-url="/pages/user/feedback/feedback">
-        <view class="menu-icon">
-          <image src="/images/icons/feedback.png"></image>
-        </view>
-        <view class="menu-content">
-          <text class="menu-title">意见反馈</text>
-        </view>
-        <image class="menu-arrow" src="/images/icons/arrow-right.png"></image>
       </view>
     </view>
   </view>
   
   <!-- 退出登录 -->
-  <view class="logout-btn" bindtap="logout">退出登录</view>
+  <view class="logout-section">
+    <button class="logout-button" bindtap="logout">退出登录</button>
+  </view>
   
   <!-- 版本信息 -->
   <view class="version-info">

@@ -184,7 +184,10 @@ Page({
     const type = e.currentTarget.dataset.type;
     
     if (this.data.activeFilter === type) {
-      this.setData({ activeFilter: '' });
+      // 使用setTimeout来延迟隐藏，避免闪烁
+      setTimeout(() => {
+        this.setData({ activeFilter: '' });
+      }, 50);
     } else {
       this.setData({ activeFilter: type });
     }
@@ -198,6 +201,7 @@ Page({
     
     options[index].selected = !options[index].selected;
     
+    // 使用nextTick来确保DOM更新完成后再更新数据
     this.setData({
       [`filterOptions.${type}`]: options
     });

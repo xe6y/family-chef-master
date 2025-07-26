@@ -1,4 +1,9 @@
 {
-  "navigationBarTitleText": "Family Chef Master",
+  "navigationBarTitleText": "家庭厨师",
+  "navigationBarBackgroundColor": "#ffffff",
+  "navigationBarTextStyle": "black",
+  "backgroundColor": "#f5f5f7",
+  "enablePullDownRefresh": true,
+  "backgroundTextStyle": "dark",
   "usingComponents": {}
 }

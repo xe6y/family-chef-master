@@ -6,131 +6,87 @@ Page({
     userInfo: {},
     hasUserInfo: false,
     greeting: '早上好',
+    unreadCount: 3, // 未读通知数量
     currentFamily: {
       id: 1,
       name: '我的家庭'
     },
-    banners: [
-      {
-        id: 1,
-        image: 'https://img.yzcdn.cn/vant/cat.jpeg',
-        url: '/pages/recipe/list/list'
-      },
-      {
-        id: 2,
-        image: 'https://img.yzcdn.cn/vant/cat.jpeg',
-        url: '/pages/recipe/list/list'
-      },
-      {
-        id: 3,
-        image: 'https://img.yzcdn.cn/vant/cat.jpeg',
-        url: '/pages/recipe/list/list'
-      }
-    ],
-    navItems: [
-      {
-        id: 1,
-        text: '点餐',
-        icon: '/images/icons/order.png',
-        url: '/pages/order/create/create'
-      },
-      {
-        id: 2,
-        text: '菜谱',
-        icon: '/images/icons/recipe.png',
-        url: '/pages/recipe/list/list'
-      },
-      {
-        id: 3,
-        text: '食材',
-        icon: '/images/icons/ingredient.png',
-        url: '/pages/ingredient/list/list'
-      },
-      {
-        id: 4,
-        text: '家宴',
-        icon: '/images/icons/memory.png',
-        url: '/pages/memory/list/list'
-      },
-      {
-        id: 5,
-        text: '采购',
-        icon: '/images/icons/purchase.png',
-        url: '/pages/ingredient/purchase/purchase'
-      },
-      {
-        id: 6,
-        text: '成员',
-        icon: '/images/icons/member.png',
-        url: '/pages/family/members/members'
-      },
-      {
-        id: 7,
-        text: '统计',
-        icon: '/images/icons/statistics.png',
-        url: '/pages/statistics/statistics'
-      },
-      {
-        id: 8,
-        text: '更多',
-        icon: '/images/icons/more.png',
-        url: '/pages/more/more'
-      }
-    ],
-    recommendRecipes: [
+    // 今日菜单
+    menuList: [
       {
         id: 1,
         name: '红烧肉',
         image: 'https://img.yzcdn.cn/vant/cat.jpeg',
-        cuisine: '川菜',
-        difficulty: 3
+        cookingTime: 45,
+        isFavorite: true
       },
       {
         id: 2,
         name: '糖醋排骨',
         image: 'https://img.yzcdn.cn/vant/cat.jpeg',
-        cuisine: '粤菜',
-        difficulty: 4
+        cookingTime: 30,
+        isFavorite: false
       },
       {
         id: 3,
         name: '麻婆豆腐',
         image: 'https://img.yzcdn.cn/vant/cat.jpeg',
-        cuisine: '川菜',
-        difficulty: 2
-      },
-      {
-        id: 4,
-        name: '鱼香肉丝',
-        image: 'https://img.yzcdn.cn/vant/cat.jpeg',
-        cuisine: '湘菜',
-        difficulty: 3
+        cookingTime: 20,
+        isFavorite: true
       }
     ],
-    pendingOrders: [
+    // 今日推荐
+    recommendations: [
       {
         id: 1,
-        orderNo: 'O2025071800001',
-        statusText: '待确认',
-        recipes: [
-          { id: 1, name: '红烧肉', quantity: 1 },
-          { id: 2, name: '糖醋排骨', quantity: 2 }
-        ],
-        createTime: '2025-07-18 10:30',
-        userName: '张三'
+        name: '宫保鸡丁',
+        image: 'https://img.yzcdn.cn/vant/cat.jpeg',
+        chefName: '张师傅',
+        rating: 4.8
       },
       {
         id: 2,
-        orderNo: 'O2025071800002',
-        statusText: '制作中',
-        recipes: [
-          { id: 3, name: '麻婆豆腐', quantity: 1 },
-          { id: 4, name: '鱼香肉丝', quantity: 1 }
-        ],
-        createTime: '2025-07-18 11:15',
-        userName: '李四'
+        name: '水煮鱼',
+        image: 'https://img.yzcdn.cn/vant/cat.jpeg',
+        chefName: '李师傅',
+        rating: 4.6
+      },
+      {
+        id: 3,
+        name: '回锅肉',
+        image: 'https://img.yzcdn.cn/vant/cat.jpeg',
+        chefName: '王师傅',
+        rating: 4.9
       }
     ],
+    // 最近活动
+    activities: [
+      {
+        id: 1,
+        userName: '妈妈',
+        userAvatar: 'https://img.yzcdn.cn/vant/cat.jpeg',
+        action: '制作了红烧肉',
+        image: 'https://img.yzcdn.cn/vant/cat.jpeg',
+        time: '2小时前'
+      },
+      {
+        id: 2,
+        userName: '爸爸',
+        userAvatar: 'https://img.yzcdn.cn/vant/cat.jpeg',
+        action: '分享了新菜谱',
+        image: 'https://img.yzcdn.cn/vant/cat.jpeg',
+        time: '4小时前'
+      },
+      {
+        id: 3,
+        userName: '姐姐',
+        userAvatar: 'https://img.yzcdn.cn/vant/cat.jpeg',
+        action: '完成了订单',
+        image: 'https://img.yzcdn.cn/vant/cat.jpeg',
+        time: '6小时前'
+      }
+    ],
+    // 家宴回忆
     memories: [
       {
         id: 1,
@@ -144,11 +100,19 @@ Page({
         image: 'https://img.yzcdn.cn/vant/cat.jpeg',
         date: '2025-07-10'
       }
-    ]
+    ],
+    // 本周统计
+    stats: {
+      weeklyOrders: 12,
+      weeklyRecipes: 8,
+      weeklyTime: '6.5h',
+      weeklyRating: 4.7
+    }
   },
 
   onLoad() {
     this.setGreeting();
+    this.loadPageData();
     
     // 检查是否已登录
     if (app.globalData.userInfo) {
@@ -162,6 +126,50 @@ Page({
         url: '/pages/login/login'
       });
     }
+  },
+
+  onShow() {
+    // 页面显示时刷新数据
+    this.loadPageData();
+  },
+
+  // 加载页面数据
+  loadPageData() {
+    this.loadMenuList();
+    this.loadRecommendations();
+    this.loadActivities();
+    this.loadStats();
+    this.loadNotifications();
+  },
+
+  // 加载今日菜单
+  loadMenuList() {
+    // TODO: 调用API获取今日菜单
+    console.log('加载今日菜单');
+  },
+
+  // 加载推荐菜谱
+  loadRecommendations() {
+    // TODO: 调用API获取推荐菜谱
+    console.log('加载推荐菜谱');
+  },
+
+  // 加载最近活动
+  loadActivities() {
+    // TODO: 调用API获取最近活动
+    console.log('加载最近活动');
+  },
+
+  // 加载统计数据
+  loadStats() {
+    // TODO: 调用API获取统计数据
+    console.log('加载统计数据');
+  },
+
+  // 加载通知
+  loadNotifications() {
+    // TODO: 调用API获取通知数量
+    console.log('加载通知');
   },
 
   // 设置问候语
@@ -188,21 +196,29 @@ Page({
     this.setData({ greeting });
   },
 
-  // 切换家庭
-  switchFamily() {
-    wx.showActionSheet({
-      itemList: ['我的家庭', '创建新家庭', '加入家庭'],
-      success: (res) => {
-        if (res.tapIndex === 1) {
-          wx.navigateTo({
-            url: '/pages/family/create/create'
-          });
-        } else if (res.tapIndex === 2) {
-          wx.navigateTo({
-            url: '/pages/family/join/join'
-          });
-        }
+  // 显示通知
+  showNotifications() {
+    wx.navigateTo({
+      url: '/pages/notification/list/list'
+    });
+  },
+
+  // 切换收藏状态
+  toggleFavorite(e) {
+    const id = e.currentTarget.dataset.id;
+    const menuList = this.data.menuList.map(item => {
+      if (item.id === id) {
+        return { ...item, isFavorite: !item.isFavorite };
       }
+      return item;
+    });
+    
+    this.setData({ menuList });
+    
+    // TODO: 调用API更新收藏状态
+    wx.showToast({
+      title: menuList.find(item => item.id === id).isFavorite ? '已收藏' : '已取消收藏',
+      icon: 'success'
     });
   },
 
@@ -217,6 +233,14 @@ Page({
         wx.switchTab({ url });
       }
     }
+  },
+
+  // 跳转到活动详情
+  goToActivity(e) {
+    const id = e.currentTarget.dataset.id;
+    wx.navigateTo({
+      url: `/pages/activity/detail/detail?id=${id}`
+    });
   },
 
   // 跳转到菜谱详情
@@ -241,5 +265,19 @@ Page({
     wx.navigateTo({
       url: `/pages/memory/detail/detail?id=${id}`
     });
+  },
+
+  // 下拉刷新
+  onPullDownRefresh() {
+    this.loadPageData();
+    wx.stopPullDownRefresh();
+  },
+
+  // 分享页面
+  onShareAppMessage() {
+    return {
+      title: '家庭厨师 - 让美食连接每个家庭',
+      path: '/pages/index/index'
+    };
   }
 });

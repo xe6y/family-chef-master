@@ -31,15 +31,18 @@
   <!-- 订单列表 -->
   <view class="orders-container">
     <view 
-      class="order-item" 
+      class="order-card" 
       wx:for="{{orders}}" 
       wx:key="id"
       bindtap="goToDetail"
       data-id="{{item.id}}"
     >
       <view class="order-header">
-        <text class="order-no">订单号: {{item.orderNo}}</text>
-        <text class="order-status {{item.statusClass}}">{{item.statusText}}</text>
+        <view class="order-info">
+          <text class="order-no">订单号: {{item.orderNo}}</text>
+          <text class="order-time">{{item.createTime}}</text>
+        </view>
+        <view class="order-status {{item.statusClass}}">{{item.statusText}}</view>
       </view>
       
       <view class="order-content">
@@ -63,51 +66,49 @@
             <text>{{item.expectedTime || '尽快完成'}}</text>
           </view>
         </view>
-        
-        <view class="order-footer">
-          <text class="order-time">{{item.createTime}}</text>
-          <view class="order-actions">
-            <button 
-              wx:if="{{item.status === 0}}" 
-              class="action-btn cancel" 
-              catchtap="cancelOrder" 
-              data-id="{{item.id}}"
-            >取消</button>
-            <button 
-              wx:if="{{item.status === 0 && isChef}}" 
-              class="action-btn confirm" 
-              catchtap="confirmOrder" 
-              data-id="{{item.id}}"
-            >接单</button>
-            <button 
-              wx:if="{{item.status === 1 && isChef}}" 
-              class="action-btn cooking" 
-              catchtap="startCooking" 
-              data-id="{{item.id}}"
-            >开始制作</button>
-            <button 
-              wx:if="{{item.status === 2 && isChef}}" 
-              class="action-btn complete" 
-              catchtap="completeOrder" 
-              data-id="{{item.id}}"
-            >完成</button>
-            <button 
-              wx:if="{{item.status === 3 && !item.hasReview}}" 
-              class="action-btn review" 
-              catchtap="reviewOrder" 
-              data-id="{{item.id}}"
-            >评价</button>
-          </view>
-        </view>
+      </view>
+      
+      <view class="order-actions">
+        <button 
+          wx:if="{{item.status === 0}}" 
+          class="action-button cancel" 
+          catchtap="cancelOrder" 
+          data-id="{{item.id}}"
+        >取消</button>
+        <button 
+          wx:if="{{item.status === 0 && isChef}}" 
+          class="action-button confirm" 
+          catchtap="confirmOrder" 
+          data-id="{{item.id}}"
+        >接单</button>
+        <button 
+          wx:if="{{item.status === 1 && isChef}}" 
+          class="action-button cooking" 
+          catchtap="startCooking" 
+          data-id="{{item.id}}"
+        >开始制作</button>
+        <button 
+          wx:if="{{item.status === 2 && isChef}}" 
+          class="action-button complete" 
+          catchtap="completeOrder" 
+          data-id="{{item.id}}"
+        >完成</button>
+        <button 
+          wx:if="{{item.status === 3 && !item.hasReview}}" 
+          class="action-button review" 
+          catchtap="reviewOrder" 
+          data-id="{{item.id}}"
+        >评价</button>
       </view>
     </view>
   </view>
   
   <!-- 空状态 -->
   <view class="empty-state" wx:if="{{orders.length === 0}}">
-    <image class="empty-icon" src="/images/icons/empty-order.png"></image>
-    <text class="empty-text">暂无订单</text>
-    <button class="add-btn" bindtap="goToCreate">去点餐</button>
+    <view class="empty-icon">📋</view>
+    <text class="empty-title">暂无订单</text>
+    <text class="empty-subtitle">快去点餐吧</text>
+    <button class="add-button" bindtap="goToCreate">去点餐</button>
   </view>
   
   <!-- 加载更多 -->
