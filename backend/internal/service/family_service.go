@@ -19,9 +19,9 @@ func NewFamilyService() *FamilyService {
 }
 
 // CreateFamily 创建家庭
-func (s *FamilyService) CreateFamily(family *models.SystemFamily) error {
+func (s *FamilyService) CreateFamily(family *models.SysFamily) error {
 	// 检查家庭名称是否已存在
-	var existingFamily models.SystemFamily
+	var existingFamily models.SysFamily
 	if err := database.DB.Where("name = ?", family.Name).First(&existingFamily).Error; err == nil {
 		return errors.New("家庭名称已存在")
 	}
@@ -35,7 +35,7 @@ func (s *FamilyService) CreateFamily(family *models.SystemFamily) error {
 
 		// 如果有创建者ID，将创建者设为家庭管理员
 		if family.OwnerID > 0 {
-			if err := tx.Model(&models.SystemUser{}).
+			if err := tx.Model(&models.SysUser{}).
 				Where("id = ?", family.OwnerID).
 				Updates(map[string]interface{}{
 					"family_id":   family.ID,
@@ -50,8 +50,8 @@ func (s *FamilyService) CreateFamily(family *models.SystemFamily) error {
 }
 
 // GetFamilyByID 根据ID获取家庭信息
-func (s *FamilyService) GetFamilyByID(id int64) (*models.SystemFamily, error) {
-	var family models.SystemFamily
+func (s *FamilyService) GetFamilyByID(id int64) (*models.SysFamily, error) {
+	var family models.SysFamily
 	if err := database.DB.First(&family, id).Error; err != nil {
 		return nil, err
 	}
@@ -59,9 +59,9 @@ func (s *FamilyService) GetFamilyByID(id int64) (*models.SystemFamily, error) {
 }
 
 // GetFamilyWithMembers 获取家庭信息及成员列表
-func (s *FamilyService) GetFamilyWithMembers(id int64) (*models.SystemFamily, []models.SystemUser, error) {
-	var family models.SystemFamily
-	var members []models.SystemUser
+func (s *FamilyService) GetFamilyWithMembers(id int64) (*models.SysFamily, []models.SysUser, error) {
+	var family models.SysFamily
+	var members []models.SysUser
 
 	// 获取家庭信息
 	if err := database.DB.First(&family, id).Error; err != nil {
@@ -77,7 +77,7 @@ func (s *FamilyService) GetFamilyWithMembers(id int64) (*models.SystemFamily, []
 }
 
 // UpdateFamily 更新家庭信息
-func (s *FamilyService) UpdateFamily(family *models.SystemFamily) error {
+func (s *FamilyService) UpdateFamily(family *models.SysFamily) error {
 	return database.DB.Save(family).Error
 }
 
@@ -85,12 +85,12 @@ func (s *FamilyService) UpdateFamily(family *models.SystemFamily) error {
 func (s *FamilyService) DeleteFamily(id int64) error {
 	return database.DB.Transaction(func(tx *gorm.DB) error {
 		// 删除家庭
-		if err := tx.Delete(&models.SystemFamily{}, id).Error; err != nil {
+		if err := tx.Delete(&models.SysFamily{}, id).Error; err != nil {
 			return err
 		}
 
 		// 将家庭成员的家庭ID设为0
-		if err := tx.Model(&models.SystemUser{}).
+		if err := tx.Model(&models.SysUser{}).
 			Where("family_id = ?", id).
 			Updates(map[string]interface{}{
 				"family_id":   0,
@@ -106,7 +106,7 @@ func (s *FamilyService) DeleteFamily(id int64) error {
 // AddFamilyMember 添加家庭成员
 func (s *FamilyService) AddFamilyMember(familyID, userID int64, role string) error {
 	// 检查用户是否已在其他家庭
-	var user models.SystemUser
+	var user models.SysUser
 	if err := database.DB.First(&user, userID).Error; err != nil {
 		return errors.New("用户不存在")
 	}
@@ -120,13 +120,13 @@ func (s *FamilyService) AddFamilyMember(familyID, userID int64, role string) err
 		"family_id":   familyID,
 		"family_role": role,
 	}
-	return database.DB.Model(&models.SystemUser{}).Where("id = ?", userID).Updates(updates).Error
+	return database.DB.Model(&models.SysUser{}).Where("id = ?", userID).Updates(updates).Error
 }
 
 // RemoveFamilyMember 移除家庭成员
 func (s *FamilyService) RemoveFamilyMember(familyID, userID int64) error {
 	// 检查用户是否在该家庭中
-	var user models.SystemUser
+	var user models.SysUser
 	if err := database.DB.Where("id = ? AND family_id = ?", userID, familyID).First(&user).Error; err != nil {
 		return errors.New("用户不在该家庭中")
 	}
@@ -136,7 +136,7 @@ func (s *FamilyService) RemoveFamilyMember(familyID, userID int64) error {
 		"family_id":   0,
 		"family_role": "",
 	}
-	return database.DB.Model(&models.SystemUser{}).Where("id = ?", userID).Updates(updates).Error
+	return database.DB.Model(&models.SysUser{}).Where("id = ?", userID).Updates(updates).Error
 }
 
 // GetFamilyRecipes 获取家庭菜谱列表
@@ -189,7 +189,7 @@ func (s *FamilyService) GetFamilyStats(familyID int64) (map[string]interface{}, 
 
 	// 家庭成员数量
 	var memberCount int64
-	if err := database.DB.Model(&models.SystemUser{}).
+	if err := database.DB.Model(&models.SysUser{}).
 		Where("family_id = ?", familyID).
 		Count(&memberCount).Error; err != nil {
 		return nil, err
@@ -230,12 +230,12 @@ func (s *FamilyService) GetFamilyStats(familyID int64) (map[string]interface{}, 
 }
 
 // SearchFamilies 搜索家庭
-func (s *FamilyService) SearchFamilies(keyword string, page, pageSize int) ([]models.SystemFamily, int64, error) {
-	var families []models.SystemFamily
+func (s *FamilyService) SearchFamilies(keyword string, page, pageSize int) ([]models.SysFamily, int64, error) {
+	var families []models.SysFamily
 	var total int64
 
 	// 构建查询条件
-	query := database.DB.Model(&models.SystemFamily{}).Where(
+	query := database.DB.Model(&models.SysFamily{}).Where(
 		"name LIKE ?",
 		"%"+keyword+"%",
 	)
@@ -257,13 +257,13 @@ func (s *FamilyService) SearchFamilies(keyword string, page, pageSize int) ([]mo
 // JoinFamilyByInviteCode 通过邀请码加入家庭
 func (s *FamilyService) JoinFamilyByInviteCode(inviteCode string, userID int64) error {
 	// 查找邀请码对应的家庭
-	var family models.SystemFamily
+	var family models.SysFamily
 	if err := database.DB.Where("invite_code = ?", inviteCode).First(&family).Error; err != nil {
 		return errors.New("邀请码无效或已过期")
 	}
 
 	// 检查用户是否已在其他家庭
-	var user models.SystemUser
+	var user models.SysUser
 	if err := database.DB.First(&user, userID).Error; err != nil {
 		return errors.New("用户不存在")
 	}
@@ -284,7 +284,7 @@ func (s *FamilyService) JoinFamilyByInviteCode(inviteCode string, userID int64) 
 			"family_role": "member",
 		}
 
-		if err := tx.Model(&models.SystemUser{}).Where("id = ?", userID).Updates(updates).Error; err != nil {
+		if err := tx.Model(&models.SysUser{}).Where("id = ?", userID).Updates(updates).Error; err != nil {
 			return err
 		}
 

@@ -2,20 +2,20 @@ package models
 
 import "time"
 
-// SystemUser 系统用户表
-type SystemUser struct {
+// SysUser 系统用户表
+type SysUser struct {
 	ID         int64     `gorm:"primaryKey;autoIncrement;not null;unique;column:id"`
-	OpenID     string    `gorm:"type:varchar(255);uniqueIndex;column:openid"` // 唯一索引，登录必需
+	OpenID     string    `gorm:"type:varchar(255);uniqueIndex;column:openid"`
 	Nickname   string    `gorm:"type:varchar(255);column:nickname"`
 	Avatar     string    `gorm:"type:varchar(255);column:avatar"`
 	Phone      string    `gorm:"type:varchar(20);column:phone"`
-	Role       string    `gorm:"type:varchar(50);column:role"` // 用户角色：chef(大厨), foodie(美食家)
+	Role       string    `gorm:"type:varchar(50);column:role"`
 	FamilyID   int64     `gorm:"index;column:family_id"`
 	FamilyRole string    `gorm:"type:varchar(50);column:family_role"`
 	CreateTime time.Time `gorm:"autoCreateTime;column:create_time;autoUpdateTime:false"`
 }
 
 // TableName 指定表名
-func (SystemUser) TableName() string {
-	return "system_user"
+func (SysUser) TableName() string {
+	return "sys_user"
 }

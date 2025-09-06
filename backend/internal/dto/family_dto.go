@@ -51,11 +51,3 @@ type FamilyListResponse struct {
 	PageSize  int              `json:"page_size"`
 	TotalPage int64            `json:"total_page"`
 }
-
-// FamilyStatsResponse 家庭统计响应
-type FamilyStatsResponse struct {
-	MemberCount     int64 `json:"member_count"`
-	RecipeCount     int64 `json:"recipe_count"`
-	OrderCount      int64 `json:"order_count"`
-	MonthOrderCount int64 `json:"month_order_count"`
-}

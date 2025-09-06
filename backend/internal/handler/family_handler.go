@@ -34,7 +34,7 @@ func (h *FamilyHandler) CreateFamily(c *gin.Context) {
 	// 生成邀请码
 	inviteCode := h.familyService.GenerateInviteCode()
 
-	family := &models.SystemFamily{
+	family := &models.SysFamily{
 		Name:        req.Name,
 		Description: req.Description,
 		OwnerID:     req.OwnerID,
