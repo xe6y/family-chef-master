@@ -6,7 +6,6 @@ class RecipeCard extends StatelessWidget {
   final Recipe recipe;
   final VoidCallback? onTap;
   final VoidCallback? onFavorite;
-  final VoidCallback? onView;
   final VoidCallback? onAdd;
   final bool isAdded;
 
@@ -15,307 +14,221 @@ class RecipeCard extends StatelessWidget {
     required this.recipe,
     this.onTap,
     this.onFavorite,
-    this.onView,
     this.onAdd,
     this.isAdded = false,
   });
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
     return Card(
       margin: EdgeInsets.zero,
-      child: Stack(
-        children: [
-          InkWell(
-            onTap: onTap,
-            borderRadius: BorderRadius.circular(AppConstants.cardBorderRadius),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(AppConstants.cardBorderRadius),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Image with favorite button
+            Stack(
               children: [
-                // Image with tags
-                Stack(
-                  children: [
-                    Container(
-                      height: AppConstants.cardImageHeight,
-                      width: double.infinity,
-                      decoration: BoxDecoration(
-                        color: Theme.of(
-                          context,
-                        ).colorScheme.surfaceContainerHighest,
-                        borderRadius: const BorderRadius.vertical(
-                          top: Radius.circular(12),
-                        ),
-                      ),
-                      child: recipe.image != null
-                          ? ClipRRect(
-                              borderRadius: const BorderRadius.vertical(
-                                top: Radius.circular(12),
-                              ),
-                              child: Image.network(
-                                recipe.image!,
-                                fit: BoxFit.cover,
-                                errorBuilder: (context, error, stackTrace) =>
-                                    _buildPlaceholder(),
-                              ),
-                            )
-                          : _buildPlaceholder(),
+                Container(
+                  height: AppConstants.cardImageHeight,
+                  width: double.infinity,
+                  decoration: BoxDecoration(
+                    color: colorScheme.surfaceContainerHighest,
+                    borderRadius: const BorderRadius.vertical(
+                      top: Radius.circular(12),
                     ),
-                    // Tags
-                    Positioned(
-                      top: 8,
-                      left: 8,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: recipe.tags.asMap().entries.map((entry) {
-                          final index = entry.key;
-                          final tag = entry.value;
-                          return Container(
-                            margin: const EdgeInsets.only(bottom: 6),
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 10,
-                              vertical: 4,
-                            ),
-                            decoration: BoxDecoration(
-                              color: _getTagColor(recipe.tagColors[index]),
-                              borderRadius: BorderRadius.circular(
-                                AppConstants.cardBorderRadius,
-                              ),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                if (tag == "常做")
-                                  const Icon(
-                                    Icons.star,
-                                    size: 12,
-                                    color: Colors.white,
-                                  ),
-                                const SizedBox(width: 4),
-                                Text(
-                                  tag,
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          );
-                        }).toList(),
-                      ),
-                    ),
-                  ],
-                ),
-                // Info
-                Padding(
-                  padding: EdgeInsets.fromLTRB(
-                    AppConstants.cardPadding,
-                    AppConstants.cardPadding,
-                    AppConstants.cardPadding,
-                    AppConstants.cardBottomPadding,
                   ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        recipe.name,
-                        style: const TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
+                  child: ClipRRect(
+                    borderRadius: const BorderRadius.vertical(
+                      top: Radius.circular(12),
+                    ),
+                    child: Image.asset(
+                      'assets/chinese-potato-strips.jpg',
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) =>
+                          _buildPlaceholder(),
+                    ),
+                  ),
+                ),
+                // Favorite button in top right corner
+                if (onFavorite != null)
+                  Positioned(
+                    top: 8,
+                    right: 8,
+                    child: Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        onTap: () {
+                          onFavorite?.call();
+                        },
+                        borderRadius: BorderRadius.circular(20),
+                        child: Container(
+                          width: 36,
+                          height: 36,
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.9),
+                            shape: BoxShape.circle,
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.1),
+                                blurRadius: 4,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          child: Icon(
+                            recipe.favorite
+                                ? Icons.favorite
+                                : Icons.favorite_border,
+                            color: recipe.favorite
+                                ? Colors.red
+                                : colorScheme.onSurface.withValues(alpha: 0.6),
+                            size: 20,
+                          ),
                         ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
                       ),
-                      const SizedBox(height: 3),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            recipe.time,
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Theme.of(
-                                context,
-                              ).colorScheme.onSurface.withValues(alpha: 0.6),
-                            ),
-                          ),
-                          Text(
-                            recipe.difficulty,
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Theme.of(
-                                context,
-                              ).colorScheme.onSurface.withValues(alpha: 0.6),
-                            ),
-                          ),
-                        ],
+                    ),
+                  ),
+              ],
+            ),
+            // Info section
+            Padding(
+              padding: const EdgeInsets.all(12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Recipe name
+                  Text(
+                    recipe.name,
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                      color: colorScheme.onSurface,
+                      inherit: false,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 8),
+                  // Time and difficulty
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.access_time_rounded,
+                        size: 14,
+                        color: colorScheme.onSurface.withValues(alpha: 0.5),
                       ),
-                      const SizedBox(height: 1),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Wrap(
-                              spacing: 3,
-                              runSpacing: 3,
-                              children: recipe.categories.take(2).map((
+                      const SizedBox(width: 4),
+                      Text(
+                        recipe.time,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: colorScheme.onSurface.withValues(alpha: 0.6),
+                          inherit: false,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Icon(
+                        Icons.trending_up_rounded,
+                        size: 14,
+                        color: colorScheme.onSurface.withValues(alpha: 0.5),
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        recipe.difficulty,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: colorScheme.onSurface.withValues(alpha: 0.6),
+                          inherit: false,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  // Categories and add button
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Wrap(
+                          spacing: 6,
+                          runSpacing: 6,
+                          children: recipe.categories.take(2).map((category) {
+                            return Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 4,
+                              ),
+                              decoration: BoxDecoration(
+                                color: colorScheme.primaryContainer.withValues(
+                                  alpha: 0.3,
+                                ),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Text(
                                 category,
-                              ) {
-                                return Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 5,
-                                    vertical: 2,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: AppConstants.tagBlueBackground,
-                                    borderRadius: BorderRadius.circular(
-                                      AppConstants.spacingS,
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: colorScheme.onPrimaryContainer,
+                                  fontWeight: FontWeight.w500,
+                                  inherit: false,
+                                ),
+                              ),
+                            );
+                          }).toList(),
+                        ),
+                      ),
+                      if (onAdd != null) ...[
+                        const SizedBox(width: 8),
+                        Material(
+                          color: Colors.transparent,
+                          child: InkWell(
+                            onTap: () {
+                              onAdd?.call();
+                            },
+                            borderRadius: BorderRadius.circular(20),
+                            child: Container(
+                              width: 32,
+                              height: 32,
+                              decoration: BoxDecoration(
+                                color: isAdded
+                                    ? colorScheme.primary
+                                    : colorScheme.primaryContainer,
+                                shape: BoxShape.circle,
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: colorScheme.primary.withValues(
+                                      alpha: 0.2,
                                     ),
+                                    blurRadius: 4,
+                                    offset: const Offset(0, 2),
                                   ),
-                                  child: Text(
-                                    category,
-                                    style: TextStyle(
-                                      fontSize: AppConstants.textSizeXS,
-                                      color: AppConstants.tagBlueText,
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                                  ),
-                                );
-                              }).toList(),
+                                ],
+                              ),
+                              child: Icon(
+                                isAdded ? Icons.check : Icons.add,
+                                color: isAdded
+                                    ? colorScheme.onPrimary
+                                    : colorScheme.onPrimaryContainer,
+                                size: 18,
+                              ),
                             ),
                           ),
-                          if (onAdd != null) ...[
-                            const SizedBox(width: 4),
-                            Stack(
-                              clipBehavior: Clip.none,
-                              children: [
-                                Container(
-                                  width: AppConstants.addButtonSize,
-                                  height: AppConstants.addButtonSize,
-                                  decoration: BoxDecoration(
-                                    color: AppConstants.addButtonColor,
-                                    shape: BoxShape.circle,
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: Colors.black.withValues(
-                                          alpha: 0.2,
-                                        ),
-                                        blurRadius: 3,
-                                        offset: const Offset(0, 1),
-                                      ),
-                                    ],
-                                  ),
-                                  child: Material(
-                                    color: Colors.transparent,
-                                    child: InkWell(
-                                      onTap: onAdd,
-                                      borderRadius: BorderRadius.circular(
-                                        AppConstants.addButtonSize / 2,
-                                      ),
-                                      child: Icon(
-                                        isAdded ? Icons.check : Icons.add,
-                                        color: Colors.white,
-                                        size: AppConstants.addButtonIconSize,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                                if (isAdded)
-                                  Positioned(
-                                    right: -2,
-                                    top: -2,
-                                    child: Container(
-                                      width: AppConstants.addButtonBadgeSize,
-                                      height: AppConstants.addButtonBadgeSize,
-                                      decoration: BoxDecoration(
-                                        color: AppConstants.addedBadgeColor,
-                                        shape: BoxShape.circle,
-                                        border: Border.fromBorderSide(
-                                          BorderSide(
-                                            color: Colors.white,
-                                            width: 1.5,
-                                          ),
-                                        ),
-                                      ),
-                                      child: const Icon(
-                                        Icons.check,
-                                        color: Colors.white,
-                                        size: 8,
-                                      ),
-                                    ),
-                                  ),
-                              ],
-                            ),
-                          ],
-                        ],
-                      ),
-                      if (onFavorite != null || onView != null) ...[
-                        const SizedBox(height: 6),
-                        Row(
-                          children: [
-                            if (onFavorite != null)
-                              Expanded(
-                                child: OutlinedButton.icon(
-                                  onPressed: onFavorite,
-                                  icon: Icon(
-                                    Icons.star,
-                                    size: 16,
-                                    color: recipe.favorite
-                                        ? Theme.of(context).colorScheme.primary
-                                        : null,
-                                  ),
-                                  label: const Text(
-                                    "收藏",
-                                    style: TextStyle(fontSize: 11),
-                                  ),
-                                  style: OutlinedButton.styleFrom(
-                                    padding: const EdgeInsets.symmetric(
-                                      vertical: 4,
-                                    ),
-                                    minimumSize: const Size(0, 32),
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(
-                                        AppConstants.cardBorderRadius,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            if (onFavorite != null && onView != null)
-                              const SizedBox(width: 6),
-                            if (onView != null)
-                              Expanded(
-                                child: ElevatedButton(
-                                  onPressed: onView,
-                                  style: ElevatedButton.styleFrom(
-                                    padding: const EdgeInsets.symmetric(
-                                      vertical: 4,
-                                    ),
-                                    minimumSize: const Size(0, 32),
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(
-                                        AppConstants.cardBorderRadius,
-                                      ),
-                                    ),
-                                  ),
-                                  child: const Text(
-                                    "查看",
-                                    style: TextStyle(fontSize: 11),
-                                  ),
-                                ),
-                              ),
-                          ],
                         ),
                       ],
                     ],
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -332,14 +245,5 @@ class RecipeCard extends StatelessWidget {
         ),
       ),
     );
-  }
-
-  Color _getTagColor(String colorClass) {
-    if (colorClass.contains('blue')) return Colors.blue;
-    if (colorClass.contains('green')) return Colors.green;
-    if (colorClass.contains('red')) return Colors.red;
-    if (colorClass.contains('pink')) return Colors.pink;
-    if (colorClass.contains('amber')) return Colors.amber;
-    return Colors.grey;
   }
 }

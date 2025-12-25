@@ -21,13 +21,6 @@ class ProfileScreen extends StatelessWidget {
         },
       },
       {
-        'icon': Icons.local_fire_department,
-        'label': '厨房设备连接',
-        'onTap': () {
-          // Navigate to devices
-        },
-      },
-      {
         'icon': Icons.settings,
         'label': 'App 设置',
         'onTap': () {
@@ -53,7 +46,7 @@ class ProfileScreen extends StatelessWidget {
                         Icons.arrow_back,
                         color: Theme.of(
                           context,
-                        ).colorScheme.onSurface.withOpacity(0.6),
+                        ).colorScheme.onSurface.withValues(alpha: 0.6),
                       ),
                       const SizedBox(width: 8),
                       Text(
@@ -61,7 +54,7 @@ class ProfileScreen extends StatelessWidget {
                         style: TextStyle(
                           color: Theme.of(
                             context,
-                          ).colorScheme.onSurface.withOpacity(0.6),
+                          ).colorScheme.onSurface.withValues(alpha: 0.6),
                         ),
                       ),
                     ],
@@ -120,9 +113,8 @@ class ProfileScreen extends StatelessWidget {
                                 'ID: COOK_2024_0321',
                                 style: TextStyle(
                                   fontSize: 14,
-                                  color: Theme.of(
-                                    context,
-                                  ).colorScheme.onSurface.withOpacity(0.6),
+                                  color: Theme.of(context).colorScheme.onSurface
+                                      .withValues(alpha: 0.6),
                                 ),
                               ),
                             ],
@@ -169,9 +161,10 @@ class ProfileScreen extends StatelessWidget {
                                     '本月做饭',
                                     style: TextStyle(
                                       fontSize: 12,
-                                      color: Theme.of(
-                                        context,
-                                      ).colorScheme.onSurface.withOpacity(0.6),
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .onSurface
+                                          .withValues(alpha: 0.6),
                                     ),
                                   ),
                                 ],
@@ -213,9 +206,10 @@ class ProfileScreen extends StatelessWidget {
                                     '食材浪费减少',
                                     style: TextStyle(
                                       fontSize: 12,
-                                      color: Theme.of(
-                                        context,
-                                      ).colorScheme.onSurface.withOpacity(0.6),
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .onSurface
+                                          .withValues(alpha: 0.6),
                                     ),
                                   ),
                                 ],
@@ -236,7 +230,7 @@ class ProfileScreen extends StatelessWidget {
                         fontWeight: FontWeight.w600,
                         color: Theme.of(
                           context,
-                        ).colorScheme.onSurface.withOpacity(0.6),
+                        ).colorScheme.onSurface.withValues(alpha: 0.6),
                       ),
                     ),
 
@@ -276,7 +270,7 @@ class ProfileScreen extends StatelessWidget {
                                         color: Theme.of(context)
                                             .colorScheme
                                             .onSurface
-                                            .withOpacity(0.6),
+                                            .withValues(alpha: 0.6),
                                       ),
                                       const SizedBox(width: 12),
                                       Text(
@@ -290,9 +284,10 @@ class ProfileScreen extends StatelessWidget {
                                   Icon(
                                     Icons.chevron_right,
                                     size: 20,
-                                    color: Theme.of(
-                                      context,
-                                    ).colorScheme.onSurface.withOpacity(0.6),
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .onSurface
+                                        .withValues(alpha: 0.6),
                                   ),
                                 ],
                               ),

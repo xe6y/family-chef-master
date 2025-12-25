@@ -596,22 +596,17 @@ class _MealsScreenState extends State<MealsScreen> {
             color: colorScheme.surfaceContainerHighest,
             borderRadius: BorderRadius.circular(12),
           ),
-          child: meal.image != null
-              ? ClipRRect(
-                  borderRadius: BorderRadius.circular(12),
-                  child: Image.network(
-                    meal.image!,
-                    fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) => Icon(
-                      Icons.restaurant_rounded,
-                      color: colorScheme.onSurface.withValues(alpha: 0.5),
-                    ),
-                  ),
-                )
-              : Icon(
-                  Icons.restaurant_rounded,
-                  color: colorScheme.onSurface.withValues(alpha: 0.5),
-                ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(12),
+            child: Image.asset(
+              'assets/chinese-potato-strips.jpg',
+              fit: BoxFit.cover,
+              errorBuilder: (context, error, stackTrace) => Icon(
+                Icons.restaurant_rounded,
+                color: colorScheme.onSurface.withValues(alpha: 0.5),
+              ),
+            ),
+          ),
         ),
         title: Text(
           meal.name,

@@ -296,8 +296,10 @@ class _RecipesScreenState extends State<RecipesScreen> {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (context) =>
-                                RecipeDetailScreen(recipeId: recipe.id),
+                            builder: (context) => RecipeDetailScreen(
+                              recipeId: recipe.id,
+                              isFromMyRecipes: _activeTab == "my",
+                            ),
                           ),
                         );
                       },
@@ -305,15 +307,6 @@ class _RecipesScreenState extends State<RecipesScreen> {
                         setState(() {
                           // Toggle favorite
                         });
-                      },
-                      onView: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) =>
-                                RecipeDetailScreen(recipeId: recipe.id),
-                          ),
-                        );
                       },
                     );
                   },
