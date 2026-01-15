@@ -140,10 +140,8 @@ class _BentoCardState extends State<BentoCard>
       child: Stack(
         clipBehavior: Clip.none,
         children: [
-          // 主内容（填满整个区域）
-          Positioned.fill(
-            child: widget.child,
-          ),
+          // 主内容
+          widget.child,
           // 装饰图标（右下角半透明）
           if (widget.decorIcon != null)
             Positioned(

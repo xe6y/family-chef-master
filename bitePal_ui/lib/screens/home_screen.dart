@@ -1006,51 +1006,52 @@ class _HomeScreenState extends State<HomeScreen>
   Widget _buildIngredientCard(IngredientItem ingredient) {
     final isUrgent = ingredient.urgent;
 
-    return BentoCard(
-      onTap: () {},
-      backgroundColor: isUrgent ? AppColors.errorLight : Colors.white,
-      decorIcon: Icons.kitchen_rounded,
-      decorIconColor: isUrgent
-          ? AppColors.error.withValues(alpha: 0.08)
-          : AppColors.onSurfaceVariantLight.withValues(alpha: 0.06),
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: isUrgent ? AppColors.errorLight : Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: BentoStyle.cardShadow,
+      ),
       child: Row(
         children: [
           // 食材图标
           Container(
-            width: 44,
-            height: 44,
+            width: 36,
+            height: 36,
             decoration: BoxDecoration(
               color: isUrgent
                   ? AppColors.error.withValues(alpha: 0.12)
                   : AppColors.warningLight,
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(10),
             ),
             child: Center(
               child: Text(
                 ingredient.icon,
-                style: const TextStyle(fontSize: 22),
+                style: const TextStyle(fontSize: 18),
               ),
             ),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: 10),
           // 信息
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.center,
+              mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
                   ingredient.name,
                   style: const TextStyle(
-                    fontSize: 14,
+                    fontSize: 13,
                     fontWeight: FontWeight.w600,
                   ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
-                const SizedBox(height: 2),
                 Text(
                   ingredient.amount,
                   style: TextStyle(
-                    fontSize: 12,
+                    fontSize: 11,
                     color: AppColors.onSurfaceVariantLight,
                   ),
                 ),
@@ -1059,17 +1060,17 @@ class _HomeScreenState extends State<HomeScreen>
           ),
           // 过期标签
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
             decoration: BoxDecoration(
               color: isUrgent
                   ? AppColors.error.withValues(alpha: 0.15)
                   : AppColors.warning.withValues(alpha: 0.15),
-              borderRadius: BorderRadius.circular(20),
+              borderRadius: BorderRadius.circular(12),
             ),
             child: Text(
               ingredient.expiryText,
               style: TextStyle(
-                fontSize: 11,
+                fontSize: 10,
                 fontWeight: FontWeight.w600,
                 color: isUrgent ? AppColors.error : AppColors.warning,
               ),
