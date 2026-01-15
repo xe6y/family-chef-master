@@ -6,7 +6,7 @@ import '../services/ingredient_service.dart';
 import '../services/http_client.dart';
 import '../config/api_config.dart';
 
-/// 食材添加/编辑页面
+/// 食材添加/编辑页面 - 全新UI设计
 class IngredientEditScreen extends StatefulWidget {
   /// 要编辑的食材（为null时为添加模式）
   final IngredientItem? ingredient;
@@ -14,11 +14,7 @@ class IngredientEditScreen extends StatefulWidget {
   /// 默认存储位置
   final String? defaultStorage;
 
-  const IngredientEditScreen({
-    super.key,
-    this.ingredient,
-    this.defaultStorage,
-  });
+  const IngredientEditScreen({super.key, this.ingredient, this.defaultStorage});
 
   @override
   State<IngredientEditScreen> createState() => _IngredientEditScreenState();
@@ -29,7 +25,8 @@ class _IngredientEditScreenState extends State<IngredientEditScreen> {
   final IngredientService _ingredientService = IngredientService();
 
   /// 分类服务
-  final IngredientCategoryService _categoryService = IngredientCategoryService();
+  final IngredientCategoryService _categoryService =
+      IngredientCategoryService();
 
   /// HTTP客户端
   final HttpClient _httpClient = HttpClient();
@@ -68,19 +65,68 @@ class _IngredientEditScreenState extends State<IngredientEditScreen> {
   String _selectedStorage = 'fridge';
   String _selectedCategoryId = 'cat_other';
   String _selectedIcon = '🥬';
-  DateTime _expiryDate = DateTime.now().add(const Duration(days: 7));
+
+  /// 购买日期
   DateTime _purchaseDate = DateTime.now();
 
+  /// 保质期（天数）
+  int _shelfLifeDays = 7;
+
+  /// 计算得出的过期日期
+  DateTime get _expiryDate => _purchaseDate.add(Duration(days: _shelfLifeDays));
+
   /// 常用单位列表
-  final List<String> _commonUnits = ['个', '斤', '克', '千克', '毫升', '升', '包', '袋', '盒', '瓶'];
+  final List<String> _commonUnits = [
+    '个',
+    '斤',
+    '克',
+    '千克',
+    '毫升',
+    '升',
+    '包',
+    '袋',
+    '盒',
+    '瓶',
+  ];
 
   /// 常用图标列表
   final List<String> _commonIcons = [
-    '🥬', '🥕', '🍅', '🥔', '🧅', '🥒', '🌽', '🥦',
-    '🥩', '🍖', '🥓', '🍗', '🐟', '🦐', '🦀', '🥚',
-    '🍎', '🍊', '🍋', '🍇', '🍓', '🍑', '🥝', '🍌',
-    '🥛', '🧀', '🍞', '🍚', '🧂', '🫚', '🧄', '📦',
+    '🥬',
+    '🥕',
+    '🍅',
+    '🥔',
+    '🧅',
+    '🥒',
+    '🌽',
+    '🥦',
+    '🥩',
+    '🍖',
+    '🥓',
+    '🍗',
+    '🐟',
+    '🦐',
+    '🦀',
+    '🥚',
+    '🍎',
+    '🍊',
+    '🍋',
+    '🍇',
+    '🍓',
+    '🍑',
+    '🥝',
+    '🍌',
+    '🥛',
+    '🧀',
+    '🍞',
+    '🍚',
+    '🧂',
+    '🫚',
+    '🧄',
+    '📦',
   ];
+
+  /// 常用保质期选项（天数）
+  final List<int> _shelfLifeOptions = [1, 3, 5, 7, 10, 14, 21, 30, 60, 90];
 
   @override
   void initState() {
@@ -96,8 +142,8 @@ class _IngredientEditScreenState extends State<IngredientEditScreen> {
     _quantityController = TextEditingController(
       text: ingredient?.quantity != null && ingredient!.quantity > 0
           ? (ingredient.quantity == ingredient.quantity.truncateToDouble()
-              ? ingredient.quantity.toInt().toString()
-              : ingredient.quantity.toString())
+                ? ingredient.quantity.toInt().toString()
+                : ingredient.quantity.toString())
           : '',
     );
     _unitController = TextEditingController(text: ingredient?.unit ?? '个');
@@ -105,15 +151,26 @@ class _IngredientEditScreenState extends State<IngredientEditScreen> {
 
     if (ingredient != null) {
       _selectedStorage = ingredient.storage;
-      _selectedCategoryId = ingredient.categoryId.isNotEmpty ? ingredient.categoryId : 'cat_other';
+      _selectedCategoryId = ingredient.categoryId.isNotEmpty
+          ? ingredient.categoryId
+          : 'cat_other';
       _selectedIcon = ingredient.icon;
       _uploadedImageUrl = ingredient.thumbnail;
 
+      // 尝试从日期计算保质期
       if (ingredient.expiryDate != null && ingredient.expiryDate!.isNotEmpty) {
-        _expiryDate = DateTime.tryParse(ingredient.expiryDate!) ?? _expiryDate;
-      }
-      if (ingredient.purchaseDate != null && ingredient.purchaseDate!.isNotEmpty) {
-        _purchaseDate = DateTime.tryParse(ingredient.purchaseDate!) ?? _purchaseDate;
+        final expiryDate = DateTime.tryParse(ingredient.expiryDate!);
+        if (expiryDate != null) {
+          if (ingredient.purchaseDate != null &&
+              ingredient.purchaseDate!.isNotEmpty) {
+            final purchaseDate = DateTime.tryParse(ingredient.purchaseDate!);
+            if (purchaseDate != null) {
+              final days = expiryDate.difference(purchaseDate).inDays;
+              _shelfLifeDays = days > 0 ? days : 7;
+              _purchaseDate = purchaseDate;
+            }
+          }
+        }
       }
     } else if (widget.defaultStorage != null) {
       _selectedStorage = widget.defaultStorage!;
@@ -162,9 +219,9 @@ class _IngredientEditScreenState extends State<IngredientEditScreen> {
     } catch (e) {
       debugPrint('选择图片失败: $e');
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('选择图片失败: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('选择图片失败: $e')));
       }
     }
   }
@@ -193,7 +250,8 @@ class _IngredientEditScreenState extends State<IngredientEditScreen> {
                 _pickImage(ImageSource.gallery);
               },
             ),
-            if (_selectedImageFile != null || (_uploadedImageUrl != null && _uploadedImageUrl!.isNotEmpty))
+            if (_selectedImageFile != null ||
+                (_uploadedImageUrl != null && _uploadedImageUrl!.isNotEmpty))
               ListTile(
                 leading: const Icon(Icons.delete, color: Colors.red),
                 title: const Text('删除图片', style: TextStyle(color: Colors.red)),
@@ -232,31 +290,96 @@ class _IngredientEditScreenState extends State<IngredientEditScreen> {
     return null;
   }
 
-  /// 选择日期
-  Future<void> _selectDate(bool isExpiryDate) async {
-    final initialDate = isExpiryDate ? _expiryDate : _purchaseDate;
-    final firstDate = isExpiryDate ? DateTime.now() : DateTime(2020);
-    final lastDate = isExpiryDate
-        ? DateTime.now().add(const Duration(days: 365 * 2))
-        : DateTime.now();
-
+  /// 选择购买日期
+  Future<void> _selectPurchaseDate() async {
     final pickedDate = await showDatePicker(
       context: context,
-      initialDate: initialDate,
-      firstDate: firstDate,
-      lastDate: lastDate,
+      initialDate: _purchaseDate,
+      firstDate: DateTime(2020),
+      lastDate: DateTime.now(),
       locale: const Locale('zh', 'CN'),
     );
 
     if (pickedDate != null) {
       setState(() {
-        if (isExpiryDate) {
-          _expiryDate = pickedDate;
-        } else {
-          _purchaseDate = pickedDate;
-        }
+        _purchaseDate = pickedDate;
       });
     }
+  }
+
+  /// 选择保质期
+  void _showShelfLifePicker() {
+    showModalBottomSheet(
+      context: context,
+      builder: (context) => Container(
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(16),
+              width: double.infinity,
+              decoration: BoxDecoration(
+                border: Border(bottom: BorderSide(color: Colors.grey.shade200)),
+              ),
+              child: const Text(
+                '选择保质期',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+                textAlign: TextAlign.center,
+              ),
+            ),
+            Flexible(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.symmetric(
+                  vertical: 16,
+                  horizontal: 12,
+                ),
+                child: Wrap(
+                  spacing: 12,
+                  runSpacing: 12,
+                  children: _shelfLifeOptions.map((days) {
+                    final isSelected = days == _shelfLifeDays;
+                    return GestureDetector(
+                      onTap: () {
+                        setState(() => _shelfLifeDays = days);
+                        Navigator.pop(context);
+                      },
+                      child: Container(
+                        width: 80,
+                        height: 48,
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          color: isSelected
+                              ? const Color(0xFFFF6B35)
+                              : Colors.grey.shade100,
+                          borderRadius: BorderRadius.circular(12),
+                          border: isSelected
+                              ? null
+                              : Border.all(color: Colors.grey.shade300),
+                        ),
+                        child: Text(
+                          '$days天',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w500,
+                            color: isSelected
+                                ? Colors.white
+                                : Colors.grey.shade700,
+                          ),
+                        ),
+                      ),
+                    );
+                  }).toList(),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   /// 选择图标
@@ -271,11 +394,16 @@ class _IngredientEditScreenState extends State<IngredientEditScreen> {
         expand: false,
         builder: (context, scrollController) => Column(
           children: [
-            const Padding(
-              padding: EdgeInsets.all(16),
-              child: Text(
+            Container(
+              padding: const EdgeInsets.all(16),
+              width: double.infinity,
+              decoration: BoxDecoration(
+                border: Border(bottom: BorderSide(color: Colors.grey.shade200)),
+              ),
+              child: const Text(
                 '选择图标',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+                textAlign: TextAlign.center,
               ),
             ),
             Expanded(
@@ -284,31 +412,33 @@ class _IngredientEditScreenState extends State<IngredientEditScreen> {
                 padding: const EdgeInsets.all(16),
                 gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                   crossAxisCount: 6,
-                  crossAxisSpacing: 8,
-                  mainAxisSpacing: 8,
+                  crossAxisSpacing: 12,
+                  mainAxisSpacing: 12,
                 ),
                 itemCount: _commonIcons.length,
                 itemBuilder: (context, index) {
                   final icon = _commonIcons[index];
                   final isSelected = icon == _selectedIcon;
-                  return InkWell(
+                  return GestureDetector(
                     onTap: () {
                       setState(() => _selectedIcon = icon);
                       Navigator.pop(context);
                     },
-                    borderRadius: BorderRadius.circular(8),
                     child: Container(
                       decoration: BoxDecoration(
                         color: isSelected
-                            ? Theme.of(context).colorScheme.primary.withValues(alpha: 0.1)
-                            : null,
-                        borderRadius: BorderRadius.circular(8),
+                            ? const Color(0xFFFF6B35).withValues(alpha: 0.15)
+                            : Colors.grey.shade100,
+                        borderRadius: BorderRadius.circular(16),
                         border: isSelected
-                            ? Border.all(color: Theme.of(context).colorScheme.primary, width: 2)
-                            : null,
+                            ? Border.all(
+                                color: const Color(0xFFFF6B35),
+                                width: 2,
+                              )
+                            : Border.all(color: Colors.grey.shade200),
                       ),
                       child: Center(
-                        child: Text(icon, style: const TextStyle(fontSize: 24)),
+                        child: Text(icon, style: const TextStyle(fontSize: 28)),
                       ),
                     ),
                   );
@@ -336,8 +466,8 @@ class _IngredientEditScreenState extends State<IngredientEditScreen> {
 
       final quantity = double.tryParse(_quantityController.text) ?? 0;
       final unit = _unitController.text;
-      final expiryDateStr = '${_expiryDate.year}-${_expiryDate.month.toString().padLeft(2, '0')}-${_expiryDate.day.toString().padLeft(2, '0')}';
-      final purchaseDateStr = '${_purchaseDate.year}-${_purchaseDate.month.toString().padLeft(2, '0')}-${_purchaseDate.day.toString().padLeft(2, '0')}';
+      final expiryDateStr = _formatDate(_expiryDate);
+      final purchaseDateStr = _formatDate(_purchaseDate);
 
       IngredientItem? result;
 
@@ -371,21 +501,21 @@ class _IngredientEditScreenState extends State<IngredientEditScreen> {
       }
 
       if (result != null && mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(_isEditMode ? '更新成功' : '添加成功')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(_isEditMode ? '更新成功' : '添加成功')));
         Navigator.pop(context, true);
       } else if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(_isEditMode ? '更新失败' : '添加失败')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(_isEditMode ? '更新失败' : '添加失败')));
       }
     } catch (e) {
       debugPrint('保存失败: $e');
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('保存失败: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('保存失败: $e')));
       }
     }
 
@@ -404,11 +534,49 @@ class _IngredientEditScreenState extends State<IngredientEditScreen> {
     }
   }
 
+  /// 格式化日期显示
+  String _formatDate(DateTime date) {
+    final year = date.year.toString();
+    final month = date.month < 10 ? '0${date.month}' : date.month.toString();
+    final day = date.day < 10 ? '0${date.day}' : date.day.toString();
+    return '$year-$month-$day';
+  }
+
+  /// 获取过期状态颜色
+  Color _getExpiryStatusColor() {
+    final daysLeft = _expiryDate.difference(DateTime.now()).inDays;
+    if (daysLeft <= 0) return Colors.red;
+    if (daysLeft <= 2) return Colors.orange;
+    if (daysLeft <= 7) return Colors.yellow.shade700;
+    return const Color(0xFF4CAF50);
+  }
+
+  /// 获取过期状态文本
+  String _getExpiryStatusText() {
+    final daysLeft = _expiryDate.difference(DateTime.now()).inDays;
+    if (daysLeft <= 0) return '已过期';
+    if (daysLeft == 1) return '明天过期';
+    return '$daysLeft天后过期';
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: const Color(0xFFF5F5F5),
       appBar: AppBar(
-        title: Text(_isEditMode ? '编辑食材' : '添加食材'),
+        backgroundColor: Colors.white,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.close, color: Color(0xFF2D3436)),
+          onPressed: () => Navigator.pop(context),
+        ),
+        title: Text(
+          _isEditMode ? '编辑食材' : '添加食材',
+          style: const TextStyle(
+            color: Color(0xFF2D3436),
+            fontWeight: FontWeight.w600,
+          ),
+        ),
         actions: [
           TextButton(
             onPressed: _isSaving ? null : _saveIngredient,
@@ -416,341 +584,734 @@ class _IngredientEditScreenState extends State<IngredientEditScreen> {
                 ? const SizedBox(
                     width: 20,
                     height: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2),
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Color(0xFFFF6B35),
+                    ),
                   )
-                : const Text('保存'),
+                : const Text(
+                    '保存',
+                    style: TextStyle(
+                      color: Color(0xFFFF6B35),
+                      fontWeight: FontWeight.w600,
+                      fontSize: 16,
+                    ),
+                  ),
           ),
         ],
       ),
       body: Form(
         key: _formKey,
-        child: ListView(
-          padding: const EdgeInsets.all(16),
-          children: [
-            // 图片选择区域
-            _buildImageSection(),
-            const SizedBox(height: 24),
+        child: SingleChildScrollView(
+          child: Column(
+            children: [
+              const SizedBox(height: 16),
 
-            // 基本信息
-            _buildBasicInfoSection(),
-            const SizedBox(height: 24),
+              // 图片和图标选择区域
+              _buildImageIconSection(),
 
-            // 分类和存储位置
-            _buildCategorySection(),
-            const SizedBox(height: 24),
+              const SizedBox(height: 16),
 
-            // 日期信息
-            _buildDateSection(),
-            const SizedBox(height: 24),
+              // 基本信息
+              _buildBasicInfoCard(),
 
-            // 备注
-            _buildNoteSection(),
-            const SizedBox(height: 80),
-          ],
+              const SizedBox(height: 16),
+
+              // 分类和存储
+              _buildCategoryCard(),
+
+              const SizedBox(height: 16),
+
+              // 保质期和购买日期
+              _buildShelfLifeCard(),
+
+              const SizedBox(height: 16),
+
+              // 备注
+              _buildNoteCard(),
+
+              const SizedBox(height: 32),
+            ],
+          ),
         ),
       ),
     );
   }
 
-  /// 构建图片选择区域
-  Widget _buildImageSection() {
-    final hasImage = _selectedImageFile != null ||
+  /// 构建图片和图标选择区域
+  Widget _buildImageIconSection() {
+    final hasImage =
+        _selectedImageFile != null ||
         (_uploadedImageUrl != null && _uploadedImageUrl!.isNotEmpty);
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          '食材图片',
-          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-        ),
-        const SizedBox(height: 12),
-        Row(
-          children: [
-            // 图片预览
-            GestureDetector(
-              onTap: _showImagePickerDialog,
-              child: Container(
-                width: 100,
-                height: 100,
-                decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.surfaceContainerHighest,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.3),
-                  ),
-                ),
-                child: hasImage
-                    ? ClipRRect(
-                        borderRadius: BorderRadius.circular(12),
-                        child: _selectedImageFile != null
-                            ? Image.file(_selectedImageFile!, fit: BoxFit.cover)
-                            : Image.network(
-                                _uploadedImageUrl!.startsWith('http')
-                                    ? _uploadedImageUrl!
-                                    : '${ApiConfig.devBaseUrl.replaceAll('/api', '')}$_uploadedImageUrl',
-                                fit: BoxFit.cover,
-                                errorBuilder: (_, __, ___) => const Icon(Icons.broken_image),
-                              ),
-                      )
-                    : Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(
-                            Icons.add_a_photo,
-                            size: 32,
-                            color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            '添加图片',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5),
-                            ),
-                          ),
-                        ],
-                      ),
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16),
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 20,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          // 图片预览
+          GestureDetector(
+            onTap: _showImagePickerDialog,
+            child: Container(
+              width: double.infinity,
+              height: 160,
+              decoration: BoxDecoration(
+                color: const Color(0xFFF8F9FA),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: const Color(0xFFE9ECEF), width: 1),
               ),
-            ),
-            const SizedBox(width: 16),
-
-            // 图标选择
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text('或选择图标'),
-                  const SizedBox(height: 8),
-                  GestureDetector(
-                    onTap: _showIconPicker,
-                    child: Container(
-                      width: 60,
-                      height: 60,
-                      decoration: BoxDecoration(
-                        color: Theme.of(context).colorScheme.surfaceContainerHighest,
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                          color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.3),
+              child: hasImage
+                  ? ClipRRect(
+                      borderRadius: BorderRadius.circular(16),
+                      child: _selectedImageFile != null
+                          ? Image.file(_selectedImageFile!, fit: BoxFit.cover)
+                          : Image.network(
+                              _uploadedImageUrl!.startsWith('http')
+                                  ? _uploadedImageUrl!
+                                  : ApiConfig.devBaseUrl.replaceAll(
+                                          '/api',
+                                          '',
+                                        ) +
+                                        _uploadedImageUrl!,
+                              fit: BoxFit.cover,
+                              errorBuilder: (_, __, ___) =>
+                                  _buildImagePlaceholder(),
+                            ),
+                    )
+                  : Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Container(
+                          width: 56,
+                          height: 56,
+                          decoration: BoxDecoration(
+                            color: const Color(
+                              0xFFFF6B35,
+                            ).withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          child: const Icon(
+                            Icons.add_photo_alternate_outlined,
+                            size: 28,
+                            color: Color(0xFFFF6B35),
+                          ),
                         ),
-                      ),
-                      child: Center(
-                        child: Text(_selectedIcon, style: const TextStyle(fontSize: 32)),
+                        const SizedBox(height: 8),
+                        const Text(
+                          '添加食材照片',
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Color(0xFF868E96),
+                          ),
+                        ),
+                      ],
+                    ),
+            ),
+          ),
+
+          const SizedBox(height: 20),
+
+          // 图标选择
+          Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      '选择图标',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                        color: Color(0xFF868E96),
                       ),
                     ),
+                    const SizedBox(height: 8),
+                    GestureDetector(
+                      onTap: _showIconPicker,
+                      child: Container(
+                        width: double.infinity,
+                        height: 56,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF8F9FA),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: const Color(0xFFE9ECEF),
+                            width: 1,
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            const SizedBox(width: 12),
+                            Text(
+                              _selectedIcon,
+                              style: const TextStyle(fontSize: 28),
+                            ),
+                            const SizedBox(width: 12),
+                            const Expanded(
+                              child: Text(
+                                '点击更换',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  color: Color(0xFF868E96),
+                                ),
+                              ),
+                            ),
+                            const Icon(
+                              Icons.chevron_right,
+                              color: Color(0xFF868E96),
+                            ),
+                            const SizedBox(width: 12),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildImagePlaceholder() {
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Container(
+          width: 56,
+          height: 56,
+          decoration: BoxDecoration(
+            color: const Color(0xFFFF6B35).withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: const Icon(
+            Icons.add_photo_alternate_outlined,
+            size: 28,
+            color: Color(0xFFFF6B35),
+          ),
+        ),
+        const SizedBox(height: 8),
+        const Text(
+          '添加食材照片',
+          style: TextStyle(fontSize: 14, color: Color(0xFF868E96)),
+        ),
+      ],
+    );
+  }
+
+  /// 构建基本信息卡片
+  Widget _buildBasicInfoCard() {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16),
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 20,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // 名称
+          Container(
+            decoration: BoxDecoration(
+              color: const Color(0xFFF8F9FA),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: const Color(0xFFE9ECEF)),
+            ),
+            child: TextFormField(
+              controller: _nameController,
+              decoration: const InputDecoration(
+                hintText: '输入食材名称',
+                hintStyle: TextStyle(color: Color(0xFFADB5BD)),
+                border: InputBorder.none,
+                contentPadding: EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 14,
+                ),
+              ),
+              style: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w500,
+                color: Color(0xFF2D3436),
+              ),
+              validator: (value) {
+                if (value == null || value.isEmpty) {
+                  return '请输入食材名称';
+                }
+                return null;
+              },
+            ),
+          ),
+
+          const SizedBox(height: 16),
+
+          // 数量和单位
+          Row(
+            children: [
+              Expanded(
+                flex: 2,
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF8F9FA),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: const Color(0xFFE9ECEF)),
                   ),
+                  child: TextFormField(
+                    controller: _quantityController,
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
+                    decoration: const InputDecoration(
+                      hintText: '数量',
+                      hintStyle: TextStyle(color: Color(0xFFADB5BD)),
+                      border: InputBorder.none,
+                      contentPadding: EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 14,
+                      ),
+                    ),
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w500,
+                      color: Color(0xFF2D3436),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                flex: 1,
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF8F9FA),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: const Color(0xFFE9ECEF)),
+                  ),
+                  child: DropdownButtonFormField<String>(
+                    initialValue: _commonUnits.contains(_unitController.text)
+                        ? _unitController.text
+                        : '个',
+                    decoration: const InputDecoration(
+                      border: InputBorder.none,
+                      contentPadding: EdgeInsets.symmetric(horizontal: 12),
+                    ),
+                    icon: const Icon(
+                      Icons.keyboard_arrow_down,
+                      color: Color(0xFF868E96),
+                    ),
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w500,
+                      color: Color(0xFF2D3436),
+                    ),
+                    items: _commonUnits
+                        .map(
+                          (unit) =>
+                              DropdownMenuItem(value: unit, child: Text(unit)),
+                        )
+                        .toList(),
+                    onChanged: (value) {
+                      if (value != null) {
+                        _unitController.text = value;
+                      }
+                    },
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// 构建分类卡片
+  Widget _buildCategoryCard() {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16),
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 20,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // 存储位置
+          const Text(
+            '存储位置',
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w500,
+              color: Color(0xFF868E96),
+            ),
+          ),
+          const SizedBox(height: 12),
+          Container(
+            decoration: BoxDecoration(
+              color: const Color(0xFFF8F9FA),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Row(
+              children: [
+                _buildStorageButton('room', '常温', Icons.home_outlined),
+                _buildStorageButton('fridge', '冷藏', Icons.kitchen_outlined),
+                _buildStorageButton('freezer', '冷冻', Icons.ac_unit),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 20),
+
+          // 食材分类
+          const Text(
+            '食材分类',
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w500,
+              color: Color(0xFF868E96),
+            ),
+          ),
+          const SizedBox(height: 12),
+          _isLoadingCategories
+              ? const Center(
+                  child: CircularProgressIndicator(color: Color(0xFFFF6B35)),
+                )
+              : Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: _categories.map((cat) {
+                    final isSelected = cat.id == _selectedCategoryId;
+                    return GestureDetector(
+                      onTap: () {
+                        setState(() => _selectedCategoryId = cat.id);
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 8,
+                        ),
+                        decoration: BoxDecoration(
+                          color: isSelected
+                              ? _parseColor(cat.color).withValues(alpha: 0.15)
+                              : const Color(0xFFF8F9FA),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(
+                            color: isSelected
+                                ? _parseColor(cat.color)
+                                : const Color(0xFFE9ECEF),
+                            width: isSelected ? 1.5 : 1,
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              cat.icon,
+                              style: const TextStyle(fontSize: 16),
+                            ),
+                            const SizedBox(width: 6),
+                            Text(
+                              cat.name,
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: isSelected
+                                    ? FontWeight.w600
+                                    : FontWeight.w500,
+                                color: isSelected
+                                    ? _parseColor(cat.color)
+                                    : const Color(0xFF495057),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  }).toList(),
+                ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStorageButton(String value, String label, IconData icon) {
+    final isSelected = _selectedStorage == value;
+    return Expanded(
+      child: GestureDetector(
+        onTap: () {
+          setState(() => _selectedStorage = value);
+        },
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 14),
+          decoration: BoxDecoration(
+            color: isSelected
+                ? const Color(0xFFFF6B35).withValues(alpha: 0.1)
+                : Colors.transparent,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Column(
+            children: [
+              Icon(
+                icon,
+                size: 24,
+                color: isSelected
+                    ? const Color(0xFFFF6B35)
+                    : const Color(0xFF868E96),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                  color: isSelected
+                      ? const Color(0xFFFF6B35)
+                      : const Color(0xFF868E96),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// 构建保质期卡片
+  Widget _buildShelfLifeCard() {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16),
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 20,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // 购买日期
+          const Text(
+            '购买日期',
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w500,
+              color: Color(0xFF868E96),
+            ),
+          ),
+          const SizedBox(height: 12),
+          GestureDetector(
+            onTap: _selectPurchaseDate,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF8F9FA),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: const Color(0xFFE9ECEF)),
+              ),
+              child: Row(
+                children: [
+                  const Icon(
+                    Icons.calendar_today_outlined,
+                    size: 20,
+                    color: Color(0xFF868E96),
+                  ),
+                  const SizedBox(width: 12),
+                  Text(
+                    _formatDate(_purchaseDate),
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w500,
+                      color: Color(0xFF2D3436),
+                    ),
+                  ),
+                  const Spacer(),
+                  const Icon(Icons.chevron_right, color: Color(0xFF868E96)),
                 ],
               ),
             ),
-          ],
-        ),
-      ],
-    );
-  }
-
-  /// 构建基本信息区域
-  Widget _buildBasicInfoSection() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          '基本信息',
-          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-        ),
-        const SizedBox(height: 12),
-
-        // 名称
-        TextFormField(
-          controller: _nameController,
-          decoration: const InputDecoration(
-            labelText: '食材名称 *',
-            border: OutlineInputBorder(),
-            prefixIcon: Icon(Icons.label_outline),
           ),
-          validator: (value) {
-            if (value == null || value.isEmpty) {
-              return '请输入食材名称';
-            }
-            return null;
-          },
-        ),
-        const SizedBox(height: 16),
 
-        // 数量和单位
-        Row(
-          children: [
-            Expanded(
-              flex: 2,
-              child: TextFormField(
-                controller: _quantityController,
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                decoration: const InputDecoration(
-                  labelText: '数量',
-                  border: OutlineInputBorder(),
-                  prefixIcon: Icon(Icons.numbers),
-                ),
-              ),
+          const SizedBox(height: 20),
+
+          // 保质期
+          const Text(
+            '保质期',
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w500,
+              color: Color(0xFF868E96),
             ),
-            const SizedBox(width: 12),
-            Expanded(
-              flex: 2,
-              child: DropdownButtonFormField<String>(
-                initialValue: _commonUnits.contains(_unitController.text)
-                    ? _unitController.text
-                    : null,
-                decoration: const InputDecoration(
-                  labelText: '单位',
-                  border: OutlineInputBorder(),
-                ),
-                items: _commonUnits
-                    .map((unit) => DropdownMenuItem(value: unit, child: Text(unit)))
-                    .toList(),
-                onChanged: (value) {
-                  if (value != null) {
-                    _unitController.text = value;
-                  }
-                },
+          ),
+          const SizedBox(height: 12),
+          GestureDetector(
+            onTap: _showShelfLifePicker,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF8F9FA),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: const Color(0xFFE9ECEF)),
               ),
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-
-  /// 构建分类区域
-  Widget _buildCategorySection() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          '分类与存储',
-          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-        ),
-        const SizedBox(height: 12),
-
-        // 食材分类
-        const Text('食材分类'),
-        const SizedBox(height: 8),
-        _isLoadingCategories
-            ? const Center(child: CircularProgressIndicator())
-            : Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: _categories.map((cat) {
-                  final isSelected = cat.id == _selectedCategoryId;
-                  return FilterChip(
-                    selected: isSelected,
-                    label: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(cat.icon),
-                        const SizedBox(width: 4),
-                        Text(cat.name),
-                      ],
+              child: Row(
+                children: [
+                  const Icon(
+                    Icons.access_time_outlined,
+                    size: 20,
+                    color: Color(0xFFFF6B35),
+                  ),
+                  const SizedBox(width: 12),
+                  Text(
+                    '$_shelfLifeDays 天',
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFFFF6B35),
                     ),
-                    selectedColor: _parseColor(cat.color).withValues(alpha: 0.2),
-                    checkmarkColor: _parseColor(cat.color),
-                    onSelected: (selected) {
-                      if (selected) {
-                        setState(() => _selectedCategoryId = cat.id);
-                      }
-                    },
-                  );
-                }).toList(),
-              ),
-        const SizedBox(height: 16),
-
-        // 存储位置
-        const Text('存储位置'),
-        const SizedBox(height: 8),
-        SegmentedButton<String>(
-          segments: const [
-            ButtonSegment(value: 'room', label: Text('常温'), icon: Icon(Icons.home_outlined)),
-            ButtonSegment(value: 'fridge', label: Text('冷藏'), icon: Icon(Icons.kitchen_outlined)),
-            ButtonSegment(value: 'freezer', label: Text('冷冻'), icon: Icon(Icons.ac_unit)),
-          ],
-          selected: {_selectedStorage},
-          onSelectionChanged: (selection) {
-            setState(() => _selectedStorage = selection.first);
-          },
-        ),
-      ],
-    );
-  }
-
-  /// 构建日期区域
-  Widget _buildDateSection() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          '日期信息',
-          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-        ),
-        const SizedBox(height: 12),
-        Row(
-          children: [
-            Expanded(
-              child: InkWell(
-                onTap: () => _selectDate(false),
-                borderRadius: BorderRadius.circular(8),
-                child: InputDecorator(
-                  decoration: const InputDecoration(
-                    labelText: '购买日期',
-                    border: OutlineInputBorder(),
-                    prefixIcon: Icon(Icons.shopping_cart_outlined),
                   ),
-                  child: Text(
-                    '${_purchaseDate.year}-${_purchaseDate.month.toString().padLeft(2, '0')}-${_purchaseDate.day.toString().padLeft(2, '0')}',
-                  ),
-                ),
+                  const Spacer(),
+                  const Icon(Icons.chevron_right, color: Color(0xFF868E96)),
+                ],
               ),
             ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: InkWell(
-                onTap: () => _selectDate(true),
-                borderRadius: BorderRadius.circular(8),
-                child: InputDecorator(
-                  decoration: const InputDecoration(
-                    labelText: '过期日期',
-                    border: OutlineInputBorder(),
-                    prefixIcon: Icon(Icons.event),
-                  ),
-                  child: Text(
-                    '${_expiryDate.year}-${_expiryDate.month.toString().padLeft(2, '0')}-${_expiryDate.day.toString().padLeft(2, '0')}',
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-
-  /// 构建备注区域
-  Widget _buildNoteSection() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          '备注',
-          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-        ),
-        const SizedBox(height: 12),
-        TextFormField(
-          controller: _noteController,
-          maxLines: 3,
-          decoration: const InputDecoration(
-            hintText: '添加备注信息...',
-            border: OutlineInputBorder(),
-            prefixIcon: Icon(Icons.notes),
           ),
-        ),
-      ],
+
+          const SizedBox(height: 16),
+
+          // 过期日期预览
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            decoration: BoxDecoration(
+              color: _getExpiryStatusColor().withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: _getExpiryStatusColor().withValues(alpha: 0.3),
+              ),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  _expiryDate.isBefore(DateTime.now())
+                      ? Icons.warning_amber_outlined
+                      : Icons.event_available_outlined,
+                  size: 20,
+                  color: _getExpiryStatusColor(),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '过期日期: ${_formatDate(_expiryDate)}',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                          color: _getExpiryStatusColor(),
+                        ),
+                      ),
+                      Text(
+                        _getExpiryStatusText(),
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: _getExpiryStatusColor().withValues(alpha: 0.8),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// 构建备注卡片
+  Widget _buildNoteCard() {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16),
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 20,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            '备注',
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w500,
+              color: Color(0xFF868E96),
+            ),
+          ),
+          const SizedBox(height: 12),
+          Container(
+            decoration: BoxDecoration(
+              color: const Color(0xFFF8F9FA),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: const Color(0xFFE9ECEF)),
+            ),
+            child: TextFormField(
+              controller: _noteController,
+              maxLines: 3,
+              decoration: const InputDecoration(
+                hintText: '添加备注信息...',
+                hintStyle: TextStyle(color: Color(0xFFADB5BD)),
+                border: InputBorder.none,
+                contentPadding: EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 14,
+                ),
+              ),
+              style: const TextStyle(fontSize: 16, color: Color(0xFF2D3436)),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
-

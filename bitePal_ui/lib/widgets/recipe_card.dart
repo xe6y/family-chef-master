@@ -60,7 +60,7 @@ class RecipeCard extends StatelessWidget {
             Stack(
               children: [
                 Container(
-                  height: 130,
+                  height: 110,
                   width: double.infinity,
                   decoration: BoxDecoration(
                     color: colorScheme.surfaceContainerHighest,
@@ -130,7 +130,7 @@ class RecipeCard extends StatelessWidget {
             ),
             // 信息区域
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
@@ -158,15 +158,19 @@ class RecipeCard extends StatelessWidget {
                         color: colorScheme.onSurface.withValues(alpha: 0.6),
                       ),
                       const SizedBox(width: 4),
-                      Text(
-                        recipe.time,
-                        style: TextStyle(
-                          fontSize: 11,
-                          color: colorScheme.onSurface.withValues(alpha: 0.7),
-                          inherit: false,
+                      Flexible(
+                        child: Text(
+                          recipe.time,
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: colorScheme.onSurface.withValues(alpha: 0.7),
+                            inherit: false,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ),
-                      const SizedBox(width: 12),
+                      const SizedBox(width: 8),
                       if (recipe.difficulty.isNotEmpty)
                         _buildDifficultyBadge(recipe.difficulty, colorScheme),
                     ],
@@ -264,7 +268,10 @@ class RecipeCard extends StatelessWidget {
       return [];
     }
 
-    return recipe.tags.asMap().entries.map((entry) {
+    // 只显示前两个标签，防止溢出
+    final displayTags = recipe.tags.take(2).toList();
+
+    return displayTags.asMap().entries.map((entry) {
       final index = entry.key;
       final tag = entry.value;
       final tagColorClass = index < recipe.tagColors.length
