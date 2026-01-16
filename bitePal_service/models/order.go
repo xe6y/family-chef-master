@@ -31,7 +31,14 @@ func (o *OrderRecipes) Scan(value interface{}) error {
 		*o = OrderRecipes{}
 		return nil
 	}
-	return json.Unmarshal(value.([]byte), o)
+	switch v := value.(type) {
+	case []byte:
+		return json.Unmarshal(v, o)
+	case string:
+		return json.Unmarshal([]byte(v), o)
+	default:
+		return nil
+	}
 }
 
 // Value 写入数据库的值

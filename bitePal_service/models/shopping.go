@@ -27,7 +27,14 @@ func (s *ShoppingItems) Scan(value interface{}) error {
 		*s = ShoppingItems{}
 		return nil
 	}
-	return json.Unmarshal(value.([]byte), s)
+	switch v := value.(type) {
+	case []byte:
+		return json.Unmarshal(v, s)
+	case string:
+		return json.Unmarshal([]byte(v), s)
+	default:
+		return nil
+	}
 }
 
 // Value 写入数据库的值

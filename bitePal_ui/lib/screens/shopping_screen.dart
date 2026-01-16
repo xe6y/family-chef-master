@@ -3,6 +3,7 @@ import '../models/shopping_item.dart';
 import '../services/shopping_service.dart';
 import '../widgets/refreshable_screen.dart';
 import '../widgets/edit_item_dialog.dart';
+import '../widgets/add_shopping_item_dialog.dart';
 
 /// 购物清单页面
 class ShoppingScreen extends RefreshableScreen {
@@ -76,18 +77,90 @@ class _ShoppingScreenState extends State<ShoppingScreen> with RefreshableScreenS
     final item = _items[index];
     final newChecked = !item.checked;
 
-    // 如果有真实的清单ID，调用API更新
-    if (_currentList != null) {
-      await _shoppingService.updateShoppingItem(
-        _currentList!.id,
-        id,
-        checked: newChecked,
-      );
+    if (newChecked) {
+      // 勾选时，显示确认对话框输入实际价格和数量
+      await _showConfirmPurchaseDialog(item, index);
+    } else {
+      // 取消勾选，直接更新
+      if (_currentList != null) {
+        await _shoppingService.updateShoppingItem(
+          _currentList!.id,
+          id,
+          checked: false,
+        );
+      }
+      setState(() {
+        _items[index] = item.copyWith(checked: false);
+      });
     }
+  }
 
-    setState(() {
-      _items[index] = item.copyWith(checked: newChecked);
-    });
+  /// 显示确认购买对话框
+  Future<void> _showConfirmPurchaseDialog(ShoppingItem item, int index) async {
+    final amountController = TextEditingController(text: item.amount);
+    final priceController = TextEditingController(text: item.price.toString());
+
+    return showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('确认购买'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: amountController,
+              decoration: const InputDecoration(
+                labelText: '实际数量',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: priceController,
+              keyboardType: TextInputType.numberWithOptions(decimal: true),
+              decoration: const InputDecoration(
+                labelText: '实际价格',
+                border: OutlineInputBorder(),
+                prefixText: '¥ ',
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('取消'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              final newPrice = double.tryParse(priceController.text) ?? item.price;
+              final newAmount = amountController.text;
+
+              if (_currentList != null) {
+                await _shoppingService.updateShoppingItem(
+                  _currentList!.id,
+                  item.id,
+                  amount: newAmount,
+                  price: newPrice,
+                  checked: true,
+                );
+              }
+
+              setState(() {
+                _items[index] = item.copyWith(
+                  amount: newAmount,
+                  price: newPrice,
+                  checked: true,
+                );
+              });
+
+              if (mounted) Navigator.pop(context);
+            },
+            child: const Text('确认'),
+          ),
+        ],
+      ),
+    );
   }
 
   /// 编辑购物项
@@ -136,13 +209,22 @@ class _ShoppingScreenState extends State<ShoppingScreen> with RefreshableScreenS
   /// 完成购物
   Future<void> _completeShoppingList() async {
     if (_currentList != null) {
-      await _shoppingService.completeShoppingList(_currentList!.id);
-    }
-
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('购物清单已完成'), duration: Duration(seconds: 1)),
-      );
+      final success = await _shoppingService.completeShoppingList(_currentList!.id);
+      if (success) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('购物结算完成'), duration: Duration(seconds: 1)),
+          );
+        }
+        // 刷新列表，移除已购买的商品
+        await _loadShoppingList();
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('结算失败，请重试'), duration: Duration(seconds: 1)),
+          );
+        }
+      }
     }
   }
 
@@ -160,88 +242,48 @@ class _ShoppingScreenState extends State<ShoppingScreen> with RefreshableScreenS
 
   /// 显示添加购物项对话框
   void _showAddItemDialog() {
-    final nameController = TextEditingController();
-    final amountController = TextEditingController();
-    final priceController = TextEditingController();
-
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('添加商品'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: nameController,
-              decoration: const InputDecoration(
-                labelText: '商品名称',
-                border: OutlineInputBorder(),
-              ),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: amountController,
-              decoration: const InputDecoration(
-                labelText: '数量',
-                border: OutlineInputBorder(),
-              ),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: priceController,
-              keyboardType: TextInputType.number,
-              decoration: const InputDecoration(
-                labelText: '预估价格',
-                border: OutlineInputBorder(),
-                prefixText: '¥ ',
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('取消'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              if (nameController.text.isNotEmpty) {
-                final price = double.tryParse(priceController.text) ?? 0;
+      builder: (context) => AddShoppingItemDialog(
+        onAdd: (name) async {
+          Navigator.pop(context); // 关闭对话框
 
-                // 如果有真实的清单ID，调用API添加
-                if (_currentList != null) {
-                  await _shoppingService.addShoppingItem(
-                    _currentList!.id,
-                    name: nameController.text,
-                    amount: amountController.text,
-                    price: price,
-                  );
-                  _loadShoppingList();
-                } else {
-                  // 本地添加
-                  setState(() {
-                    _items.add(ShoppingItem(
-                      id: DateTime.now().millisecondsSinceEpoch.toString(),
-                      name: nameController.text,
-                      amount: amountController.text,
-                      price: price,
-                    ));
-                  });
-                }
+          if (_currentList != null) {
+            // 调用API添加，只需要名称，数量和价格为空/0
+            await _shoppingService.addShoppingItem(
+              _currentList!.id,
+              name: name,
+              amount: "",
+              price: 0,
+            );
+            _loadShoppingList();
+          } else {
+            // 本地添加
+            setState(() {
+              _items.add(ShoppingItem(
+                id: DateTime.now().millisecondsSinceEpoch.toString(),
+                name: name,
+                amount: "",
+                price: 0,
+              ));
+            });
+          }
 
-                if (mounted) Navigator.pop(context);
-              }
-            },
-            child: const Text('添加'),
-          ),
-        ],
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('已添加 "$name"'), duration: const Duration(seconds: 1)),
+            );
+          }
+        },
       ),
     );
   }
 
-  /// 计算总价
+  /// 计算总价 (只计算已勾选的商品)
   double get _total {
-    return _items.fold(0.0, (sum, item) => sum + item.price);
+    return _items
+        .where((item) => item.checked)
+        .fold(0.0, (sum, item) => sum + item.price);
   }
 
   @override
@@ -391,7 +433,7 @@ class _ShoppingScreenState extends State<ShoppingScreen> with RefreshableScreenS
                       crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
                         Text(
-                          "预计总计",
+                          "此单总计",
                           style: TextStyle(
                             fontSize: 14,
                             fontWeight: FontWeight.w600,

@@ -82,7 +82,7 @@ func (h *ShoppingHandler) GetShoppingLists(c *gin.Context) {
 
 // GetCurrentShoppingList 获取当前购物清单
 // @Summary 获取当前购物清单
-// @Description 获取用户当前未完成的购物清单
+// @Description 获取用户当前未完成的购物清单，如果不存在则自动创建
 // @Tags 购物清单
 // @Accept json
 // @Produce json
@@ -98,12 +98,19 @@ func (h *ShoppingHandler) GetCurrentShoppingList(c *gin.Context) {
 		First(&list)
 
 	if result.Error != nil {
-		// 如果没有当前清单，返回空清单
+		// 如果没有当前清单，创建一个新的
 		list = models.ShoppingList{
 			Name:       "购物清单",
 			Items:      models.ShoppingItems{},
 			TotalPrice: 0,
 			UserID:     userID,
+		}
+		if err := config.DB.Create(&list).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, models.NewErrorResponse(
+				models.CodeServerError,
+				"创建购物清单失败",
+			))
+			return
 		}
 	}
 
@@ -276,11 +283,14 @@ func (h *ShoppingHandler) AddShoppingItem(c *gin.Context) {
 
 	list.AddItem(item)
 
-	// 更新清单
-	config.DB.Model(&list).Updates(map[string]interface{}{
-		"items":       list.Items,
-		"total_price": list.TotalPrice,
-	})
+	// 更新清单 (使用Save确保所有字段包括Items都被更新)
+	if err := config.DB.Save(&list).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, models.NewErrorResponse(
+			models.CodeServerError,
+			"添加失败",
+		))
+		return
+	}
 
 	c.JSON(http.StatusOK, models.NewSuccessResponseWithMessage("添加成功", item))
 }
@@ -407,7 +417,7 @@ func (h *ShoppingHandler) DeleteShoppingItem(c *gin.Context) {
 
 // CompleteShoppingList 完成购物清单
 // @Summary 完成购物清单
-// @Description 标记购物清单为已完成
+// @Description 结算当前购物清单：将已勾选的商品生成历史订单，未勾选的商品保留在当前清单
 // @Tags 购物清单
 // @Accept json
 // @Produce json
@@ -420,8 +430,8 @@ func (h *ShoppingHandler) CompleteShoppingList(c *gin.Context) {
 	userID := middleware.GetUserIDFromContext(c)
 	listID := c.Param("listId")
 
-	var list models.ShoppingList
-	if result := config.DB.Where("id = ? AND user_id = ?", listID, userID).First(&list); result.Error != nil {
+	var currentList models.ShoppingList
+	if result := config.DB.Where("id = ? AND user_id = ?", listID, userID).First(&currentList); result.Error != nil {
 		c.JSON(http.StatusNotFound, models.NewErrorResponse(
 			models.CodeNotFound,
 			"购物清单不存在",
@@ -429,12 +439,71 @@ func (h *ShoppingHandler) CompleteShoppingList(c *gin.Context) {
 		return
 	}
 
-	completedAt := time.Now()
-	config.DB.Model(&list).Update("completed_at", completedAt)
+	// 1. 筛选出已购买（已勾选）和未购买的商品
+	var purchasedItems models.ShoppingItems
+	var remainingItems models.ShoppingItems
 
-	c.JSON(http.StatusOK, models.NewSuccessResponseWithMessage("完成成功", gin.H{
-		"id":          list.ID,
-		"completedAt": completedAt,
+	for _, item := range currentList.Items {
+		if item.Checked {
+			purchasedItems = append(purchasedItems, item)
+		} else {
+			remainingItems = append(remainingItems, item)
+		}
+	}
+
+	if len(purchasedItems) == 0 {
+		c.JSON(http.StatusBadRequest, models.NewErrorResponse(
+			models.CodeBadRequest,
+			"没有已勾选的商品，无法结算",
+		))
+		return
+	}
+
+	// 2. 创建历史订单（只包含已购买商品）
+	historyList := models.ShoppingList{
+		ID:          uuid.New().String(),
+		Name:        currentList.Name + " (已完成)",
+		Items:       purchasedItems,
+		UserID:      userID,
+		CompletedAt: func() *time.Time { t := time.Now(); return &t }(),
+	}
+	historyList.CalculateTotalPrice()
+
+	// 开启事务
+	tx := config.DB.Begin()
+
+	// 保存历史订单
+	if err := tx.Create(&historyList).Error; err != nil {
+		tx.Rollback()
+		c.JSON(http.StatusInternalServerError, models.NewErrorResponse(
+			models.CodeServerError,
+			"创建历史订单失败",
+		))
+		return
+	}
+
+	// 3. 更新当前清单（只保留未购买商品）
+	currentList.Items = remainingItems
+	currentList.CalculateTotalPrice()
+
+	if err := tx.Model(&currentList).Updates(map[string]interface{}{
+		"items":       currentList.Items,
+		"total_price": currentList.TotalPrice,
+	}).Error; err != nil {
+		tx.Rollback()
+		c.JSON(http.StatusInternalServerError, models.NewErrorResponse(
+			models.CodeServerError,
+			"更新当前清单失败",
+		))
+		return
+	}
+
+	tx.Commit()
+
+	c.JSON(http.StatusOK, models.NewSuccessResponseWithMessage("结算成功", gin.H{
+		"historyId":   historyList.ID,
+		"completedAt": historyList.CompletedAt,
+		"totalSpent":  historyList.TotalPrice,
 	}))
 }
 
