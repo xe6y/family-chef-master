@@ -1,6 +1,5 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 import '../models/recipe.dart';
 import '../models/recipe_category.dart';
@@ -39,8 +38,9 @@ class GlassContainer extends StatelessWidget {
         child: Container(
           padding: padding,
           decoration: BoxDecoration(
-            color: (color ?? Theme.of(context).colorScheme.surface)
-                .withOpacity(opacity),
+            color: (color ?? Theme.of(context).colorScheme.surface).withOpacity(
+              opacity,
+            ),
             borderRadius: BorderRadius.circular(borderRadius),
             border: Border.all(
               color: Colors.white.withOpacity(0.2),
@@ -85,9 +85,10 @@ class _BouncyCardState extends State<BouncyCard>
       vsync: this,
       duration: const Duration(milliseconds: 150),
     );
-    _scaleAnimation = Tween<double>(begin: 1.0, end: 0.95).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
-    );
+    _scaleAnimation = Tween<double>(
+      begin: 1.0,
+      end: 0.95,
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
   }
 
   @override
@@ -159,9 +160,10 @@ class _StatusChipState extends State<StatusChip>
       vsync: this,
       duration: const Duration(milliseconds: 1500),
     );
-    _opacityAnimation = Tween<double>(begin: 0.1, end: 0.4).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
-    );
+    _opacityAnimation = Tween<double>(
+      begin: 0.1,
+      end: 0.4,
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
 
     if (widget.isBreathing) {
       _controller.repeat(reverse: true);
@@ -248,12 +250,12 @@ class _RecipesScreenState extends State<RecipesScreen>
   String _activeTab = "my";
   String _searchKeyword = '';
   bool _isLoading = true;
-  
+
   // Filter State
   final List<String> _selectedTastes = [];
   final List<String> _selectedDifficulties = [];
   final List<String> _selectedCuisines = [];
-  
+
   // Data
   List<RecipeCategory> _tasteCategories = [];
   List<RecipeCategory> _difficultyCategories = [];
@@ -302,22 +304,94 @@ class _RecipesScreenState extends State<RecipesScreen>
   void _loadDefaultCategories() {
     // Keep existing fallback logic
     _tasteCategories = [
-      RecipeCategory(id: '1', type: 'taste', name: '清淡', sortOrder: 1, isActive: true),
-      RecipeCategory(id: '2', type: 'taste', name: '咸鲜', sortOrder: 2, isActive: true),
-      RecipeCategory(id: '3', type: 'taste', name: '酸', sortOrder: 3, isActive: true),
-      RecipeCategory(id: '4', type: 'taste', name: '甜', sortOrder: 4, isActive: true),
-      RecipeCategory(id: '5', type: 'taste', name: '麻', sortOrder: 5, isActive: true),
-      RecipeCategory(id: '6', type: 'taste', name: '辣', sortOrder: 6, isActive: true),
+      RecipeCategory(
+        id: '1',
+        type: 'taste',
+        name: '清淡',
+        sortOrder: 1,
+        isActive: true,
+      ),
+      RecipeCategory(
+        id: '2',
+        type: 'taste',
+        name: '咸鲜',
+        sortOrder: 2,
+        isActive: true,
+      ),
+      RecipeCategory(
+        id: '3',
+        type: 'taste',
+        name: '酸',
+        sortOrder: 3,
+        isActive: true,
+      ),
+      RecipeCategory(
+        id: '4',
+        type: 'taste',
+        name: '甜',
+        sortOrder: 4,
+        isActive: true,
+      ),
+      RecipeCategory(
+        id: '5',
+        type: 'taste',
+        name: '麻',
+        sortOrder: 5,
+        isActive: true,
+      ),
+      RecipeCategory(
+        id: '6',
+        type: 'taste',
+        name: '辣',
+        sortOrder: 6,
+        isActive: true,
+      ),
     ];
     _difficultyCategories = [
-      RecipeCategory(id: '1', type: 'difficulty', name: '简单', sortOrder: 1, isActive: true),
-      RecipeCategory(id: '2', type: 'difficulty', name: '中等', sortOrder: 2, isActive: true),
-      RecipeCategory(id: '3', type: 'difficulty', name: '困难', sortOrder: 3, isActive: true),
+      RecipeCategory(
+        id: '1',
+        type: 'difficulty',
+        name: '简单',
+        sortOrder: 1,
+        isActive: true,
+      ),
+      RecipeCategory(
+        id: '2',
+        type: 'difficulty',
+        name: '中等',
+        sortOrder: 2,
+        isActive: true,
+      ),
+      RecipeCategory(
+        id: '3',
+        type: 'difficulty',
+        name: '困难',
+        sortOrder: 3,
+        isActive: true,
+      ),
     ];
     _cuisineCategories = [
-      RecipeCategory(id: '1', type: 'cuisine', name: '家常菜', sortOrder: 1, isActive: true),
-      RecipeCategory(id: '2', type: 'cuisine', name: '川菜', sortOrder: 2, isActive: true),
-      RecipeCategory(id: '3', type: 'cuisine', name: '粤菜', sortOrder: 3, isActive: true),
+      RecipeCategory(
+        id: '1',
+        type: 'cuisine',
+        name: '家常菜',
+        sortOrder: 1,
+        isActive: true,
+      ),
+      RecipeCategory(
+        id: '2',
+        type: 'cuisine',
+        name: '川菜',
+        sortOrder: 2,
+        isActive: true,
+      ),
+      RecipeCategory(
+        id: '3',
+        type: 'cuisine',
+        name: '粤菜',
+        sortOrder: 3,
+        isActive: true,
+      ),
     ];
   }
 
@@ -329,9 +403,15 @@ class _RecipesScreenState extends State<RecipesScreen>
   Future<void> _loadRecipes() async {
     setState(() => _isLoading = true);
     try {
-      final tastes = _selectedTastes.isNotEmpty ? _selectedTastes.join(',') : null;
-      final difficulty = _selectedDifficulties.isNotEmpty ? _selectedDifficulties.join(',') : null;
-      final cuisines = _selectedCuisines.isNotEmpty ? _selectedCuisines.join(',') : null;
+      final tastes = _selectedTastes.isNotEmpty
+          ? _selectedTastes.join(',')
+          : null;
+      final difficulty = _selectedDifficulties.isNotEmpty
+          ? _selectedDifficulties.join(',')
+          : null;
+      final cuisines = _selectedCuisines.isNotEmpty
+          ? _selectedCuisines.join(',')
+          : null;
 
       if (_activeTab == "my") {
         final result = await _recipeService.getMyRecipes(
@@ -357,18 +437,69 @@ class _RecipesScreenState extends State<RecipesScreen>
   }
 
   void _loadMockData() {
-     _myRecipes = [
-      Recipe(id: '1', name: "番茄炒蛋", time: "15分钟", difficulty: "简单", tags: ["常做"], tagColors: ["bg-blue-500"], favorite: true, categories: ["家常菜", "酸甜"]),
-      Recipe(id: '4', name: "红烧肉", time: "45分钟", difficulty: "中等", tags: ["常做"], tagColors: ["bg-blue-500"], favorite: false, categories: ["川菜", "咸鲜"]),
-      Recipe(id: '3', name: "清蒸鲈鱼", time: "25分钟", difficulty: "简单", tags: ["常做"], tagColors: ["bg-blue-500"], favorite: true, categories: ["粤菜", "清淡"]),
+    _myRecipes = [
+      Recipe(
+        id: '1',
+        name: "番茄炒蛋",
+        time: "15分钟",
+        difficulty: "有手就行",
+        difficultyColor: "#E8F5E9",
+        tags: ["家常", "快手"],
+        tagColors: ["#10B981", "#F59E0B"],
+        favorite: true,
+        categories: ["家常菜", "酸甜"],
+      ),
+      Recipe(
+        id: '4',
+        name: "红烧肉",
+        time: "45分钟",
+        difficulty: "家常便饭",
+        difficultyColor: "#E3F2FD",
+        tags: ["常做"],
+        tagColors: ["#3B82F6"],
+        favorite: false,
+        categories: ["川菜", "咸鲜"],
+      ),
+      Recipe(
+        id: '3',
+        name: "清蒸鲈鱼",
+        time: "25分钟",
+        difficulty: "有手就行",
+        difficultyColor: "#E8F5E9",
+        tags: ["健康"],
+        tagColors: ["#10B981"],
+        favorite: true,
+        categories: ["粤菜", "清淡"],
+      ),
     ];
     _onlineRecipes = [
-      Recipe(id: '101', name: "宫保鸡丁", time: "30分钟", difficulty: "困难", tags: ["热门"], tagColors: ["bg-red-500"], favorite: false, categories: ["川菜", "麻辣"]),
-      Recipe(id: '102', name: "糖醋里脊", time: "25分钟", difficulty: "中等", tags: ["热门"], tagColors: ["bg-red-500"], favorite: false, categories: ["鲁菜", "酸甜"]),
+      Recipe(
+        id: '101',
+        name: "宫保鸡丁",
+        time: "30分钟",
+        difficulty: "餐厅招牌",
+        difficultyColor: "#FFFDE7",
+        tags: ["热门", "川菜"],
+        tagColors: ["#EF4444", "#F59E0B"],
+        favorite: false,
+        categories: ["川菜", "麻辣"],
+      ),
+      Recipe(
+        id: '102',
+        name: "糖醋里脊",
+        time: "25分钟",
+        difficulty: "家常便饭",
+        difficultyColor: "#E3F2FD",
+        tags: ["热门"],
+        tagColors: ["#EF4444"],
+        favorite: false,
+        categories: ["鲁菜", "酸甜"],
+      ),
     ];
   }
 
-  List<Recipe> get _currentRecipes => _activeTab == "my" ? _myRecipes : _onlineRecipes;
+  List<Recipe> get _currentRecipes =>
+      _activeTab == "my" ? _myRecipes : _onlineRecipes;
 
   void _showFilterModal() {
     showModalBottomSheet(
@@ -406,7 +537,8 @@ class _RecipesScreenState extends State<RecipesScreen>
           final result = await Navigator.push(
             context,
             MaterialPageRoute(
-              builder: (context) => const RecipeDetailScreen(isCreateMode: true),
+              builder: (context) =>
+                  const RecipeDetailScreen(isCreateMode: true),
             ),
           );
           if (result == true) _loadRecipes();
@@ -432,7 +564,7 @@ class _RecipesScreenState extends State<RecipesScreen>
               ),
             ),
             actions: [
-               IconButton(
+              IconButton(
                 icon: const Icon(Icons.tune_rounded, color: Color(0xFF4A4F50)),
                 onPressed: _showFilterModal,
               ),
@@ -441,13 +573,16 @@ class _RecipesScreenState extends State<RecipesScreen>
             flexibleSpace: FlexibleSpaceBar(
               background: Container(color: _oatmeal),
               expandedTitleScale: 1.0,
-              titlePadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              titlePadding: const EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: 12,
+              ),
               title: LayoutBuilder(
                 builder: (context, constraints) {
                   // Simple animation based on collapse state could be added here
-                  // For now, we keep the search bar constant in the flexible space 
+                  // For now, we keep the search bar constant in the flexible space
                   // but visually aligned.
-                  return const SizedBox.shrink(); 
+                  return const SizedBox.shrink();
                 },
               ),
             ),
@@ -456,32 +591,41 @@ class _RecipesScreenState extends State<RecipesScreen>
               child: Container(
                 padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
                 child: GlassContainer(
-                   borderRadius: 24,
-                   opacity: 0.6,
-                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                   child: Row(
-                     children: [
-                       const Icon(Icons.search, color: Color(0xFF8C8F90)),
-                       const SizedBox(width: 8),
-                       Expanded(
-                         child: TextField(
-                           controller: _searchController,
-                           decoration: const InputDecoration(
-                             hintText: "搜索美味...",
-                             hintStyle: TextStyle(color: Color(0xFF8C8F90), fontSize: 14),
-                             border: InputBorder.none,
-                             isDense: true,
-                             contentPadding: EdgeInsets.zero,
-                           ),
-                           style: const TextStyle(fontSize: 14, color: Color(0xFF4A4F50)),
-                           onSubmitted: (val) {
-                             _searchKeyword = val;
-                             _loadRecipes();
-                           },
-                         ),
-                       ),
-                     ],
-                   ),
+                  borderRadius: 24,
+                  opacity: 0.6,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 4,
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.search, color: Color(0xFF8C8F90)),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: TextField(
+                          controller: _searchController,
+                          decoration: const InputDecoration(
+                            hintText: "搜索美味...",
+                            hintStyle: TextStyle(
+                              color: Color(0xFF8C8F90),
+                              fontSize: 14,
+                            ),
+                            border: InputBorder.none,
+                            isDense: true,
+                            contentPadding: EdgeInsets.zero,
+                          ),
+                          style: const TextStyle(
+                            fontSize: 14,
+                            color: Color(0xFF4A4F50),
+                          ),
+                          onSubmitted: (val) {
+                            _searchKeyword = val;
+                            _loadRecipes();
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -502,20 +646,24 @@ class _RecipesScreenState extends State<RecipesScreen>
           // 3. Recipe List (Staggered Grid)
           SliverPadding(
             padding: const EdgeInsets.all(16),
-            sliver: _isLoading 
-                ? const SliverFillRemaining(child: Center(child: CircularProgressIndicator(color: _sageGreen)))
+            sliver: _isLoading
+                ? const SliverFillRemaining(
+                    child: Center(
+                      child: CircularProgressIndicator(color: _sageGreen),
+                    ),
+                  )
                 : _currentRecipes.isEmpty
-                    ? SliverFillRemaining(child: _buildEmptyState())
-                    : SliverMasonryGrid.count(
-                        crossAxisCount: 2,
-                        mainAxisSpacing: 16,
-                        crossAxisSpacing: 16,
-                        childCount: _currentRecipes.length,
-                        itemBuilder: (context, index) {
-                          final recipe = _currentRecipes[index];
-                          return _buildMagazineCard(recipe);
-                        },
-                      ),
+                ? SliverFillRemaining(child: _buildEmptyState())
+                : SliverMasonryGrid.count(
+                    crossAxisCount: 2,
+                    mainAxisSpacing: 16,
+                    crossAxisSpacing: 16,
+                    childCount: _currentRecipes.length,
+                    itemBuilder: (context, index) {
+                      final recipe = _currentRecipes[index];
+                      return _buildMagazineCard(recipe);
+                    },
+                  ),
           ),
         ],
       ),
@@ -524,15 +672,21 @@ class _RecipesScreenState extends State<RecipesScreen>
 
   // --- Magazine Style Card ---
   Widget _buildMagazineCard(Recipe recipe) {
-    // Determine difficulty visual
+    // 使用数据库中的难度颜色，如果没有则使用默认颜色
     Color diffColor = _sageGreen;
-    bool isExpert = false;
-    if (recipe.difficulty == "困难" || recipe.difficulty == "Expert") {
-      diffColor = _persimmon;
-      isExpert = true;
-    } else if (recipe.difficulty == "中等") {
-      diffColor = const Color(0xFFE6C288);
+    if (recipe.difficultyColor != null && recipe.difficultyColor!.isNotEmpty) {
+      try {
+        // 解析颜色字符串（支持 #RRGGBB 格式）
+        final colorStr = recipe.difficultyColor!.replaceAll('#', '');
+        diffColor = Color(int.parse('FF$colorStr', radix: 16));
+      } catch (e) {
+        // 如果解析失败，使用默认颜色
+        diffColor = _sageGreen;
+      }
     }
+
+    // 判断是否为专家级别（用于呼吸动效）
+    bool isExpert = recipe.difficulty == "专业厨师" || recipe.difficulty == "硬核挑战";
 
     return GestureDetector(
       onTap: () async {
@@ -564,23 +718,26 @@ class _RecipesScreenState extends State<RecipesScreen>
           children: [
             // Image with fade-in
             ClipRRect(
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(20),
+              ),
               child: AspectRatio(
                 aspectRatio: 1, // Square for top part
-                child: Stack(
-                  fit: StackFit.expand,
-                  children: [
-                    Builder(
-                      builder: (context) {
-                        final imagePath = recipe.image;
-                        final isValidAsset = imagePath != null && 
-                                           imagePath.isNotEmpty && 
-                                           imagePath.startsWith('assets/');
-                        
-                        return Image.asset(
-                          isValidAsset ? imagePath : 'assets/chinese-potato-strips.jpg',
-                          fit: BoxFit.cover,
-                          frameBuilder: (context, child, frame, wasSynchronouslyLoaded) {
+                child: Builder(
+                  builder: (context) {
+                    final imagePath = recipe.image;
+                    final isValidAsset =
+                        imagePath != null &&
+                        imagePath.isNotEmpty &&
+                        imagePath.startsWith('assets/');
+
+                    return Image.asset(
+                      isValidAsset
+                          ? imagePath
+                          : 'assets/chinese-potato-strips.jpg',
+                      fit: BoxFit.cover,
+                      frameBuilder:
+                          (context, child, frame, wasSynchronouslyLoaded) {
                             if (wasSynchronouslyLoaded) return child;
                             return AnimatedOpacity(
                               opacity: frame == null ? 0 : 1,
@@ -589,23 +746,12 @@ class _RecipesScreenState extends State<RecipesScreen>
                               child: child,
                             );
                           },
-                          errorBuilder: (_, __, ___) => Container(
-                            color: _oatmeal,
-                            child: const Icon(Icons.restaurant, color: Colors.grey),
-                          ),
-                        );
-                      },
-                    ),
-                    Positioned(
-                      top: 10,
-                      right: 10,
-                      child: StatusChip(
-                        label: recipe.difficulty,
-                        color: diffColor,
-                        isBreathing: isExpert,
+                      errorBuilder: (_, __, ___) => Container(
+                        color: _oatmeal,
+                        child: const Icon(Icons.restaurant, color: Colors.grey),
                       ),
-                    ),
-                  ],
+                    );
+                  },
                 ),
               ),
             ),
@@ -626,27 +772,73 @@ class _RecipesScreenState extends State<RecipesScreen>
                     overflow: TextOverflow.ellipsis,
                   ),
                   const SizedBox(height: 8),
+                  // 标签行（最多显示两个标签）
+                  if (recipe.tags.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: Row(
+                        children: [
+                          for (
+                            int i = 0;
+                            i <
+                                (recipe.tags.length > 2
+                                    ? 2
+                                    : recipe.tags.length);
+                            i++
+                          ) ...[
+                            _buildRecipeTag(
+                              recipe.tags[i],
+                              i < recipe.tagColors.length
+                                  ? recipe.tagColors[i]
+                                  : null,
+                            ),
+                            if (i < 1 && recipe.tags.length > 1)
+                              const SizedBox(width: 6),
+                          ],
+                        ],
+                      ),
+                    ),
                   Row(
                     children: [
-                      const Icon(Icons.access_time_rounded, size: 14, color: Color(0xFF8C8F90)),
+                      const Icon(
+                        Icons.access_time_rounded,
+                        size: 14,
+                        color: Color(0xFF8C8F90),
+                      ),
                       const SizedBox(width: 4),
                       Text(
                         recipe.time,
-                        style: const TextStyle(fontSize: 12, color: Color(0xFF8C8F90)),
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: Color(0xFF8C8F90),
+                        ),
                       ),
-                      const Spacer(),
-                      GestureDetector(
-                        onTap: () {
-                          // Local favorite toggle would go here, updating state
-                        },
-                        child: Icon(
-                          recipe.favorite ? Icons.favorite_rounded : Icons.favorite_border_rounded,
-                          size: 20,
-                          color: recipe.favorite ? _persimmon : const Color(0xFFDCD7CD),
+                      const SizedBox(width: 12),
+                      // 难度标签
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: diffColor.withOpacity(0.15),
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(
+                            color: diffColor.withOpacity(0.3),
+                            width: 0.5,
+                          ),
+                        ),
+                        child: Text(
+                          recipe.difficulty,
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w600,
+                            color: diffColor,
+                          ),
                         ),
                       ),
                     ],
-                  )
+                  ),
                 ],
               ),
             ),
@@ -654,6 +846,56 @@ class _RecipesScreenState extends State<RecipesScreen>
         ),
       ),
     );
+  }
+
+  // --- Recipe Tag Widget ---
+  Widget _buildRecipeTag(String tagName, String? tagColor) {
+    // 解析标签颜色
+    Color color = _sageGreen;
+    if (tagColor != null && tagColor.isNotEmpty) {
+      try {
+        // 支持多种颜色格式
+        if (tagColor.startsWith('#')) {
+          final colorStr = tagColor.replaceAll('#', '');
+          color = Color(int.parse('FF$colorStr', radix: 16));
+        } else if (tagColor.startsWith('bg-')) {
+          // 支持 Tailwind CSS 风格的颜色类名
+          color = _parseTailwindColor(tagColor);
+        }
+      } catch (e) {
+        color = _sageGreen;
+      }
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.15),
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: color.withOpacity(0.3), width: 0.5),
+      ),
+      child: Text(
+        tagName,
+        style: TextStyle(
+          fontSize: 10,
+          fontWeight: FontWeight.w600,
+          color: color,
+        ),
+      ),
+    );
+  }
+
+  // --- Parse Tailwind Color ---
+  Color _parseTailwindColor(String tailwindClass) {
+    // 简单的 Tailwind 颜色映射
+    if (tailwindClass.contains('blue')) return const Color(0xFF3B82F6);
+    if (tailwindClass.contains('red')) return const Color(0xFFEF4444);
+    if (tailwindClass.contains('green')) return const Color(0xFF10B981);
+    if (tailwindClass.contains('yellow')) return const Color(0xFFF59E0B);
+    if (tailwindClass.contains('purple')) return const Color(0xFF8B5CF6);
+    if (tailwindClass.contains('pink')) return const Color(0xFFEC4899);
+    if (tailwindClass.contains('orange')) return const Color(0xFFF97316);
+    return _sageGreen;
   }
 
   // --- Empty State with Floating Animation ---
@@ -673,10 +915,10 @@ class _RecipesScreenState extends State<RecipesScreen>
               );
             },
             onEnd: () {
-               // Loop logic would require a stateful widget wrapper or repeating controller, 
-               // but TweenAnimationBuilder is simple for one-off/simple physics.
-               // For continuous float, we'd typically use an AnimationController.
-               // Simplified here to just stay "floating" visually.
+              // Loop logic would require a stateful widget wrapper or repeating controller,
+              // but TweenAnimationBuilder is simple for one-off/simple physics.
+              // For continuous float, we'd typically use an AnimationController.
+              // Simplified here to just stay "floating" visually.
             },
             child: Container(
               width: 100,
@@ -685,7 +927,11 @@ class _RecipesScreenState extends State<RecipesScreen>
                 color: _sageGreen.withOpacity(0.1),
                 shape: BoxShape.circle,
               ),
-              child: const Icon(Icons.dining_outlined, size: 48, color: _sageGreen),
+              child: const Icon(
+                Icons.dining_outlined,
+                size: 48,
+                color: _sageGreen,
+              ),
             ),
           ),
           const SizedBox(height: 24),
@@ -713,7 +959,11 @@ class _TabHeaderDelegate extends SliverPersistentHeaderDelegate {
   _TabHeaderDelegate({required this.activeTab, required this.onTabChanged});
 
   @override
-  Widget build(BuildContext context, double shrinkOffset, bool overlapsContent) {
+  Widget build(
+    BuildContext context,
+    double shrinkOffset,
+    bool overlapsContent,
+  ) {
     return Container(
       color: const Color(0xFFF5F5F0), // Oatmeal
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -733,7 +983,9 @@ class _TabHeaderDelegate extends SliverPersistentHeaderDelegate {
               return Stack(
                 children: [
                   AnimatedAlign(
-                    alignment: activeTab == "my" ? Alignment.centerLeft : Alignment.centerRight,
+                    alignment: activeTab == "my"
+                        ? Alignment.centerLeft
+                        : Alignment.centerRight,
                     duration: const Duration(milliseconds: 250),
                     curve: Curves.easeInOutBack,
                     child: Container(
@@ -753,8 +1005,16 @@ class _TabHeaderDelegate extends SliverPersistentHeaderDelegate {
                   ),
                   Row(
                     children: [
-                      _buildTabItem("我的私房", activeTab == "my", () => onTabChanged("my")),
-                      _buildTabItem("探索发现", activeTab == "online", () => onTabChanged("online")),
+                      _buildTabItem(
+                        "我的私房",
+                        activeTab == "my",
+                        () => onTabChanged("my"),
+                      ),
+                      _buildTabItem(
+                        "探索发现",
+                        activeTab == "online",
+                        () => onTabChanged("online"),
+                      ),
                     ],
                   ),
                 ],
@@ -777,7 +1037,9 @@ class _TabHeaderDelegate extends SliverPersistentHeaderDelegate {
             style: TextStyle(
               fontSize: 15,
               fontWeight: isActive ? FontWeight.w700 : FontWeight.w500,
-              color: isActive ? const Color(0xFF4A4F50) : const Color(0xFF8C8F90),
+              color: isActive
+                  ? const Color(0xFF4A4F50)
+                  : const Color(0xFF8C8F90),
             ),
             child: Text(label),
           ),
@@ -857,9 +1119,12 @@ class _FilterBottomSheetState extends State<_FilterBottomSheet> {
             ),
           ),
           const SizedBox(height: 24),
-          const Text("筛选", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+          const Text(
+            "筛选",
+            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+          ),
           const SizedBox(height: 24),
-          
+
           Flexible(
             child: SingleChildScrollView(
               child: Column(
@@ -874,7 +1139,7 @@ class _FilterBottomSheetState extends State<_FilterBottomSheet> {
               ),
             ),
           ),
-          
+
           const SizedBox(height: 32),
           Row(
             children: [
@@ -887,7 +1152,10 @@ class _FilterBottomSheetState extends State<_FilterBottomSheet> {
                       _tempCuisines.clear();
                     });
                   },
-                  child: const Text("重置", style: TextStyle(color: Color(0xFF8C8F90))),
+                  child: const Text(
+                    "重置",
+                    style: TextStyle(color: Color(0xFF8C8F90)),
+                  ),
                 ),
               ),
               const SizedBox(width: 16),
@@ -902,10 +1170,15 @@ class _FilterBottomSheetState extends State<_FilterBottomSheet> {
                     backgroundColor: const Color(0xFFB2AC88), // Sage Green
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
                     elevation: 0,
                   ),
-                  child: const Text("应用", style: TextStyle(fontWeight: FontWeight.bold)),
+                  child: const Text(
+                    "应用",
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
                 ),
               ),
             ],
@@ -916,11 +1189,22 @@ class _FilterBottomSheetState extends State<_FilterBottomSheet> {
     );
   }
 
-  Widget _buildSection(String title, List<RecipeCategory> options, List<String> selected) {
+  Widget _buildSection(
+    String title,
+    List<RecipeCategory> options,
+    List<String> selected,
+  ) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(title, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Color(0xFF8C8F90))),
+        Text(
+          title,
+          style: const TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+            color: Color(0xFF8C8F90),
+          ),
+        ),
         const SizedBox(height: 12),
         Wrap(
           spacing: 10,
@@ -941,9 +1225,14 @@ class _FilterBottomSheetState extends State<_FilterBottomSheet> {
               },
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 200),
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 8,
+                ),
                 decoration: BoxDecoration(
-                  color: isSelected ? const Color(0xFFB2AC88) : const Color(0xFFF5F5F0),
+                  color: isSelected
+                      ? const Color(0xFFB2AC88)
+                      : const Color(0xFFF5F5F0),
                   borderRadius: BorderRadius.circular(20),
                   border: Border.all(
                     color: isSelected ? Colors.transparent : Colors.grey[200]!,
@@ -954,7 +1243,9 @@ class _FilterBottomSheetState extends State<_FilterBottomSheet> {
                   style: TextStyle(
                     fontSize: 14,
                     color: isSelected ? Colors.white : const Color(0xFF4A4F50),
-                    fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                    fontWeight: isSelected
+                        ? FontWeight.w600
+                        : FontWeight.normal,
                   ),
                 ),
               ),

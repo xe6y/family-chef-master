@@ -63,25 +63,15 @@ class AppTheme {
         color: textPrimary,
         fontWeight: FontWeight.w500,
       ),
-      bodyLarge: baseTextTheme.bodyLarge?.copyWith(
-        color: textPrimary,
-      ),
-      bodyMedium: baseTextTheme.bodyMedium?.copyWith(
-        color: textPrimary,
-      ),
-      bodySmall: baseTextTheme.bodySmall?.copyWith(
-        color: textSecondary,
-      ),
+      bodyLarge: baseTextTheme.bodyLarge?.copyWith(color: textPrimary),
+      bodyMedium: baseTextTheme.bodyMedium?.copyWith(color: textPrimary),
+      bodySmall: baseTextTheme.bodySmall?.copyWith(color: textSecondary),
       labelLarge: baseTextTheme.labelLarge?.copyWith(
         color: textPrimary,
         fontWeight: FontWeight.w600,
       ),
-      labelMedium: baseTextTheme.labelMedium?.copyWith(
-        color: textSecondary,
-      ),
-      labelSmall: baseTextTheme.labelSmall?.copyWith(
-        color: textSecondary,
-      ),
+      labelMedium: baseTextTheme.labelMedium?.copyWith(color: textSecondary),
+      labelSmall: baseTextTheme.labelSmall?.copyWith(color: textSecondary),
     );
   }
 
@@ -108,7 +98,7 @@ class AppTheme {
       ),
       scaffoldBackgroundColor: secondary,
       textTheme: _textTheme,
-      
+
       // AppBar Theme
       appBarTheme: AppBarTheme(
         backgroundColor: Colors.transparent,
@@ -124,19 +114,19 @@ class AppTheme {
 
       // Navigation Bar Theme
       navigationBarTheme: NavigationBarThemeData(
-        backgroundColor: Colors.transparent, 
+        backgroundColor: Colors.transparent,
         indicatorColor: primary.withOpacity(0.3),
-        labelTextStyle: MaterialStateProperty.all(
+        labelTextStyle: WidgetStateProperty.all(
           _textTheme.labelSmall?.copyWith(
-             color: textPrimary,
-             fontWeight: FontWeight.w600,
+            color: textPrimary,
+            fontWeight: FontWeight.w600,
           ),
         ),
-        iconTheme: MaterialStateProperty.resolveWith((states) {
-           if (states.contains(MaterialState.selected)) {
-             return const IconThemeData(color: textPrimary);
-           }
-           return const IconThemeData(color: textSecondary);
+        iconTheme: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
+            return const IconThemeData(color: textPrimary);
+          }
+          return const IconThemeData(color: textSecondary);
         }),
       ),
 
@@ -150,7 +140,7 @@ class AppTheme {
         ),
         margin: EdgeInsets.zero,
       ),
-      
+
       // Chip Theme
       chipTheme: ChipThemeData(
         backgroundColor: surface,

@@ -1,4 +1,3 @@
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -25,19 +24,29 @@ class BouncyCard extends StatefulWidget {
   State<BouncyCard> createState() => _BouncyCardState();
 }
 
-class _BouncyCardState extends State<BouncyCard> with SingleTickerProviderStateMixin {
+class _BouncyCardState extends State<BouncyCard>
+    with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   late Animation<double> _scaleAnimation;
 
   @override
   void initState() {
     super.initState();
-    _controller = AnimationController(vsync: this, duration: const Duration(milliseconds: 100));
-    _scaleAnimation = Tween<double>(begin: 1.0, end: 0.98).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 100),
+    );
+    _scaleAnimation = Tween<double>(
+      begin: 1.0,
+      end: 0.98,
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
   }
 
   @override
-  void dispose() { _controller.dispose(); super.dispose(); }
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -54,7 +63,13 @@ class _BouncyCardState extends State<BouncyCard> with SingleTickerProviderStateM
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(20),
-              boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 16, offset: const Offset(0, 4))],
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.03),
+                  blurRadius: 16,
+                  offset: const Offset(0, 4),
+                ),
+              ],
             ),
             child: widget.child,
           ),
@@ -91,11 +106,16 @@ class _MinimalInputState extends State<MinimalInput> {
   @override
   void initState() {
     super.initState();
-    _focusNode.addListener(() => setState(() => _isFocused = _focusNode.hasFocus));
+    _focusNode.addListener(
+      () => setState(() => _isFocused = _focusNode.hasFocus),
+    );
   }
 
   @override
-  void dispose() { _focusNode.dispose(); super.dispose(); }
+  void dispose() {
+    _focusNode.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -103,23 +123,40 @@ class _MinimalInputState extends State<MinimalInput> {
       duration: const Duration(milliseconds: 200),
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
       decoration: BoxDecoration(
-        color: _isFocused ? _sageGreen.withOpacity(0.05) : _oatmeal.withOpacity(0.5),
+        color: _isFocused
+            ? _sageGreen.withOpacity(0.05)
+            : _oatmeal.withOpacity(0.5),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Row(
         children: [
           if (widget.prefixText != null)
-            Text(widget.prefixText!, style: const TextStyle(fontSize: 14, color: _textSecondary, fontWeight: FontWeight.bold)),
+            Text(
+              widget.prefixText!,
+              style: const TextStyle(
+                fontSize: 14,
+                color: _textSecondary,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
           Expanded(
             child: TextField(
               controller: widget.controller,
               focusNode: _focusNode,
               keyboardType: widget.keyboardType,
               onChanged: widget.onChanged,
-              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: _textPrimary),
+              style: const TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.bold,
+                color: _textPrimary,
+              ),
               decoration: InputDecoration(
                 hintText: widget.hintText,
-                hintStyle: TextStyle(color: _textSecondary.withOpacity(0.3), fontSize: 13, fontWeight: FontWeight.normal),
+                hintStyle: TextStyle(
+                  color: _textSecondary.withOpacity(0.3),
+                  fontSize: 13,
+                  fontWeight: FontWeight.normal,
+                ),
                 border: InputBorder.none,
                 isDense: true,
               ),
@@ -142,7 +179,8 @@ class PurchasedItemsScreen extends RefreshableScreen {
   State<PurchasedItemsScreen> createState() => _PurchasedItemsScreenState();
 }
 
-class _PurchasedItemsScreenState extends State<PurchasedItemsScreen> with RefreshableScreenState<PurchasedItemsScreen> {
+class _PurchasedItemsScreenState extends State<PurchasedItemsScreen>
+    with RefreshableScreenState<PurchasedItemsScreen> {
   final ShoppingService _shoppingService = ShoppingService();
   List<ShoppingItem> _items = [];
   bool _isLoading = true;
@@ -177,7 +215,11 @@ class _PurchasedItemsScreenState extends State<PurchasedItemsScreen> with Refres
     if (mounted) setState(() => _isLoading = false);
   }
 
-  Future<void> _updateItem(ShoppingItem item, String field, String value) async {
+  Future<void> _updateItem(
+    ShoppingItem item,
+    String field,
+    String value,
+  ) async {
     double? newPrice;
     String? newActualAmount;
     if (field == 'price') {
@@ -185,7 +227,12 @@ class _PurchasedItemsScreenState extends State<PurchasedItemsScreen> with Refres
     } else if (field == 'actualAmount') {
       newActualAmount = value;
     }
-    await _shoppingService.updateShoppingItem(widget.listId, item.id, price: newPrice, actualAmount: newActualAmount);
+    await _shoppingService.updateShoppingItem(
+      widget.listId,
+      item.id,
+      price: newPrice,
+      actualAmount: newActualAmount,
+    );
     // Silent update in background or update local state if needed
   }
 
@@ -193,7 +240,9 @@ class _PurchasedItemsScreenState extends State<PurchasedItemsScreen> with Refres
     HapticFeedback.heavyImpact();
     final success = await _shoppingService.completeShoppingList(widget.listId);
     if (success && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('采购记录已封存 🛒')));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('采购记录已封存 🛒')));
       Navigator.pop(context, true);
     }
   }
@@ -208,78 +257,149 @@ class _PurchasedItemsScreenState extends State<PurchasedItemsScreen> with Refres
         backgroundColor: _oatmeal,
         elevation: 0,
         centerTitle: true,
-        title: const Text('收纳小记', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 18, color: _textPrimary)),
-        leading: IconButton(icon: const Icon(Icons.close_rounded, color: _textPrimary), onPressed: () => Navigator.pop(context)),
+        title: const Text(
+          '收纳小记',
+          style: TextStyle(
+            fontWeight: FontWeight.w800,
+            fontSize: 18,
+            color: _textPrimary,
+          ),
+        ),
+        leading: IconButton(
+          icon: const Icon(Icons.close_rounded, color: _textPrimary),
+          onPressed: () => Navigator.pop(context),
+        ),
       ),
       body: Column(
         children: [
           Expanded(
             child: _isLoading
-                ? const Center(child: CircularProgressIndicator(color: _sageGreen))
+                ? const Center(
+                    child: CircularProgressIndicator(color: _sageGreen),
+                  )
                 : _items.isEmpty
-                    ? _buildEmptyState()
-                    : ListView.builder(
-                        padding: const EdgeInsets.all(16),
-                        itemCount: _items.length,
-                        itemBuilder: (context, index) {
-                          final item = _items[index];
-                          return Padding(
-                            padding: const EdgeInsets.only(bottom: 16),
-                            child: BouncyCard(
-                              child: Padding(
-                                padding: const EdgeInsets.all(16),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
+                ? _buildEmptyState()
+                : ListView.builder(
+                    padding: const EdgeInsets.all(16),
+                    itemCount: _items.length,
+                    itemBuilder: (context, index) {
+                      final item = _items[index];
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 16),
+                        child: BouncyCard(
+                          child: Padding(
+                            padding: const EdgeInsets.all(16),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
                                   children: [
-                                    Row(
-                                      children: [
-                                        Container(
-                                          padding: const EdgeInsets.all(8),
-                                          decoration: BoxDecoration(color: _sageGreen.withOpacity(0.1), borderRadius: BorderRadius.circular(10)),
-                                          child: const Icon(Icons.inventory_2_rounded, size: 18, color: _sageGreen),
-                                        ),
-                                        const SizedBox(width: 12),
-                                        Text(item.name, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: _textPrimary)),
-                                      ],
+                                    Container(
+                                      padding: const EdgeInsets.all(8),
+                                      decoration: BoxDecoration(
+                                        color: _sageGreen.withOpacity(0.1),
+                                        borderRadius: BorderRadius.circular(10),
+                                      ),
+                                      child: const Icon(
+                                        Icons.inventory_2_rounded,
+                                        size: 18,
+                                        color: _sageGreen,
+                                      ),
                                     ),
-                                    const SizedBox(height: 16),
-                                    Row(
-                                      children: [
-                                        Expanded(
-                                          child: MinimalInput(
-                                            controller: TextEditingController(text: item.actualAmount.isNotEmpty ? item.actualAmount : item.amount)..selection = TextSelection.collapsed(offset: (item.actualAmount.isNotEmpty ? item.actualAmount : item.amount).length),
-                                            hintText: "实际分量",
-                                            onChanged: (val) => _updateItem(item, 'actualAmount', val),
-                                          ),
-                                        ),
-                                        const SizedBox(width: 12),
-                                        Expanded(
-                                          child: MinimalInput(
-                                            controller: TextEditingController(text: item.price > 0 ? item.price.toStringAsFixed(2) : "")..selection = TextSelection.collapsed(offset: (item.price > 0 ? item.price.toStringAsFixed(2) : "").length),
-                                            hintText: "支出金额",
-                                            prefixText: "¥ ",
-                                            keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                                            onChanged: (val) {
-                                              setState(() {
-                                                // We update local item to reflect total price instantly
-                                                final index = _items.indexWhere((i) => i.id == item.id);
-                                                if (index != -1) {
-                                                  _items[index] = _items[index].copyWith(price: double.tryParse(val) ?? 0);
-                                                }
-                                              });
-                                              _updateItem(item, 'price', val);
-                                            },
-                                          ),
-                                        ),
-                                      ],
+                                    const SizedBox(width: 12),
+                                    Text(
+                                      item.name,
+                                      style: const TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.bold,
+                                        color: _textPrimary,
+                                      ),
                                     ),
                                   ],
                                 ),
-                              ),
+                                const SizedBox(height: 16),
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: MinimalInput(
+                                        controller:
+                                            TextEditingController(
+                                                text:
+                                                    item.actualAmount.isNotEmpty
+                                                    ? item.actualAmount
+                                                    : item.amount,
+                                              )
+                                              ..selection = TextSelection.collapsed(
+                                                offset:
+                                                    (item
+                                                                .actualAmount
+                                                                .isNotEmpty
+                                                            ? item.actualAmount
+                                                            : item.amount)
+                                                        .length,
+                                              ),
+                                        hintText: "实际分量",
+                                        onChanged: (val) => _updateItem(
+                                          item,
+                                          'actualAmount',
+                                          val,
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: MinimalInput(
+                                        controller:
+                                            TextEditingController(
+                                                text: item.price > 0
+                                                    ? item.price
+                                                          .toStringAsFixed(2)
+                                                    : "",
+                                              )
+                                              ..selection = TextSelection.collapsed(
+                                                offset:
+                                                    (item.price > 0
+                                                            ? item.price
+                                                                  .toStringAsFixed(
+                                                                    2,
+                                                                  )
+                                                            : "")
+                                                        .length,
+                                              ),
+                                        hintText: "支出金额",
+                                        prefixText: "¥ ",
+                                        keyboardType:
+                                            const TextInputType.numberWithOptions(
+                                              decimal: true,
+                                            ),
+                                        onChanged: (val) {
+                                          setState(() {
+                                            // We update local item to reflect total price instantly
+                                            final index = _items.indexWhere(
+                                              (i) => i.id == item.id,
+                                            );
+                                            if (index != -1) {
+                                              _items[index] = _items[index]
+                                                  .copyWith(
+                                                    price:
+                                                        double.tryParse(val) ??
+                                                        0,
+                                                  );
+                                            }
+                                          });
+                                          _updateItem(item, 'price', val);
+                                        },
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
                             ),
-                          );
-                        },
-                      ),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
           ),
           _buildFooter(),
         ],
@@ -293,7 +413,13 @@ class _PurchasedItemsScreenState extends State<PurchasedItemsScreen> with Refres
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 20, offset: const Offset(0, -10))],
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 20,
+            offset: const Offset(0, -10),
+          ),
+        ],
       ),
       child: SafeArea(
         child: Row(
@@ -302,9 +428,24 @@ class _PurchasedItemsScreenState extends State<PurchasedItemsScreen> with Refres
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Text('总计支出', style: TextStyle(fontSize: 12, color: _textSecondary, fontWeight: FontWeight.w600)),
+                const Text(
+                  '总计支出',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: _textSecondary,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
                 const SizedBox(height: 4),
-                Text('¥ ${_totalPrice.toStringAsFixed(2)}', style: GoogleFonts.nunito(fontSize: 28, fontWeight: FontWeight.w800, color: _sageGreen, height: 1)),
+                Text(
+                  '¥ ${_totalPrice.toStringAsFixed(2)}',
+                  style: GoogleFonts.nunito(
+                    fontSize: 28,
+                    fontWeight: FontWeight.w800,
+                    color: _sageGreen,
+                    height: 1,
+                  ),
+                ),
               ],
             ),
             const Spacer(),
@@ -313,11 +454,19 @@ class _PurchasedItemsScreenState extends State<PurchasedItemsScreen> with Refres
               style: ElevatedButton.styleFrom(
                 backgroundColor: _sageGreen,
                 foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 32,
+                  vertical: 16,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
                 elevation: 0,
               ),
-              child: const Text('生成账单', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+              child: const Text(
+                '生成账单',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+              ),
             ),
           ],
         ),
@@ -330,9 +479,16 @@ class _PurchasedItemsScreenState extends State<PurchasedItemsScreen> with Refres
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.receipt_long_rounded, size: 64, color: _textSecondary.withOpacity(0.2)),
+          Icon(
+            Icons.receipt_long_rounded,
+            size: 64,
+            color: _textSecondary.withOpacity(0.2),
+          ),
           const SizedBox(height: 16),
-          const Text("篮子里空空如也", style: TextStyle(color: _textSecondary, fontSize: 16)),
+          const Text(
+            "篮子里空空如也",
+            style: TextStyle(color: _textSecondary, fontSize: 16),
+          ),
         ],
       ),
     );

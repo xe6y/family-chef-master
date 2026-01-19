@@ -110,9 +110,11 @@ func initDefaultRecipeCategories() {
 		{ID: "cuisine-006", Type: CategoryTypeCuisine, Name: "鲁菜", Color: "#E0F2F1", SortOrder: 6, IsActive: true},
 
 		// 难度分类（通常固定）
-		{ID: "difficulty-001", Type: CategoryTypeDifficulty, Name: "简单", Color: "#C8E6C9", SortOrder: 1, IsActive: true},
-		{ID: "difficulty-002", Type: CategoryTypeDifficulty, Name: "中等", Color: "#FFE082", SortOrder: 2, IsActive: true},
-		{ID: "difficulty-003", Type: CategoryTypeDifficulty, Name: "困难", Color: "#FFCCBC", SortOrder: 3, IsActive: true},
+		{ID: "difficulty-001", Type: CategoryTypeDifficulty, Name: "有手就行", Color: "#E8F5E9", SortOrder: 1, IsActive: true},
+		{ID: "difficulty-002", Type: CategoryTypeDifficulty, Name: "家常便饭", Color: "#E3F2FD", SortOrder: 2, IsActive: true},
+		{ID: "difficulty-003", Type: CategoryTypeDifficulty, Name: "餐厅招牌", Color: "#FFFDE7", SortOrder: 3, IsActive: true},
+		{ID: "difficulty-004", Type: CategoryTypeDifficulty, Name: "硬核挑战", Color: "#FFF3E0", SortOrder: 4, IsActive: true},
+		{ID: "difficulty-005", Type: CategoryTypeDifficulty, Name: "专业厨师", Color: "#FFEBEE", SortOrder: 5, IsActive: true},
 
 		// 餐点类型分类
 		{ID: "meal-001", Type: CategoryTypeMealType, Name: "早餐", Color: "#FFF9C4", SortOrder: 1, IsActive: true},

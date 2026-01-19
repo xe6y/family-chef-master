@@ -98,6 +98,9 @@ func (h *RecipeHandler) GetMyRecipes(c *gin.Context) {
 	var recipes []models.Recipe
 	query.Offset(pagination.Offset).Limit(pagination.PageSize).Order("created_at DESC").Find(&recipes)
 
+	// 填充难度颜色
+	h.populateDifficultyColors(&recipes)
+
 	// 转换为列表项
 	list := make([]*models.RecipeListItem, len(recipes))
 	for i, recipe := range recipes {
@@ -160,6 +163,9 @@ func (h *RecipeHandler) GetPublicRecipes(c *gin.Context) {
 	// 获取列表
 	var recipes []models.Recipe
 	query.Offset(pagination.Offset).Limit(pagination.PageSize).Order("created_at DESC").Find(&recipes)
+
+	// 填充难度颜色
+	h.populateDifficultyColors(&recipes)
 
 	// 转换为列表项
 	list := make([]*models.RecipeListItem, len(recipes))
@@ -475,5 +481,30 @@ func (h *RecipeHandler) AddToMyRecipes(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, models.NewSuccessResponseWithMessage("添加成功", newRecipe))
+}
+
+// populateDifficultyColors 填充菜谱列表的难度颜色
+// recipes: 菜谱列表指针
+func (h *RecipeHandler) populateDifficultyColors(recipes *[]models.Recipe) {
+	if recipes == nil || len(*recipes) == 0 {
+		return
+	}
+
+	// 查询所有难度分类
+	var categories []models.RecipeCategory
+	config.DB.Where("type = ? AND is_active = ?", models.CategoryTypeDifficulty, true).Find(&categories)
+
+	// 创建难度到颜色的映射
+	difficultyColorMap := make(map[string]string)
+	for _, cat := range categories {
+		difficultyColorMap[cat.Name] = cat.Color
+	}
+
+	// 填充每个菜谱的难度颜色
+	for i := range *recipes {
+		if color, ok := difficultyColorMap[(*recipes)[i].Difficulty]; ok {
+			(*recipes)[i].DifficultyColor = color
+		}
+	}
 }
 

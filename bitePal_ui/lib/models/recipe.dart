@@ -15,6 +15,9 @@ class Recipe {
   /// 难度（简单/中等/困难）
   final String difficulty;
 
+  /// 难度颜色（从数据库读取）
+  final String? difficultyColor;
+
   /// 标签数组
   final List<String> tags;
 
@@ -45,6 +48,7 @@ class Recipe {
     this.image,
     required this.time,
     required this.difficulty,
+    this.difficultyColor,
     required this.tags,
     required this.tagColors,
     this.favorite = false,
@@ -65,6 +69,7 @@ class Recipe {
       image: json['image'],
       time: json['time'] ?? '',
       difficulty: json['difficulty'] ?? '简单',
+      difficultyColor: json['difficultyColor'],
       tags: List<String>.from(json['tags'] ?? []),
       tagColors: List<String>.from(json['tagColors'] ?? []),
       favorite: json['favorite'] ?? false,
@@ -89,6 +94,7 @@ class Recipe {
       'image': image,
       'time': time,
       'difficulty': difficulty,
+      'difficultyColor': difficultyColor,
       'tags': tags,
       'tagColors': tagColors,
       'favorite': favorite,
@@ -106,6 +112,7 @@ class Recipe {
     String? image,
     String? time,
     String? difficulty,
+    String? difficultyColor,
     List<String>? tags,
     List<String>? tagColors,
     bool? favorite,
@@ -121,6 +128,7 @@ class Recipe {
       image: image ?? this.image,
       time: time ?? this.time,
       difficulty: difficulty ?? this.difficulty,
+      difficultyColor: difficultyColor ?? this.difficultyColor,
       tags: tags ?? this.tags,
       tagColors: tagColors ?? this.tagColors,
       favorite: favorite ?? this.favorite,
