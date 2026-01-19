@@ -1,16 +1,170 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 import '../models/ingredient_item.dart';
 import '../models/shopping_item.dart';
 import '../services/ingredient_service.dart';
 import '../services/storage_location_service.dart';
-import '../config/api_config.dart';
 import '../widgets/refreshable_screen.dart';
 import 'ingredient_detail_screen.dart';
 import 'ingredient_edit_screen.dart';
 import 'ingredient_category_screen.dart';
 import 'shopping_history_selection_screen.dart';
 
-/// 食材库存页面
+// --- Helper Components ---
+
+class GlassContainer extends StatelessWidget {
+  final Widget child;
+  final double borderRadius;
+  final double blur;
+  final double opacity;
+  final EdgeInsetsGeometry padding;
+  final Color? color;
+
+  const GlassContainer({
+    super.key,
+    required this.child,
+    this.borderRadius = 16,
+    this.blur = 10,
+    this.opacity = 0.5,
+    this.padding = EdgeInsets.zero,
+    this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(borderRadius),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: blur, sigmaY: blur),
+        child: Container(
+          padding: padding,
+          decoration: BoxDecoration(
+            color: (color ?? Theme.of(context).colorScheme.surface).withOpacity(opacity),
+            borderRadius: BorderRadius.circular(borderRadius),
+            border: Border.all(color: Colors.white.withOpacity(0.2), width: 0.5),
+          ),
+          child: child,
+        ),
+      ),
+    );
+  }
+}
+
+class BouncyCard extends StatefulWidget {
+  final Widget child;
+  final VoidCallback? onTap;
+  final Color? activeShadowColor;
+
+  const BouncyCard({super.key, required this.child, this.onTap, this.activeShadowColor});
+
+  @override
+  State<BouncyCard> createState() => _BouncyCardState();
+}
+
+class _BouncyCardState extends State<BouncyCard> with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _scaleAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(vsync: this, duration: const Duration(milliseconds: 150));
+    _scaleAnimation = Tween<double>(begin: 1.0, end: 0.96).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
+    );
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTapDown: (_) => _controller.forward(),
+      onTapUp: (_) { _controller.reverse(); widget.onTap?.call(); },
+      onTapCancel: () => _controller.reverse(),
+      child: AnimatedBuilder(
+        animation: _scaleAnimation,
+        builder: (context, child) => Transform.scale(
+          scale: _scaleAnimation.value,
+          child: Container(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(20),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.03),
+                  blurRadius: 12,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: widget.child,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class StatusChip extends StatefulWidget {
+  final String label;
+  final Color color;
+  final bool isBreathing;
+
+  const StatusChip({super.key, required this.label, required this.color, this.isBreathing = false});
+
+  @override
+  State<StatusChip> createState() => _StatusChipState();
+}
+
+class _StatusChipState extends State<StatusChip> with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _opacityAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(vsync: this, duration: const Duration(milliseconds: 1500));
+    _opacityAnimation = Tween<double>(begin: 0.1, end: 0.4).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
+    if (widget.isBreathing) _controller.repeat(reverse: true);
+  }
+
+  @override
+  void dispose() { _controller.dispose(); super.dispose(); }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: widget.color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Stack(
+        children: [
+          if (widget.isBreathing)
+            Positioned.fill(
+              child: AnimatedBuilder(
+                animation: _opacityAnimation,
+                builder: (context, child) => Container(
+                  decoration: BoxDecoration(borderRadius: BorderRadius.circular(8), color: widget.color.withOpacity(_opacityAnimation.value)),
+                ),
+              ),
+            ),
+          Text(widget.label, style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: widget.color)),
+        ],
+      ),
+    );
+  }
+}
+
+// --- Main Screen ---
+
 class IngredientsScreen extends RefreshableScreen {
   const IngredientsScreen({super.key});
 
@@ -19,29 +173,33 @@ class IngredientsScreen extends RefreshableScreen {
 }
 
 class _IngredientsScreenState extends State<IngredientsScreen> with RefreshableScreenState<IngredientsScreen> {
-  /// 食材服务
   final IngredientService _ingredientService = IngredientService();
   final StorageLocationService _storageService = StorageLocationService();
+  final TextEditingController _searchController = TextEditingController();
 
-  /// 当前选中的存储位置
-  String _activeStorage = ""; // 默认为空，加载后设置为第一个
-
-  /// 存储位置列表
+  // State
+  String _activeStorage = "";
   List<StorageLocation> _storages = [];
-
-  /// 是否正在加载
-  bool _isLoading = true;
-
-  /// 分组食材数据
   List<IngredientGroup> _groups = [];
+  bool _isLoading = true;
+  String _searchKeyword = '';
 
-  /// 折叠状态（按分类ID存储）
-  final Map<String, bool> _expandedState = {};
+  // Theme Colors
+  static const Color _sageGreen = Color(0xFFB2AC88);
+  static const Color _oatmeal = Color(0xFFF5F5F0);
+  static const Color _persimmon = Color(0xFFE58A73);
+  static const Color _textPrimary = Color(0xFF4A4F50);
 
   @override
   void initState() {
     super.initState();
     _loadInitialData();
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
   }
 
   @override
@@ -54,546 +212,343 @@ class _IngredientsScreenState extends State<IngredientsScreen> with RefreshableS
     await _loadIngredients();
   }
 
-  /// 加载存储位置
   Future<void> _loadStorageLocations() async {
     try {
       final locations = await _storageService.getStorageLocations();
-      if (mounted) {
+      if (mounted && locations.isNotEmpty) {
         setState(() {
           _storages = locations;
-          // 如果当前没有选中位置，且有位置数据，选中第一个
-          if (_activeStorage.isEmpty && _storages.isNotEmpty) {
-            _activeStorage = _storages.first.id;
-          }
+          if (_activeStorage.isEmpty) _activeStorage = _storages.first.id;
         });
       }
     } catch (e) {
-      debugPrint('加载存储位置失败: $e');
+      debugPrint('加载位置失败: $e');
     }
   }
 
-  /// 加载食材数据
   Future<void> _loadIngredients() async {
     setState(() => _isLoading = true);
-
     try {
-      // 如果还没有存储位置，先不加载
-      if (_activeStorage.isEmpty && _storages.isEmpty) {
-        // 尝试再次加载存储位置
-        await _loadStorageLocations();
-        if (_activeStorage.isEmpty) {
-             setState(() => _isLoading = false);
-             return;
-        }
-      }
-
-      // 加载分组数据
-      _groups = await _ingredientService.getIngredientsGrouped(storage: _activeStorage);
-
-      // 默认展开所有分组
-      for (var group in _groups) {
-        _expandedState[group.category.id] ??= true;
+      if (_activeStorage.isEmpty && _storages.isNotEmpty) _activeStorage = _storages.first.id;
+      final groups = await _ingredientService.getIngredientsGrouped(storage: _activeStorage);
+      
+      // Local filtering for search
+      if (_searchKeyword.isNotEmpty) {
+        _groups = groups.map((g) => IngredientGroup(
+          category: g.category,
+          ingredients: g.ingredients.where((i) => i.name.contains(_searchKeyword)).toList(),
+          count: g.ingredients.where((i) => i.name.contains(_searchKeyword)).length,
+        )).where((g) => g.ingredients.isNotEmpty).toList();
+      } else {
+        _groups = groups;
       }
     } catch (e) {
       debugPrint('加载食材失败: $e');
     }
-
-    if (mounted) {
-      setState(() => _isLoading = false);
-    }
+    if (mounted) setState(() => _isLoading = false);
   }
 
-  /// 删除食材
-  Future<void> _deleteIngredient(IngredientItem ingredient) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('确认删除'),
-        content: Text('确定要删除"${ingredient.name}"吗？'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('取消'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: const Text('删除'),
-          ),
-        ],
-      ),
-    );
-
-    if (confirmed == true) {
-      final success = await _ingredientService.deleteIngredient(ingredient.id);
-      if (success) {
-        _loadIngredients();
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('删除成功'), duration: Duration(seconds: 1)),
-          );
-        }
-      }
-    }
-  }
-
-  /// 处理添加食材逻辑
   void _handleAddIngredient() {
     showModalBottomSheet(
       context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (context) => SafeArea(
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        decoration: const BoxDecoration(color: Colors.white, borderRadius: BorderRadius.vertical(top: Radius.circular(32))),
+        padding: const EdgeInsets.all(24),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            ListTile(
-              leading: const Icon(Icons.add_circle_outline),
-              title: const Text('直接创建'),
-              onTap: () {
-                Navigator.pop(context);
-                _openAddIngredientScreen();
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.history),
-              title: const Text('从历史购物订单选择'),
-              onTap: () {
-                Navigator.pop(context);
-                _selectFromHistory();
-              },
-            ),
+            Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.grey[200], borderRadius: BorderRadius.circular(2))),
+            const SizedBox(height: 24),
+            const Text("添加新食材", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 24),
+            _buildAddOption(Icons.add_circle_outline_rounded, "直接创建", "手动输入食材信息", () {
+              Navigator.pop(context);
+              _openEditScreen();
+            }),
+            const SizedBox(height: 16),
+            _buildAddOption(Icons.history_rounded, "从历史订单选择", "快速录入买过的食材", () {
+              Navigator.pop(context);
+              _selectFromHistory();
+            }),
+            const SizedBox(height: 32),
           ],
         ),
       ),
     );
   }
 
-  /// 打开添加食材页面（直接创建或带预填数据）
-  Future<void> _openAddIngredientScreen({IngredientItem? prefillData}) async {
-    final result = await Navigator.push<bool>(
-      context,
-      MaterialPageRoute(
-        builder: (context) => IngredientEditScreen(
-          defaultStorage: _activeStorage,
-          ingredient: prefillData, // 如果是预填模式，这里可能需要特殊处理，因为IngredientEditScreen通常用于编辑已存在的。
-          // 更好的做法是传递一个初始值对象，而不是复用编辑对象，或者修改IngredientEditScreen支持initialData。
-          // 暂时我们假设IngredientEditScreen如果传入的ingredient没有id，则视为新建。
-          // 检查 IngredientItem 模型，id通常是必须的。
-          // 我们可以在 IngredientEditScreen 增加一个 initialData 参数。
+  Widget _buildAddOption(IconData icon, String title, String sub, VoidCallback onTap) {
+    return BouncyCard(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(color: _oatmeal.withOpacity(0.5), borderRadius: BorderRadius.circular(16)),
+        child: Row(
+          children: [
+            Container(padding: const EdgeInsets.all(10), decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle), child: Icon(icon, color: _sageGreen)),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                Text(sub, style: const TextStyle(color: Colors.grey, fontSize: 12)),
+              ]),
+            ),
+            const Icon(Icons.chevron_right_rounded, color: Colors.grey),
+          ],
         ),
       ),
     );
-
-    if (result == true) {
-      _loadIngredients();
-    }
   }
-  
-  /// 从历史选择
+
+  Future<void> _openEditScreen() async {
+    final res = await Navigator.push(context, MaterialPageRoute(builder: (_) => IngredientEditScreen(defaultStorage: _activeStorage)));
+    if (res == true) _loadIngredients();
+  }
+
   Future<void> _selectFromHistory() async {
-    final ShoppingItem? selected = await Navigator.push<ShoppingItem>(
-      context,
-      MaterialPageRoute(builder: (context) => const ShoppingHistorySelectionScreen()),
-    );
-
+    final ShoppingItem? selected = await Navigator.push(context, MaterialPageRoute(builder: (_) => const ShoppingHistorySelectionScreen()));
     if (selected != null) {
-      // 解析数量和单位
-      double quantity = 0;
-      String unit = '个';
-      String amount = selected.amount;
-      
-      // 简单尝试解析 "2个", "500g" 等
-      final RegExp regex = RegExp(r'^(\d+(\.\d+)?)\s*(.*)$');
-      final match = regex.firstMatch(amount);
-      if (match != null) {
-        quantity = double.tryParse(match.group(1) ?? '0') ?? 0;
-        unit = match.group(3) ?? '个';
-      }
-
-      // 构造预填数据的 IngredientItem
-      // 注意：这里 id 为空，表示是新创建
-      final prefill = IngredientItem(
-        id: '', // 空ID表示新建
-        name: selected.name,
-        quantity: quantity,
-        unit: unit,
-        amount: amount,
-        storage: _activeStorage,
-        categoryId: 'cat_other',
-        icon: '🥬',
-        expiryDays: 7,
-        expiryText: '',
-      );
-
-      _openAddIngredientScreen(prefillData: prefill);
-    }
-  }
-
-  /// 打开食材详情页面
-  Future<void> _openIngredientDetail(IngredientItem ingredient) async {
-    final result = await Navigator.push<bool>(
-      context,
-      MaterialPageRoute(
-        builder: (context) => IngredientDetailScreen(
-          ingredientId: ingredient.id,
-          initialIngredient: ingredient,
-        ),
-      ),
-    );
-
-    if (result == true) {
-      _loadIngredients();
-    }
-  }
-
-  /// 打开分类管理页面
-  Future<void> _openCategoryManagement() async {
-    await Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => const IngredientCategoryScreen(),
-      ),
-    );
-    // 返回后刷新数据（可能位置或分类有变动）
-    _loadInitialData();
-  }
-
-  /// 解析颜色字符串
-  Color _parseColor(String? colorStr) {
-    if (colorStr == null || colorStr.isEmpty) return Colors.grey;
-    try {
-      return Color(int.parse(colorStr.replaceFirst('#', '0xFF')));
-    } catch (e) {
-      return Colors.grey;
+      final prefill = IngredientItem(id: '', name: selected.name, quantity: 1, unit: '个', amount: selected.amount, storage: _activeStorage, categoryId: 'cat_other', icon: '🥬', expiryDays: 7, expiryText: '');
+      final res = await Navigator.push(context, MaterialPageRoute(builder: (_) => IngredientEditScreen(defaultStorage: _activeStorage, ingredient: prefill)));
+      if (res == true) _loadIngredients();
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: SafeArea(
-        child: Column(
-          children: [
-            // 头部
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // 标题行
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text(
-                        "食材库存",
-                        style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
-                      ),
-                      TextButton(
-                        onPressed: _openCategoryManagement,
-                        child: const Text('分类管理', style: TextStyle(fontSize: 16)),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 24),
-
-                  // 存储位置标签 (可滚动)
-                  SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    child: Container(
-                      padding: const EdgeInsets.all(4),
-                      decoration: BoxDecoration(
-                        color: Theme.of(context).colorScheme.surfaceContainerHighest,
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min, // 紧凑布局
-                        children: _storages.map((storage) {
-                          final isActive = _activeStorage == storage.id;
-                          return InkWell(
-                            onTap: () {
-                              setState(() => _activeStorage = storage.id);
-                              _loadIngredients();
-                            },
-                            borderRadius: BorderRadius.circular(8),
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
-                              decoration: BoxDecoration(
-                                color: isActive ? Theme.of(context).cardColor : Colors.transparent,
-                                borderRadius: BorderRadius.circular(8),
-                                boxShadow: isActive
-                                    ? [
-                                        BoxShadow(
-                                          color: Colors.black.withValues(alpha: 0.05),
-                                          blurRadius: 4,
-                                          offset: const Offset(0, 2),
-                                        ),
-                                      ]
-                                    : null,
-                              ),
-                              child: Text(
-                                storage.name,
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: isActive ? FontWeight.w600 : FontWeight.normal,
-                                  color: isActive
-                                      ? Theme.of(context).colorScheme.onSurface
-                                      : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
-                                ),
-                              ),
-                            ),
-                          );
-                        }).toList(),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
-            // 食材列表
-            Expanded(
-              child: _isLoading
-                  ? const Center(child: CircularProgressIndicator())
-                  : RefreshIndicator(
-                      onRefresh: _loadIngredients,
-                      child: _groups.isEmpty
-                          ? _buildEmptyState()
-                          : ListView.builder(
-                              padding: const EdgeInsets.symmetric(horizontal: 16),
-                              itemCount: _groups.length,
-                              itemBuilder: (context, index) {
-                                return _buildCategoryGroup(_groups[index]);
-                              },
-                            ),
-                    ),
-            ),
-            const SizedBox(height: 80),
-          ],
-        ),
-      ),
-      floatingActionButton: FloatingActionButton(
-        heroTag: "ingredients_fab",
-        onPressed: _handleAddIngredient,
-        child: const Icon(Icons.add),
-      ),
-    );
-  }
-
-  /// 构建空状态
-  Widget _buildEmptyState() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            Icons.kitchen,
-            size: 64,
-            color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.3),
-          ),
-          const SizedBox(height: 16),
-          Text(
-            "暂无食材",
-            style: TextStyle(
-              fontSize: 16,
-              color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
-            ),
-          ),
-          const SizedBox(height: 8),
-          TextButton.icon(
-            onPressed: _handleAddIngredient,
-            icon: const Icon(Icons.add),
-            label: const Text('添加食材'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  /// 构建分类分组
-  Widget _buildCategoryGroup(IngredientGroup group) {
-    final isExpanded = _expandedState[group.category.id] ?? true;
-    final categoryColor = _parseColor(group.category.color);
-
-    return Column(
-      children: [
-        // 分类标题（可折叠）
-        InkWell(
-          onTap: () {
-            setState(() {
-              _expandedState[group.category.id] = !isExpanded;
-            });
-          },
-          borderRadius: BorderRadius.circular(8),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 4),
-            child: Row(
-              children: [
-                // 分类图标和名称
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: categoryColor.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(16),
-                  ),
+      backgroundColor: _oatmeal,
+      body: CustomScrollView(
+        slivers: [
+          // 1. Immersive Header
+          SliverAppBar(
+            pinned: true,
+            floating: true,
+            expandedHeight: 120,
+            backgroundColor: _oatmeal,
+            surfaceTintColor: Colors.transparent,
+            title: const Text("食材模块", style: TextStyle(fontWeight: FontWeight.w800, color: _textPrimary)),
+            actions: [
+              TextButton(onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const IngredientCategoryScreen())), child: const Text("分类管理", style: TextStyle(color: _sageGreen))),
+              const SizedBox(width: 8),
+            ],
+            bottom: PreferredSize(
+              preferredSize: const Size.fromHeight(60),
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                child: GlassContainer(
+                  borderRadius: 24,
+                  opacity: 0.6,
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
                   child: Row(
-                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      Text(group.category.icon, style: const TextStyle(fontSize: 16)),
-                      const SizedBox(width: 4),
-                      Text(
-                        group.category.name,
-                        style: TextStyle(
-                          fontWeight: FontWeight.w600,
-                          color: categoryColor,
+                      const Icon(Icons.search, color: Color(0xFF8C8F90), size: 20),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: TextField(
+                          controller: _searchController,
+                          decoration: const InputDecoration(hintText: "搜索我的食材...", border: InputBorder.none, isDense: true),
+                          style: const TextStyle(fontSize: 14),
+                          onSubmitted: (v) { _searchKeyword = v; _loadIngredients(); },
                         ),
                       ),
                     ],
                   ),
                 ),
+              ),
+            ),
+          ),
+
+          // 2. Storage Navigation
+          SliverPersistentHeader(
+            pinned: true,
+            delegate: _StorageHeaderDelegate(
+              storages: _storages,
+              activeId: _activeStorage,
+              onChanged: (id) { setState(() => _activeStorage = id); _loadIngredients(); },
+            ),
+          ),
+
+          // 3. Grid of Ingredients
+          if (_isLoading)
+            const SliverFillRemaining(child: Center(child: CircularProgressIndicator(color: _sageGreen)))
+          else if (_groups.isEmpty)
+            SliverFillRemaining(child: _buildEmptyState())
+          else
+            ..._buildAllGroups(),
+          
+          const SliverToBoxAdapter(child: SizedBox(height: 100)),
+        ],
+      ),
+      floatingActionButton: FloatingActionButton(
+        heroTag: "ingredients_fab", // Unique tag to prevent Hero conflict
+        onPressed: _handleAddIngredient,
+        backgroundColor: _sageGreen,
+        child: const Icon(Icons.add, color: Colors.white),
+      ),
+    );
+  }
+
+  List<Widget> _buildAllGroups() {
+    final List<Widget> slivers = [];
+    for (var group in _groups) {
+      slivers.add(
+        SliverToBoxAdapter(
+          key: ValueKey('header_${group.category.id}'),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 20, 16, 12),
+            child: Row(
+              children: [
+                Text(group.category.icon, style: const TextStyle(fontSize: 18)),
                 const SizedBox(width: 8),
-                // 数量标签
-                Text(
-                  '${group.count}',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5),
-                  ),
-                ),
-                const Spacer(),
-                // 展开/折叠图标
-                Icon(
-                  isExpanded ? Icons.expand_less : Icons.expand_more,
-                  color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5),
-                ),
+                Text(group.category.name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: _textPrimary)),
+                const SizedBox(width: 8),
+                Text("${group.count}", style: const TextStyle(color: Colors.grey, fontSize: 12)),
               ],
             ),
           ),
         ),
+      );
+      
+      slivers.add(
+        SliverPadding(
+          key: ValueKey('grid_${group.category.id}'),
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          sliver: SliverMasonryGrid.count(
+            crossAxisCount: 2,
+            mainAxisSpacing: 12,
+            crossAxisSpacing: 12,
+            childCount: group.ingredients.length,
+            itemBuilder: (context, idx) => _buildIngredientCard(group.ingredients[idx]),
+          ),
+        ),
+      );
+    }
+    return slivers;
+  }
 
-        // 食材列表（可折叠）
-        if (isExpanded)
-          ...group.ingredients.map((ingredient) => _buildIngredientItem(ingredient)),
-
-        const SizedBox(height: 8),
-      ],
+  Widget _buildIngredientCard(IngredientItem item) {
+    final isUrgent = item.urgent || item.expiryDays <= 2;
+    
+    return BouncyCard(
+      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => IngredientDetailScreen(ingredientId: item.id, initialIngredient: item))),
+      child: Container(
+        decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20)),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Icon/Image with robust safety check
+            Container(
+              height: 80,
+              width: double.infinity,
+              decoration: BoxDecoration(color: _oatmeal.withOpacity(0.3), borderRadius: const BorderRadius.vertical(top: Radius.circular(20))),
+              child: Center(
+                child: Builder(
+                  builder: (context) {
+                    // Check if thumbnail exists and is a valid asset path
+                    final hasThumbnail = item.thumbnail.isNotEmpty && item.thumbnail.startsWith('assets/');
+                    if (hasThumbnail) {
+                      return Image.asset(item.thumbnail, fit: BoxFit.cover, errorBuilder: (_, __, ___) => _buildIconPlaceholder(item.icon));
+                    }
+                    return _buildIconPlaceholder(item.icon);
+                  },
+                ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(item.name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                  const SizedBox(height: 4),
+                  Text(item.displayAmount, style: const TextStyle(color: Colors.grey, fontSize: 12)),
+                  const SizedBox(height: 12),
+                  StatusChip(
+                    label: item.expiryText,
+                    color: isUrgent ? _persimmon : _sageGreen,
+                    isBreathing: isUrgent,
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
-  /// 构建食材项
-  Widget _buildIngredientItem(IngredientItem ingredient) {
-    final hasImage = ingredient.thumbnail.isNotEmpty;
+  Widget _buildIconPlaceholder(String icon) {
+    return Text(icon.isNotEmpty ? icon : '📦', style: const TextStyle(fontSize: 40));
+  }
 
-    return Dismissible(
-      key: Key(ingredient.id),
-      direction: DismissDirection.endToStart,
-      background: Container(
-        alignment: Alignment.centerRight,
-        padding: const EdgeInsets.only(right: 16),
-        decoration: BoxDecoration(
-          color: Colors.red,
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: const Icon(Icons.delete, color: Colors.white),
+  Widget _buildEmptyState() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          TweenAnimationBuilder<double>(
+            tween: Tween(begin: 0, end: 10),
+            duration: const Duration(seconds: 2),
+            curve: Curves.easeInOut,
+            builder: (context, v, child) => Transform.translate(offset: Offset(0, v), child: child),
+            child: Container(padding: const EdgeInsets.all(24), decoration: BoxDecoration(color: _sageGreen.withOpacity(0.1), shape: BoxShape.circle), child: const Icon(Icons.kitchen_outlined, size: 48, color: _sageGreen)),
+          ),
+          const SizedBox(height: 24),
+          const Text("储藏柜空空如也", style: TextStyle(color: Color(0xFF8C8F90), fontSize: 16, fontWeight: FontWeight.w600)),
+          const SizedBox(height: 8),
+          const Text("快把新鲜食材搬回家吧 ~", style: TextStyle(color: Color(0xFFDCD7CD), fontSize: 14)),
+        ],
       ),
-      confirmDismiss: (_) async {
-        return await showDialog<bool>(
-          context: context,
-          builder: (context) => AlertDialog(
-            title: const Text('确认删除'),
-            content: Text('确定要删除"${ingredient.name}"吗？'),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context, false),
-                child: const Text('取消'),
-              ),
-              TextButton(
-                onPressed: () => Navigator.pop(context, true),
-                style: TextButton.styleFrom(foregroundColor: Colors.red),
-                child: const Text('删除'),
-              ),
-            ],
-          ),
-        );
-      },
-      onDismissed: (_) => _deleteIngredient(ingredient),
-      child: Card(
-        margin: const EdgeInsets.only(bottom: 8),
-        child: ListTile(
-          onTap: () => _openIngredientDetail(ingredient),
-          leading: Container(
-            width: 56,
-            height: 56,
-            decoration: BoxDecoration(
-              color: Theme.of(context).colorScheme.surfaceContainerHighest,
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(10),
-              child: hasImage
-                  ? Image.network(
-                      ingredient.thumbnail.startsWith('http')
-                          ? ingredient.thumbnail
-                          : '${ApiConfig.devBaseUrl.replaceAll('/api', '')}${ingredient.thumbnail}',
-                      fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => Center(
-                        child: Text(ingredient.icon, style: const TextStyle(fontSize: 28)),
-                      ),
-                    )
-                  : Center(
-                      child: Text(ingredient.icon, style: const TextStyle(fontSize: 28)),
+    );
+  }
+}
+
+// --- Storage Header Delegate ---
+
+class _StorageHeaderDelegate extends SliverPersistentHeaderDelegate {
+  final List<StorageLocation> storages;
+  final String activeId;
+  final ValueChanged<String> onChanged;
+
+  _StorageHeaderDelegate({required this.storages, required this.activeId, required this.onChanged});
+
+  @override
+  Widget build(BuildContext context, double shrinkOffset, bool overlapsContent) {
+    return SizedBox.expand( // Force expand to full height constraint
+      child: Container(
+        color: const Color(0xFFF5F5F0),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        child: SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            children: storages.map((s) {
+              final isActive = activeId == s.id;
+              return Padding(
+                padding: const EdgeInsets.only(right: 12),
+                child: GestureDetector(
+                  onTap: () => onChanged(s.id),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                    decoration: BoxDecoration(
+                      color: isActive ? const Color(0xFFB2AC88) : Colors.white,
+                      borderRadius: BorderRadius.circular(24),
+                      boxShadow: [if (isActive) BoxShadow(color: const Color(0xFFB2AC88).withOpacity(0.3), blurRadius: 8, offset: const Offset(0, 2))],
                     ),
-            ),
-          ),
-          title: Text(
-            ingredient.name,
-            style: const TextStyle(fontWeight: FontWeight.w600),
-          ),
-          subtitle: Row(
-            children: [
-              Text(ingredient.displayAmount),
-              if (ingredient.note.isNotEmpty) ...[
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    ingredient.note,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5),
-                    ),
+                    child: Text(s.name, style: TextStyle(color: isActive ? Colors.white : const Color(0xFF4A4F50), fontWeight: isActive ? FontWeight.bold : FontWeight.normal, fontSize: 14)),
                   ),
                 ),
-              ],
-            ],
-          ),
-          trailing: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            decoration: BoxDecoration(
-              color: ingredient.urgent
-                  ? Colors.red.withValues(alpha: 0.1)
-                  : ingredient.expiryDays <= 3
-                      ? Colors.orange.withValues(alpha: 0.1)
-                      : Theme.of(context).colorScheme.surfaceContainerHighest,
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Text(
-              ingredient.expiryText,
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w500,
-                color: ingredient.urgent
-                    ? Colors.red.shade600
-                    : ingredient.expiryDays <= 3
-                        ? Colors.orange.shade600
-                        : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
-              ),
-            ),
+              );
+            }).toList(),
           ),
         ),
       ),
     );
   }
+
+  @override double get maxExtent => 60;
+  @override double get minExtent => 60;
+  @override bool shouldRebuild(covariant _StorageHeaderDelegate oldDelegate) => activeId != oldDelegate.activeId || storages != oldDelegate.storages;
 }

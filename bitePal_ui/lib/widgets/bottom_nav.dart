@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import '../utils/app_theme.dart';
 
 /// 底部导航栏
 class BottomNav extends StatelessWidget {
@@ -25,14 +24,15 @@ class BottomNav extends StatelessWidget {
       _NavItem(icon: Icons.shopping_bag_outlined, activeIcon: Icons.shopping_bag_rounded, label: '购物'),
     ];
 
+    final colorScheme = Theme.of(context).colorScheme;
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Container(
       decoration: BoxDecoration(
-        color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
+        color: colorScheme.surface,
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: isDark ? 0.3 : 0.08),
+            color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.05),
             blurRadius: 20,
             offset: const Offset(0, -4),
           ),
@@ -40,7 +40,7 @@ class BottomNav extends StatelessWidget {
       ),
       child: SafeArea(
         child: SizedBox(
-          height: 56,
+          height: 64,
           child: Row(
             children: List.generate(
               navItems.length,
@@ -69,23 +69,35 @@ class BottomNav extends StatelessWidget {
     return Expanded(
       child: InkWell(
         onTap: () => onTap(index),
+        highlightColor: Colors.transparent,
+        splashColor: colorScheme.primary.withValues(alpha: 0.1),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            // 图标
-            Icon(
-              isSelected ? item.activeIcon : item.icon,
-              size: 24,
-              color: isSelected
-                  ? colorScheme.primary
-                  : colorScheme.onSurface.withValues(alpha: 0.5),
+            // 图标容器（带选中效果）
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+              decoration: BoxDecoration(
+                color: isSelected 
+                    ? colorScheme.primary.withValues(alpha: 0.15)
+                    : Colors.transparent,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(
+                isSelected ? item.activeIcon : item.icon,
+                size: 24,
+                color: isSelected
+                    ? colorScheme.primary
+                    : colorScheme.onSurface.withValues(alpha: 0.5),
+              ),
             ),
             const SizedBox(height: 4),
             // 标签
             Text(
               item.label,
               style: TextStyle(
-                fontSize: 11,
+                fontSize: 10,
                 fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
                 color: isSelected
                     ? colorScheme.primary

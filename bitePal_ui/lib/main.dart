@@ -10,7 +10,7 @@ import 'screens/shopping_screen.dart';
 import 'screens/login_screen.dart';
 import 'screens/splash_screen.dart';
 import 'widgets/bottom_nav.dart';
-import 'utils/app_theme.dart';
+import 'design/theme/app_theme.dart';
 
 /// 自定义滚动行为，支持 Web 平台鼠标拖拽滚动
 class CustomScrollBehavior extends MaterialScrollBehavior {

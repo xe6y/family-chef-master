@@ -1,15 +1,135 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../models/ingredient_item.dart';
 import '../services/ingredient_service.dart';
 
-/// 添加购物项对话框
+// --- Theme Constants ---
+const Color _oatmeal = Color(0xFFF5F5F0);
+const Color _sageGreen = Color(0xFFB2AC88);
+const Color _textPrimary = Color(0xFF4A4F50);
+const Color _textSecondary = Color(0xFF8C8F90);
+
+// --- Helper Components ---
+
+class BouncyCard extends StatefulWidget {
+  final Widget child;
+  final VoidCallback onTap;
+
+  const BouncyCard({super.key, required this.child, required this.onTap});
+
+  @override
+  State<BouncyCard> createState() => _BouncyCardState();
+}
+
+class _BouncyCardState extends State<BouncyCard> with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _scaleAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(vsync: this, duration: const Duration(milliseconds: 100));
+    _scaleAnimation = Tween<double>(begin: 1.0, end: 0.97).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
+  }
+
+  @override
+  void dispose() { _controller.dispose(); super.dispose(); }
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTapDown: (_) => _controller.forward(),
+      onTapUp: (_) { _controller.reverse(); widget.onTap(); },
+      onTapCancel: () => _controller.reverse(),
+      child: AnimatedBuilder(
+        animation: _scaleAnimation,
+        builder: (context, child) => Transform.scale(
+          scale: _scaleAnimation.value,
+          child: widget.child,
+        ),
+      ),
+    );
+  }
+}
+
+class MinimalInput extends StatefulWidget {
+  final TextEditingController controller;
+  final String hintText;
+  final IconData? prefixIcon;
+  final ValueChanged<String>? onChanged;
+  final bool autofocus;
+
+  const MinimalInput({
+    super.key,
+    required this.controller,
+    required this.hintText,
+    this.prefixIcon,
+    this.onChanged,
+    this.autofocus = false,
+  });
+
+  @override
+  State<MinimalInput> createState() => _MinimalInputState();
+}
+
+class _MinimalInputState extends State<MinimalInput> {
+  final FocusNode _focusNode = FocusNode();
+  bool _isFocused = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _focusNode.addListener(() => setState(() => _isFocused = _focusNode.hasFocus));
+  }
+
+  @override
+  void dispose() { _focusNode.dispose(); super.dispose(); }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 200),
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      decoration: BoxDecoration(
+        color: _isFocused ? _sageGreen.withOpacity(0.08) : _oatmeal.withOpacity(0.5),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: _isFocused ? _sageGreen.withOpacity(0.2) : Colors.transparent),
+      ),
+      child: Row(
+        children: [
+          if (widget.prefixIcon != null)
+            Icon(widget.prefixIcon, size: 18, color: _isFocused ? _sageGreen : _textSecondary.withOpacity(0.5)),
+          if (widget.prefixIcon != null) const SizedBox(width: 8),
+          Expanded(
+            child: TextField(
+              controller: widget.controller,
+              focusNode: _focusNode,
+              autofocus: widget.autofocus,
+              onChanged: widget.onChanged,
+              style: const TextStyle(fontSize: 14, color: _textPrimary, fontWeight: FontWeight.w600),
+              decoration: InputDecoration(
+                hintText: widget.hintText,
+                hintStyle: TextStyle(color: _textSecondary.withOpacity(0.3), fontWeight: FontWeight.normal),
+                border: InputBorder.none,
+                isDense: true,
+                contentPadding: const EdgeInsets.symmetric(vertical: 12),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// --- Main Dialog ---
+
 class AddShoppingItemDialog extends StatefulWidget {
   final Function(String name, String amount) onAdd;
 
-  const AddShoppingItemDialog({
-    super.key,
-    required this.onAdd,
-  });
+  const AddShoppingItemDialog({super.key, required this.onAdd});
 
   @override
   State<AddShoppingItemDialog> createState() => _AddShoppingItemDialogState();
@@ -27,7 +147,6 @@ class _AddShoppingItemDialogState extends State<AddShoppingItemDialog> {
   void initState() {
     super.initState();
     _loadIngredients();
-    _searchController.addListener(_filterIngredients);
   }
 
   @override
@@ -36,67 +155,75 @@ class _AddShoppingItemDialogState extends State<AddShoppingItemDialog> {
     super.dispose();
   }
 
-  /// 加载食材库
   Future<void> _loadIngredients() async {
-    setState(() => _isLoading = true);
     try {
-      // 获取所有食材
       final ingredients = await _ingredientService.getIngredients();
-      _allIngredients = ingredients;
-      _filteredIngredients = ingredients;
-    } catch (e) {
-      debugPrint('加载食材失败: $e');
-    } finally {
       if (mounted) {
-        setState(() => _isLoading = false);
+        setState(() {
+          _allIngredients = ingredients;
+          _filteredIngredients = ingredients;
+          _isLoading = false;
+        });
       }
+    } catch (e) {
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
-  /// 过滤食材
-  void _filterIngredients() {
-    final query = _searchController.text.toLowerCase();
+  void _filter(String q) {
     setState(() {
-      if (query.isEmpty) {
-        _filteredIngredients = _allIngredients;
-      } else {
-        _filteredIngredients = _allIngredients
-            .where((item) => item.name.toLowerCase().contains(query))
-            .toList();
-      }
+      _filteredIngredients = _allIngredients.where((i) => i.name.toLowerCase().contains(q.toLowerCase())).toList();
     });
   }
 
-  /// 显示数量输入对话框
-  Future<void> _showAmountDialog(String name) async {
+  void _showAmountInput(String name) {
     final amountController = TextEditingController();
-    
-    await showDialog(
+    showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text('添加 $name'),
-        content: TextField(
-          controller: amountController,
-          decoration: const InputDecoration(
-            labelText: '预计购买数量',
-            hintText: '例如: 2个, 500g',
-            border: OutlineInputBorder(),
+      builder: (context) => Dialog(
+        backgroundColor: Colors.transparent,
+        child: Container(
+          width: 280,
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(28)),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text('添加 $name', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: _textPrimary)),
+              const SizedBox(height: 20),
+              MinimalInput(controller: amountController, hintText: "预计数量 (如: 2个, 500g)", autofocus: true),
+              const SizedBox(height: 24),
+              Row(
+                children: [
+                  Expanded(
+                    child: TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: const Text("取消", style: TextStyle(color: _textSecondary)),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: () {
+                        HapticFeedback.lightImpact();
+                        widget.onAdd(name, amountController.text);
+                        Navigator.pop(context); // Close amount
+                        Navigator.pop(context); // Close main add
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: _sageGreen,
+                        foregroundColor: Colors.white,
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                      child: const Text("确认"),
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ),
-          autofocus: true,
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('取消'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              widget.onAdd(name, amountController.text);
-              Navigator.pop(context); // Close amount dialog
-            },
-            child: const Text('添加'),
-          ),
-        ],
       ),
     );
   }
@@ -104,111 +231,120 @@ class _AddShoppingItemDialogState extends State<AddShoppingItemDialog> {
   @override
   Widget build(BuildContext context) {
     return Dialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      backgroundColor: Colors.transparent,
+      insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 40),
       child: Container(
-        padding: const EdgeInsets.all(16),
-        constraints: const BoxConstraints(maxHeight: 500),
+        decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(32)),
         child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text(
-                  '添加食材',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                ),
-                IconButton(
-                  icon: const Icon(Icons.close),
-                  onPressed: () => Navigator.pop(context),
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: _searchController,
-              decoration: InputDecoration(
-                hintText: '搜索食材...',
-                prefixIcon: const Icon(Icons.search),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                contentPadding: const EdgeInsets.symmetric(vertical: 0, horizontal: 12),
+            // Header
+            Padding(
+              padding: const EdgeInsets.fromLTRB(24, 24, 16, 16),
+              child: Row(
+                children: [
+                  const Text('找点食材', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: _textPrimary)),
+                  const Spacer(),
+                  IconButton(icon: const Icon(Icons.close_rounded, color: _textSecondary), onPressed: () => Navigator.pop(context)),
+                ],
               ),
             ),
-            const SizedBox(height: 12),
+            
+            // Search Area
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24),
+              child: MinimalInput(
+                controller: _searchController,
+                hintText: "搜索食材库...",
+                prefixIcon: Icons.search_rounded,
+                onChanged: _filter,
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            // Results List
             Expanded(
               child: _isLoading
-                  ? const Center(child: CircularProgressIndicator())
+                  ? const Center(child: CircularProgressIndicator(color: _sageGreen))
                   : ListView.builder(
+                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
                       itemCount: _filteredIngredients.length + (_searchController.text.isNotEmpty ? 1 : 0),
                       itemBuilder: (context, index) {
-                        // 如果有输入内容，第一个显示"直接添加"选项
-                        if (_searchController.text.isNotEmpty) {
-                          if (index == 0) {
-                            return ListTile(
-                              leading: Container(
-                                width: 40,
-                                height: 40,
-                                decoration: BoxDecoration(
-                                  color: Theme.of(context).colorScheme.surfaceContainerHighest,
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                alignment: Alignment.center,
-                                child: const Icon(Icons.add),
-                              ),
-                              title: Text('直接添加 "${_searchController.text}"'),
-                              subtitle: const Text('作为新食材添加'),
-                              onTap: () {
-                                _showAmountDialog(_searchController.text);
-                              },
-                            );
-                          }
-                          // 修正索引以获取正确的食材
-                          final item = _filteredIngredients[index - 1];
-                          return _buildIngredientTile(item);
+                        if (_searchController.text.isNotEmpty && index == 0) {
+                          return _buildActionTile("直接添加 \"${_searchController.text}\"", "作为新食材添加", Icons.add_rounded, () {
+                            _showAmountInput(_searchController.text);
+                          });
                         }
-                        
-                        // 没有输入内容，直接显示列表
-                        final item = _filteredIngredients[index];
+                        final item = _filteredIngredients[_searchController.text.isNotEmpty ? index - 1 : index];
                         return _buildIngredientTile(item);
                       },
                     ),
             ),
+            const SizedBox(height: 16),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildIngredientTile(IngredientItem item) {
-    return ListTile(
-      leading: Container(
-        width: 40,
-        height: 40,
-        decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.primaryContainer,
-          borderRadius: BorderRadius.circular(8),
-        ),
-        alignment: Alignment.center,
-        child: Text(
-          item.name.isNotEmpty ? item.name[0] : '?',
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-            color: Theme.of(context).colorScheme.onPrimaryContainer,
+  Widget _buildActionTile(String title, String sub, IconData icon, VoidCallback onTap) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: BouncyCard(
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(color: _sageGreen.withOpacity(0.1), borderRadius: BorderRadius.circular(16)),
+          child: Row(
+            children: [
+              Container(padding: const EdgeInsets.all(8), decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle), child: Icon(icon, color: _sageGreen, size: 20)),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: _textPrimary)),
+                    Text(sub, style: const TextStyle(color: _textSecondary, fontSize: 11)),
+                  ],
+                ),
+              ),
+            ],
           ),
         ),
       ),
-      title: Text(item.name),
-      subtitle: Text(item.categoryName),
-      trailing: const Icon(Icons.add_circle_outline),
-      onTap: () {
-        _showAmountDialog(item.name);
-      },
+    );
+  }
+
+  Widget _buildIngredientTile(IngredientItem item) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: BouncyCard(
+        onTap: () => _showAmountInput(item.name),
+        child: Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(color: _oatmeal.withOpacity(0.3), borderRadius: BorderRadius.circular(16)),
+          child: Row(
+            children: [
+              Container(
+                width: 40, height: 40,
+                alignment: Alignment.center,
+                decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
+                child: Text(item.icon.isNotEmpty ? item.icon : (item.name.isNotEmpty ? item.name[0] : '📦'), style: const TextStyle(fontSize: 20)),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(item.name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: _textPrimary)),
+                    Text(item.categoryName, style: const TextStyle(color: _textSecondary, fontSize: 11)),
+                  ],
+                ),
+              ),
+              const Icon(Icons.add_rounded, color: _sageGreen, size: 20),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

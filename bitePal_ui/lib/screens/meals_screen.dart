@@ -1,77 +1,153 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 import '../models/recipe.dart';
 import '../models/recipe_category.dart';
 import '../models/meal_order.dart';
-import '../services/category_service.dart';
 import '../services/meal_service.dart';
-import '../services/menu_service.dart';
+import '../services/category_service.dart';
 import '../services/recipe_service.dart';
 import '../services/today_menu_state.dart';
-import '../widgets/recipe_card.dart';
 import '../widgets/refreshable_screen.dart';
-import '../utils/app_constants.dart';
 import 'recipe_detail_screen.dart';
 
-const double _kFilterPanelPadding = 24.0;
-const double _kFilterPanelRadius = 28.0;
-const double _kFilterPanelSpacing = 18.0;
-const double _kFilterContentMaxHeight = 300.0;
-const double _kFilterTabSpacing = 12.0;
-const double _kFilterTabCornerRadius = 22.0;
-const double _kFilterTabPaddingHorizontal = 18.0;
-const double _kFilterTabPaddingVertical = 12.0;
-const double _kFilterTabBorderWidth = 1.0;
-const double _kFilterStatusSpacing = 6.0;
-const double _kFilterResetButtonPaddingHorizontal = 16.0;
-const double _kFilterResetButtonPaddingVertical = 8.0;
-const double _kFilterOptionSpacing = 12.0;
-const double _kFilterOptionCornerRadius = 16.0;
-const double _kFilterOptionBorderWidth = 1.0;
-const Duration _kFilterTabTransitionDuration = Duration(milliseconds: 200);
-const List<BoxShadow> _kFilterPanelShadows = [
-  BoxShadow(
-    color: Color(0x28000000),
-    offset: Offset(0, 22),
-    blurRadius: 40,
-    spreadRadius: 1,
-  ),
-  BoxShadow(
-    color: Color(0x14ffffff),
-    offset: Offset(0, -8),
-    blurRadius: 30,
-    spreadRadius: 0,
-  ),
-];
-const List<BoxShadow> _kFilterTabShadows = [
-  BoxShadow(
-    color: Color(0x1e000000),
-    offset: Offset(0, 8),
-    blurRadius: 20,
-    spreadRadius: 0,
-  ),
-  BoxShadow(
-    color: Color(0x15ffffff),
-    offset: Offset(0, -4),
-    blurRadius: 18,
-    spreadRadius: 0,
-  ),
-];
-const List<BoxShadow> _kFilterTabActiveShadows = [
-  BoxShadow(
-    color: Color(0x34000000),
-    offset: Offset(0, 12),
-    blurRadius: 30,
-    spreadRadius: 0,
-  ),
-  BoxShadow(
-    color: Color(0x18ffffff),
-    offset: Offset(0, -6),
-    blurRadius: 22,
-    spreadRadius: 0,
-  ),
-];
+// --- Helper Components (1:1 with Recipes Screen) ---
 
-/// 家庭点餐页面
+class GlassContainer extends StatelessWidget {
+  final Widget child;
+  final double borderRadius;
+  final double blur;
+  final double opacity;
+  final EdgeInsetsGeometry padding;
+  final Color? color;
+
+  const GlassContainer({
+    super.key,
+    required this.child,
+    this.borderRadius = 16,
+    this.blur = 10,
+    this.opacity = 0.5,
+    this.padding = EdgeInsets.zero,
+    this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(borderRadius),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: blur, sigmaY: blur),
+        child: Container(
+          padding: padding,
+          decoration: BoxDecoration(
+            color: (color ?? Theme.of(context).colorScheme.surface).withOpacity(opacity),
+            borderRadius: BorderRadius.circular(borderRadius),
+            border: Border.all(color: Colors.white.withOpacity(0.2), width: 0.5),
+          ),
+          child: child,
+        ),
+      ),
+    );
+  }
+}
+
+class BouncyCard extends StatefulWidget {
+  final Widget child;
+  final VoidCallback? onTap;
+  final bool isSelected;
+  final Color? activeShadowColor;
+
+  const BouncyCard({
+    super.key,
+    required this.child,
+    this.onTap,
+    this.isSelected = false,
+    this.activeShadowColor,
+  });
+
+  @override
+  State<BouncyCard> createState() => _BouncyCardState();
+}
+
+class _BouncyCardState extends State<BouncyCard> with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _scaleAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(vsync: this, duration: const Duration(milliseconds: 150));
+    _scaleAnimation = Tween<double>(begin: 1.0, end: 0.95).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
+    );
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTapDown: (_) => _controller.forward(),
+      onTapUp: (_) {
+        _controller.reverse();
+        widget.onTap?.call();
+      },
+      onTapCancel: () => _controller.reverse(),
+      child: AnimatedBuilder(
+        animation: _scaleAnimation,
+        builder: (context, child) => Transform.scale(
+          scale: _scaleAnimation.value,
+          child: Container(
+            decoration: widget.isSelected && widget.activeShadowColor != null
+                ? BoxDecoration(
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: [
+                      BoxShadow(
+                        color: widget.activeShadowColor!.withOpacity(0.4),
+                        blurRadius: 12,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  )
+                : null,
+            child: widget.child,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class StatusChip extends StatelessWidget {
+  final String label;
+  final Color color;
+
+  const StatusChip({super.key, required this.label, required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: color.withOpacity(0.2)),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: color),
+      ),
+    );
+  }
+}
+
+// --- Main Screen ---
+
 class MealsScreen extends RefreshableScreen {
   const MealsScreen({super.key});
 
@@ -79,463 +155,62 @@ class MealsScreen extends RefreshableScreen {
   State<MealsScreen> createState() => _MealsScreenState();
 }
 
-class _MealsScreenState extends State<MealsScreen>
-    with RefreshableScreenState<MealsScreen> {
-  /// 点餐服务
+class _MealsScreenState extends State<MealsScreen> with RefreshableScreenState<MealsScreen> {
   final MealService _mealService = MealService();
-
-  /// 菜单服务
-  final MenuService _menuService = MenuService();
-
-  /// 菜谱服务
   final RecipeService _recipeService = RecipeService();
-
-  /// 分类服务
   final CategoryService _categoryService = CategoryService();
-
-  /// 今日菜单状态管理器
   final TodayMenuState _todayMenuState = TodayMenuState();
+  final TextEditingController _searchController = TextEditingController();
 
-  /// 是否展开筛选面板
-  bool _filterExpanded = false;
-
-  /// 是否正在加载
-  bool _isLoading = true;
-
-  /// 选中的口味
-  final List<String> _selectedTastes = [];
-
-  /// 选中的难度
-  final List<String> _selectedDifficulties = [];
-
-  /// 选中的菜系
-  final List<String> _selectedCuisines = [];
-
-  /// 当前展开的筛选类型
-  String? _activeFilterType;
-
-  /// 菜谱列表（从今日菜单和收藏获取）
+  // State
   List<Recipe> _recipes = [];
-
-  /// 口味分类列表
+  bool _isLoading = true;
+  String _searchKeyword = '';
+  
+  // Filter State
+  final List<String> _selectedTastes = [];
+  final List<String> _selectedDifficulties = [];
+  final List<String> _selectedCuisines = [];
+  
+  // Data
   List<RecipeCategory> _tasteCategories = [];
-
-  /// 难度分类列表
   List<RecipeCategory> _difficultyCategories = [];
-
-  /// 菜系分类列表
   List<RecipeCategory> _cuisineCategories = [];
+  
+  // Theme Colors (Morandi - Consistent with Recipes)
+  static const Color _sageGreen = Color(0xFFB2AC88);
+  static const Color _oatmeal = Color(0xFFF5F5F0);
+  static const Color _persimmon = Color(0xFFE58A73);
+  static const Color _textPrimary = Color(0xFF4A4F50);
+  static const Color _textSecondary = Color(0xFF8C8F90);
 
   @override
   void initState() {
     super.initState();
+    // CRITICAL: Restored old method name to fix NoSuchMethodError crash
     _todayMenuState.addListener(_onTodayMenuStateChanged);
-    _loadRecipes();
-    _loadCategories();
+    _loadData();
   }
 
   @override
   void dispose() {
     _todayMenuState.removeListener(_onTodayMenuStateChanged);
+    _searchController.dispose();
     super.dispose();
   }
 
-  /// 今日菜单状态变化回调
+  // CRITICAL: Method name matches what the singleton is trying to call
   void _onTodayMenuStateChanged() {
-    if (mounted) {
-      setState(() {});
-    }
+    if (mounted) setState(() {});
   }
 
-  /// 构建筛选面板容器
-  Widget _buildFilterPanel(ColorScheme colorScheme) {
-    return Container(
-      decoration: BoxDecoration(
-        color: colorScheme.surface,
-        borderRadius: BorderRadius.circular(_kFilterPanelRadius),
-        border: Border.all(
-          color: colorScheme.onSurface.withValues(alpha: 0.08),
-          width: _kFilterOptionBorderWidth,
-        ),
-        boxShadow: _kFilterPanelShadows,
-      ),
-      padding: const EdgeInsets.all(_kFilterPanelPadding),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          _buildFilterPanelHeader(colorScheme),
-          if (_activeFilterType != null) ...[
-            const SizedBox(height: _kFilterPanelSpacing),
-            Container(
-              constraints: const BoxConstraints(
-                maxHeight: _kFilterContentMaxHeight,
-              ),
-              child: SingleChildScrollView(
-                child: _buildFilterContent(colorScheme),
-              ),
-            ),
-          ],
-        ],
-      ),
-    );
+  Future<void> _loadData() async {
+    await Future.wait([
+      _loadCategories(),
+      _loadRecipes(),
+    ]);
   }
 
-  /// 构建浮动筛选面板
-  Widget _buildFloatingMealFilterPanel(
-    ThemeData theme,
-    ColorScheme colorScheme,
-  ) {
-    return Positioned.fill(
-      child: GestureDetector(
-        onTap: () {
-          setState(() {
-            _filterExpanded = false;
-            _activeFilterType = null;
-          });
-        },
-        child: Container(
-          color: Colors.black.withOpacity(0.35),
-          child: Align(
-            alignment: Alignment.topCenter,
-            child: Padding(
-              padding: EdgeInsets.fromLTRB(
-                AppConstants.spacingXL,
-                AppConstants.spacingXXL,
-                AppConstants.spacingXL,
-                0,
-              ),
-              child: GestureDetector(
-                onTap: () {}, // 阻止点击穿透
-                child: _buildFilterPanel(colorScheme),
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  /// 构建筛选面板标题与类型行
-  Widget _buildFilterPanelHeader(ColorScheme colorScheme) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            Text(
-              '筛选',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w600,
-                color: colorScheme.onSurface,
-              ),
-            ),
-            const Spacer(),
-            TextButton(
-              onPressed: _resetFilters,
-              style: TextButton.styleFrom(
-                foregroundColor: colorScheme.primary,
-                backgroundColor: colorScheme.surfaceContainerHighest.withValues(
-                  alpha: 0.6,
-                ),
-                padding: const EdgeInsets.symmetric(
-                  horizontal: _kFilterResetButtonPaddingHorizontal,
-                  vertical: _kFilterResetButtonPaddingVertical,
-                ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(999),
-                  side: BorderSide(
-                    color: colorScheme.primary.withValues(alpha: 0.2),
-                  ),
-                ),
-              ),
-              child: const Text('重置'),
-            ),
-          ],
-        ),
-        const SizedBox(height: _kFilterTabSpacing),
-        SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: Row(
-            children: [
-              _buildFilterTypeTab('taste', '口味', _selectedTastes.isNotEmpty),
-              const SizedBox(width: _kFilterTabSpacing),
-              _buildFilterTypeTab(
-                'difficulty',
-                '难度',
-                _selectedDifficulties.isNotEmpty,
-              ),
-              const SizedBox(width: _kFilterTabSpacing),
-              _buildFilterTypeTab(
-                'cuisine',
-                '菜系',
-                _selectedCuisines.isNotEmpty,
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  /// 构建筛选类型标签
-  Widget _buildFilterTypeTab(String type, String label, bool hasSelected) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-    final isActive = _activeFilterType == type;
-
-    return InkWell(
-      borderRadius: BorderRadius.circular(_kFilterTabCornerRadius),
-      onTap: () {
-        setState(() {
-          if (_activeFilterType == type) {
-            _activeFilterType = null;
-          } else {
-            _activeFilterType = type;
-          }
-        });
-      },
-      child: AnimatedContainer(
-        duration: _kFilterTabTransitionDuration,
-        padding: const EdgeInsets.symmetric(
-          horizontal: _kFilterTabPaddingHorizontal,
-          vertical: _kFilterTabPaddingVertical,
-        ),
-        decoration: BoxDecoration(
-          color: isActive
-              ? colorScheme.primary
-              : hasSelected
-              ? colorScheme.surfaceContainerHighest.withValues(alpha: 0.9)
-              : colorScheme.surface,
-          borderRadius: BorderRadius.circular(_kFilterTabCornerRadius),
-          border: Border.all(
-            color: isActive
-                ? Colors.transparent
-                : colorScheme.onSurface.withValues(alpha: 0.08),
-            width: _kFilterTabBorderWidth,
-          ),
-          boxShadow: isActive ? _kFilterTabActiveShadows : _kFilterTabShadows,
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              label,
-              style: TextStyle(
-                color: isActive
-                    ? colorScheme.onPrimary
-                    : hasSelected
-                    ? colorScheme.primary
-                    : colorScheme.onSurface.withValues(alpha: 0.8),
-                fontWeight: hasSelected || isActive
-                    ? FontWeight.w600
-                    : FontWeight.w500,
-              ),
-            ),
-            if (hasSelected) ...[
-              const SizedBox(width: _kFilterStatusSpacing),
-              Icon(
-                Icons.check_circle,
-                size: 18,
-                color: isActive ? colorScheme.onPrimary : colorScheme.primary,
-              ),
-            ],
-          ],
-        ),
-      ),
-    );
-  }
-
-  /// 构建筛选内容
-  Widget _buildFilterContent(ColorScheme colorScheme) {
-    switch (_activeFilterType) {
-      case 'taste':
-        return _buildFilterOptionGrid(
-          _tasteCategories.map((category) => category.name).toList(),
-          _selectedTastes,
-          (taste) {
-            setState(() {
-              if (_selectedTastes.contains(taste)) {
-                _selectedTastes.remove(taste);
-              } else {
-                _selectedTastes.add(taste);
-              }
-            });
-            _loadRecipes();
-          },
-          colorScheme,
-        );
-      case 'difficulty':
-        return _buildFilterOptionGrid(
-          _difficultyCategories.map((category) => category.name).toList(),
-          _selectedDifficulties,
-          (difficulty) {
-            setState(() {
-              if (_selectedDifficulties.contains(difficulty)) {
-                _selectedDifficulties.remove(difficulty);
-              } else {
-                _selectedDifficulties.add(difficulty);
-              }
-            });
-            _loadRecipes();
-          },
-          colorScheme,
-        );
-      case 'cuisine':
-        return _buildFilterOptionGrid(
-          _cuisineCategories.map((category) => category.name).toList(),
-          _selectedCuisines,
-          (cuisine) {
-            setState(() {
-              if (_selectedCuisines.contains(cuisine)) {
-                _selectedCuisines.remove(cuisine);
-              } else {
-                _selectedCuisines.add(cuisine);
-              }
-            });
-            _loadRecipes();
-          },
-          colorScheme,
-        );
-      default:
-        return const SizedBox.shrink();
-    }
-  }
-
-  /// 构建筛选选项网格
-  Widget _buildFilterOptionGrid(
-    List<String> options,
-    List<String> selected,
-    Function(String) onToggle,
-    ColorScheme colorScheme,
-  ) {
-    return Wrap(
-      spacing: _kFilterOptionSpacing,
-      runSpacing: _kFilterOptionSpacing,
-      children: options.map((option) {
-        final isSelected = selected.contains(option);
-        return Material(
-          color: Colors.transparent,
-          child: InkWell(
-            borderRadius: BorderRadius.circular(_kFilterOptionCornerRadius),
-            onTap: () => onToggle(option),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-              decoration: BoxDecoration(
-                color: isSelected
-                    ? colorScheme.primary
-                    : colorScheme.surfaceContainerHighest.withValues(
-                        alpha: 0.2,
-                      ),
-                borderRadius: BorderRadius.circular(_kFilterOptionCornerRadius),
-                border: Border.all(
-                  color: isSelected
-                      ? colorScheme.primary
-                      : colorScheme.onSurface.withValues(alpha: 0.08),
-                  width: _kFilterOptionBorderWidth,
-                ),
-              ),
-              child: Text(
-                option,
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-                  color: isSelected
-                      ? colorScheme.onPrimary
-                      : colorScheme.onSurface,
-                ),
-              ),
-            ),
-          ),
-        );
-      }).toList(),
-    );
-  }
-
-  /// 重置筛选条件
-  void _resetFilters() {
-    setState(() {
-      _selectedTastes.clear();
-      _selectedDifficulties.clear();
-      _selectedCuisines.clear();
-      _activeFilterType = null;
-    });
-    _loadRecipes();
-  }
-
-  /// 加载菜谱数据
-  /// 只显示家庭菜单和收藏的菜谱
-  Future<void> _loadRecipes() async {
-    setState(() => _isLoading = true);
-
-    try {
-      // 先加载今日菜单状态
-      await _todayMenuState.loadTodayMenu();
-
-      // 获取收藏的菜谱
-      final favoriteRecipesResult = await _recipeService.getMyRecipes(
-        favorite: true,
-      );
-
-      final List<Recipe> allRecipes = [];
-
-      // 添加今日菜单中的菜谱（从状态管理器获取）
-      allRecipes.addAll(_todayMenuState.menuRecipes);
-
-      // 添加收藏的菜谱
-      if (favoriteRecipesResult != null &&
-          favoriteRecipesResult.list.isNotEmpty) {
-        allRecipes.addAll(favoriteRecipesResult.list);
-      }
-
-      // 根据筛选条件过滤
-      List<Recipe> filteredRecipes = allRecipes;
-
-      if (_selectedTastes.isNotEmpty) {
-        filteredRecipes = filteredRecipes.where((recipe) {
-          return _selectedTastes.any(
-            (taste) => recipe.categories.contains(taste),
-          );
-        }).toList();
-      }
-
-      if (_selectedDifficulties.isNotEmpty) {
-        filteredRecipes = filteredRecipes
-            .where(
-              (recipe) => _selectedDifficulties.contains(recipe.difficulty),
-            )
-            .toList();
-      }
-
-      if (_selectedCuisines.isNotEmpty) {
-        filteredRecipes = filteredRecipes.where((recipe) {
-          return _selectedCuisines.any(
-            (cuisine) => recipe.categories.contains(cuisine),
-          );
-        }).toList();
-      }
-
-      // 去重（根据 ID）
-      final Map<String, Recipe> uniqueRecipes = {};
-      for (final recipe in filteredRecipes) {
-        if (!uniqueRecipes.containsKey(recipe.id)) {
-          uniqueRecipes[recipe.id] = recipe;
-        }
-      }
-
-      _recipes = uniqueRecipes.values.toList();
-    } catch (e) {
-      debugPrint('加载菜谱失败: $e');
-      _loadMockData();
-    }
-
-    if (mounted) {
-      setState(() => _isLoading = false);
-    }
-  }
-
-  /// 加载分类数据
   Future<void> _loadCategories() async {
     try {
       final results = await Future.wait([
@@ -543,7 +218,6 @@ class _MealsScreenState extends State<MealsScreen>
         _categoryService.getCategoriesByType('difficulty'),
         _categoryService.getCategoriesByType('cuisine'),
       ]);
-
       if (mounted) {
         setState(() {
           _tasteCategories = results[0] ?? [];
@@ -552,128 +226,14 @@ class _MealsScreenState extends State<MealsScreen>
         });
       }
     } catch (e) {
-      debugPrint('加载分类失败: $e');
       _loadDefaultCategories();
     }
   }
 
-  /// 加载默认分类（作为后备）
   void _loadDefaultCategories() {
-    final tasteCategories = [
-      RecipeCategory(
-        id: '1',
-        type: 'taste',
-        name: '清淡',
-        sortOrder: 1,
-        isActive: true,
-      ),
-      RecipeCategory(
-        id: '2',
-        type: 'taste',
-        name: '咸鲜',
-        sortOrder: 2,
-        isActive: true,
-      ),
-      RecipeCategory(
-        id: '3',
-        type: 'taste',
-        name: '酸',
-        sortOrder: 3,
-        isActive: true,
-      ),
-      RecipeCategory(
-        id: '4',
-        type: 'taste',
-        name: '甜',
-        sortOrder: 4,
-        isActive: true,
-      ),
-      RecipeCategory(
-        id: '5',
-        type: 'taste',
-        name: '麻',
-        sortOrder: 5,
-        isActive: true,
-      ),
-      RecipeCategory(
-        id: '6',
-        type: 'taste',
-        name: '辣',
-        sortOrder: 6,
-        isActive: true,
-      ),
-    ];
-    final cuisineCategories = [
-      RecipeCategory(
-        id: '1',
-        type: 'cuisine',
-        name: '家常菜',
-        sortOrder: 1,
-        isActive: true,
-      ),
-      RecipeCategory(
-        id: '2',
-        type: 'cuisine',
-        name: '川菜',
-        sortOrder: 2,
-        isActive: true,
-      ),
-      RecipeCategory(
-        id: '3',
-        type: 'cuisine',
-        name: '粤菜',
-        sortOrder: 3,
-        isActive: true,
-      ),
-      RecipeCategory(
-        id: '4',
-        type: 'cuisine',
-        name: '浙菜',
-        sortOrder: 4,
-        isActive: true,
-      ),
-      RecipeCategory(
-        id: '5',
-        type: 'cuisine',
-        name: '湘菜',
-        sortOrder: 5,
-        isActive: true,
-      ),
-    ];
-    final difficultyCategories = [
-      RecipeCategory(
-        id: '1',
-        type: 'difficulty',
-        name: '简单',
-        sortOrder: 1,
-        isActive: true,
-      ),
-      RecipeCategory(
-        id: '2',
-        type: 'difficulty',
-        name: '中等',
-        sortOrder: 2,
-        isActive: true,
-      ),
-      RecipeCategory(
-        id: '3',
-        type: 'difficulty',
-        name: '困难',
-        sortOrder: 3,
-        isActive: true,
-      ),
-    ];
-    if (mounted) {
-      setState(() {
-        _tasteCategories = tasteCategories;
-        _difficultyCategories = difficultyCategories;
-        _cuisineCategories = cuisineCategories;
-      });
-    } else {
-      _tasteCategories = tasteCategories;
-      _difficultyCategories = difficultyCategories;
-      _cuisineCategories = cuisineCategories;
-    }
+    _tasteCategories = [RecipeCategory(id: '1', type: 'taste', name: '清淡', sortOrder: 1, isActive: true)];
+    _difficultyCategories = [RecipeCategory(id: '1', type: 'difficulty', name: '简单', sortOrder: 1, isActive: true)];
+    _cuisineCategories = [RecipeCategory(id: '1', type: 'cuisine', name: '家常菜', sortOrder: 1, isActive: true)];
   }
 
   @override
@@ -681,713 +241,553 @@ class _MealsScreenState extends State<MealsScreen>
     await _loadRecipes();
   }
 
-  /// 加载模拟数据
+  Future<void> _loadRecipes() async {
+    setState(() => _isLoading = true);
+    try {
+      await _todayMenuState.loadTodayMenu();
+      final favResult = await _recipeService.getMyRecipes(favorite: true);
+      
+      final Map<String, Recipe> uniqueMap = {};
+      for (var r in _todayMenuState.menuRecipes) { uniqueMap[r.id] = r; }
+      if (favResult != null) {
+        for (var r in favResult.list) { uniqueMap[r.id] = r; }
+      }
+
+      var list = uniqueMap.values.toList();
+      
+      if (_searchKeyword.isNotEmpty) {
+        list = list.where((r) => r.name.contains(_searchKeyword)).toList();
+      }
+      if (_selectedTastes.isNotEmpty) {
+        list = list.where((r) => _selectedTastes.any((t) => r.categories.contains(t))).toList();
+      }
+      if (_selectedDifficulties.isNotEmpty) {
+        list = list.where((r) => _selectedDifficulties.contains(r.difficulty)).toList();
+      }
+      if (_selectedCuisines.isNotEmpty) {
+        list = list.where((r) => _selectedCuisines.any((c) => r.categories.contains(c))).toList();
+      }
+
+      _recipes = list;
+    } catch (e) {
+      _loadMockData();
+    }
+    if (mounted) setState(() => _isLoading = false);
+  }
+
   void _loadMockData() {
     _recipes = [
-      Recipe(
-        id: '1',
-        name: "番茄炒蛋",
-        time: "15分钟",
-        difficulty: "简单",
-        tags: ["食材充足", "低热量"],
-        tagColors: ["bg-green-500", "bg-green-500"],
-        favorite: false,
-        categories: ["酸", "甜"],
-      ),
-      Recipe(
-        id: '2',
-        name: "麻婆豆腐",
-        time: "45分钟",
-        difficulty: "中等",
-        tags: ["中热量"],
-        tagColors: ["bg-amber-500"],
-        favorite: false,
-        categories: ["麻", "辣"],
-      ),
-      Recipe(
-        id: '3',
-        name: "清蒸鲈鱼",
-        image: "/images/image.png",
-        time: "25分钟",
-        difficulty: "简单",
-        tags: ["食材充足", "低热量"],
-        tagColors: ["bg-green-500", "bg-green-500"],
-        favorite: false,
-        categories: ["粤菜", "清淡"],
-      ),
-      Recipe(
-        id: '4',
-        name: "红烧肉",
-        image: "/images/image.png",
-        time: "45分钟",
-        difficulty: "中等",
-        tags: ["食材充足", "高热量"],
-        tagColors: ["bg-green-500", "bg-red-500"],
-        favorite: false,
-        categories: ["甜"],
-      ),
+      Recipe(id: '1', name: "番茄炒蛋", time: "15分钟", difficulty: "简单", tags: ["家常"], tagColors: ["bg-green-500"], favorite: true, categories: ["酸甜"]),
     ];
   }
 
-  /// 确认点餐
-  /// 提交已点菜品，生成今日菜单
+  void _showFilterModal() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (context) => _FilterBottomSheet(
+        selectedTastes: _selectedTastes,
+        selectedDifficulties: _selectedDifficulties,
+        selectedCuisines: _selectedCuisines,
+        tasteCategories: _tasteCategories,
+        difficultyCategories: _difficultyCategories,
+        cuisineCategories: _cuisineCategories,
+        onApply: (tastes, diffs, cuisines) {
+          setState(() {
+            _selectedTastes.clear(); _selectedTastes.addAll(tastes);
+            _selectedDifficulties.clear(); _selectedDifficulties.addAll(diffs);
+            _selectedCuisines.clear(); _selectedCuisines.addAll(cuisines);
+          });
+          _loadRecipes();
+        },
+      ),
+    );
+  }
+
   Future<void> _confirmOrder() async {
-    final selectedMeals = _todayMenuState.selectedMeals;
-    if (selectedMeals.isEmpty) return;
+    final selected = _todayMenuState.selectedMeals;
+    if (selected.isEmpty) return;
 
-    final orderRecipes = selectedMeals
-        .map((r) => OrderRecipe(recipeId: r.id, recipeName: r.name))
-        .toList();
-
+    final orderRecipes = selected.map((r) => OrderRecipe(recipeId: r.id, recipeName: r.name)).toList();
     final order = await _mealService.createMealOrder(orderRecipes);
+    
     if (order != null && mounted) {
-      // 清空已点菜品
       _todayMenuState.clearSelected();
-
-      // 刷新今日菜单（已提交的菜品会显示在今日菜单中）
       await _todayMenuState.refreshTodayMenu();
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('已提交 ${selectedMeals.length} 道菜品'),
-            duration: const Duration(seconds: 2),
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-          ),
-        );
-        Navigator.pop(context);
-      }
+      HapticFeedback.mediumImpact();
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('点餐成功！祝您用餐愉快 🍽️')));
+      if (Navigator.canPop(context)) Navigator.pop(context);
     }
+  }
+
+  void _showOrderSheet() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => _OrderListSheet(
+        todayMenuState: _todayMenuState,
+        onConfirm: _confirmOrder,
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-
     return Scaffold(
-      backgroundColor: theme.scaffoldBackgroundColor,
-      body: SafeArea(
-        child: Column(
-          children: [
-            _buildHeaderSection(theme, colorScheme),
-            Expanded(
-              child: Stack(
-                children: [
-                  _isLoading
-                      ? const Center(child: CircularProgressIndicator())
-                      : RefreshIndicator(
-                          onRefresh: _loadRecipes,
-                          child: _buildRecipeGrid(theme),
+      backgroundColor: _oatmeal,
+      body: CustomScrollView(
+        slivers: [
+          SliverAppBar(
+            pinned: true,
+            floating: true,
+            expandedHeight: 120,
+            backgroundColor: _oatmeal,
+            surfaceTintColor: Colors.transparent,
+            title: const Text(
+              "家庭点餐",
+              style: TextStyle(fontWeight: FontWeight.w800, color: _textPrimary),
+            ),
+            actions: [
+               IconButton(
+                icon: const Icon(Icons.tune_rounded, color: _textPrimary),
+                onPressed: _showFilterModal,
+              ),
+              const SizedBox(width: 8),
+            ],
+            bottom: PreferredSize(
+              preferredSize: const Size.fromHeight(60),
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                child: GlassContainer(
+                  borderRadius: 24,
+                  opacity: 0.6,
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.search, color: _textSecondary, size: 20),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: TextField(
+                          controller: _searchController,
+                          decoration: const InputDecoration(
+                            hintText: "今天想吃点什么？",
+                            hintStyle: TextStyle(color: _textSecondary, fontSize: 14),
+                            border: InputBorder.none,
+                            isDense: true,
+                          ),
+                          style: const TextStyle(fontSize: 14, color: _textPrimary),
+                          onSubmitted: (val) {
+                            _searchKeyword = val;
+                            _loadRecipes();
+                          },
                         ),
-                  if (_filterExpanded)
-                    _buildFloatingMealFilterPanel(theme, colorScheme),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+
+          SliverPadding(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 100),
+            sliver: _isLoading
+                ? const SliverFillRemaining(child: Center(child: CircularProgressIndicator(color: _sageGreen)))
+                : _recipes.isEmpty
+                    ? SliverFillRemaining(child: _buildEmptyState())
+                    : SliverMasonryGrid.count(
+                        crossAxisCount: 2,
+                        mainAxisSpacing: 16,
+                        crossAxisSpacing: 16,
+                        childCount: _recipes.length,
+                        itemBuilder: (context, index) => _buildMealCard(_recipes[index]),
+                      ),
+          ),
+        ],
+      ),
+      floatingActionButton: _todayMenuState.selectedCount > 0
+          ? FloatingActionButton.extended(
+              onPressed: _showOrderSheet,
+              backgroundColor: _sageGreen,
+              elevation: 4,
+              label: Row(
+                children: [
+                  const Icon(Icons.shopping_basket_rounded, color: Colors.white, size: 20),
+                  const SizedBox(width: 8),
+                  Text("${_todayMenuState.selectedCount} 道菜品", style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                ],
+              ),
+            )
+          : null,
+    );
+  }
+
+  Widget _buildMealCard(Recipe recipe) {
+    final isAdded = _todayMenuState.isSelected(recipe.id);
+    
+    return BouncyCard(
+      isSelected: isAdded,
+      activeShadowColor: _sageGreen,
+      onTap: () async {
+        Navigator.push(context, MaterialPageRoute(builder: (_) => RecipeDetailScreen(recipeId: recipe.id, isFromMyRecipes: true)));
+      },
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            ClipRRect(
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+              child: AspectRatio(
+                aspectRatio: 1.1,
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    Image.asset(
+                      (recipe.image != null && recipe.image!.isNotEmpty && recipe.image!.startsWith('assets/'))
+                          ? recipe.image!
+                          : 'assets/chinese-potato-strips.jpg',
+                      fit: BoxFit.cover,
+                    ),
+                    Positioned(
+                      top: 8,
+                      right: 8,
+                      child: StatusChip(
+                        label: recipe.difficulty,
+                        color: recipe.difficulty == "简单" ? _sageGreen : _persimmon,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(recipe.name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: _textPrimary)),
+                  const SizedBox(height: 12),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text("${recipe.time} ", style: const TextStyle(fontSize: 12, color: _textSecondary)),
+                      GestureDetector(
+                        onTap: () {
+                          HapticFeedback.lightImpact();
+                          _todayMenuState.toggleSelected(recipe);
+                        },
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 200),
+                          padding: const EdgeInsets.all(6),
+                          decoration: BoxDecoration(
+                            color: isAdded ? _sageGreen : _sageGreen.withOpacity(0.1),
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(
+                            isAdded ? Icons.check : Icons.add,
+                            size: 18,
+                            color: isAdded ? Colors.white : _sageGreen,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ],
               ),
             ),
           ],
         ),
       ),
-      floatingActionButton: _todayMenuState.selectedCount > 0
-          ? _buildModernFAB(colorScheme)
-          : null,
-      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
     );
   }
 
-  /// 构建头部区域
-  Widget _buildHeaderSection(ThemeData theme, ColorScheme colorScheme) {
-    return Container(
-      padding: EdgeInsets.fromLTRB(
-        AppConstants.spacingXL,
-        AppConstants.spacingXL,
-        AppConstants.spacingXL,
-        AppConstants.spacingL,
-      ),
-      decoration: BoxDecoration(
-        color: theme.scaffoldBackgroundColor,
-        border: Border(
-          bottom: BorderSide(
-            color: colorScheme.outline.withValues(alpha: 0.1),
-            width: 1,
-          ),
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            "家庭点餐",
-            style: theme.textTheme.headlineMedium?.copyWith(
-              fontWeight: FontWeight.w700,
-              letterSpacing: -0.5,
-              height: 1.2,
-              inherit: false,
-            ),
-          ),
-          SizedBox(height: AppConstants.spacingXL),
-          Row(
-            children: [
-              Expanded(child: _buildSearchField(theme, colorScheme)),
-              SizedBox(width: AppConstants.spacingL),
-              _buildFilterButton(theme, colorScheme),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  /// 构建搜索框
-  Widget _buildSearchField(ThemeData theme, ColorScheme colorScheme) {
-    return TextField(
-      decoration: InputDecoration(
-        hintText: "搜索菜名...",
-        hintStyle: TextStyle(
-          color: colorScheme.onSurface.withValues(alpha: 0.4),
-          fontSize: AppConstants.textSizeL,
-          textBaseline: TextBaseline.alphabetic,
-          inherit: false,
-        ),
-        prefixIcon: Icon(
-          Icons.search_rounded,
-          color: colorScheme.onSurface.withValues(alpha: 0.5),
-          size: 20,
-        ),
-        filled: true,
-        fillColor: colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
-          borderSide: BorderSide.none,
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
-          borderSide: BorderSide(
-            color: colorScheme.outline.withValues(alpha: 0.1),
-            width: 1,
-          ),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
-          borderSide: BorderSide(
-            color: colorScheme.primary.withValues(alpha: 0.5),
-            width: 1.5,
-          ),
-        ),
-        contentPadding: EdgeInsets.symmetric(
-          horizontal: AppConstants.spacingXL,
-          vertical: AppConstants.spacingL,
-        ),
-      ),
-      style: TextStyle(
-        fontSize: AppConstants.textSizeL,
-        color: colorScheme.onSurface,
-        textBaseline: TextBaseline.alphabetic,
-        inherit: false,
-      ),
-      onSubmitted: (value) => _loadRecipes(),
-    );
-  }
-
-  /// 构建筛选按钮
-  Widget _buildFilterButton(ThemeData theme, ColorScheme colorScheme) {
-    return Material(
-      color: _filterExpanded
-          ? colorScheme.primaryContainer
-          : colorScheme.primary,
-      borderRadius: BorderRadius.circular(16),
-      child: InkWell(
-        onTap: () {
-          if (!mounted) return;
-          setState(() {
-            _filterExpanded = !_filterExpanded;
-            if (!_filterExpanded) {
-              _activeFilterType = null;
-            }
-          });
-        },
-        borderRadius: BorderRadius.circular(16),
-        child: Container(
-          width: 52,
-          height: 52,
-          alignment: Alignment.center,
-          child: Icon(
-            Icons.tune_rounded,
-            color: _filterExpanded
-                ? colorScheme.onPrimaryContainer
-                : colorScheme.onPrimary,
-            size: 22,
-          ),
-        ),
-      ),
-    );
-  }
-
-  /// 构建筛选区域
-  /// 构建菜品网格
-  Widget _buildRecipeGrid(ThemeData theme) {
-    if (_recipes.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.restaurant_menu,
-              size: 64,
-              color: Theme.of(
-                context,
-              ).colorScheme.onSurface.withValues(alpha: 0.3),
-            ),
-            const SizedBox(height: 16),
-            Text(
-              "暂无菜品",
-              style: TextStyle(
-                color: Theme.of(
-                  context,
-                ).colorScheme.onSurface.withValues(alpha: 0.6),
-              ),
-            ),
-          ],
-        ),
-      );
-    }
-
-    return Padding(
-      padding: EdgeInsets.symmetric(horizontal: AppConstants.spacingXL),
-      child: GridView.builder(
-        padding: EdgeInsets.only(
-          top: AppConstants.spacingL,
-          bottom: AppConstants.spacingXXL + 20,
-        ),
-        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 2,
-          crossAxisSpacing: AppConstants.spacingXL,
-          mainAxisSpacing: AppConstants.spacingXL,
-          childAspectRatio: 0.65,
-        ),
-        itemCount: _recipes.length,
-        itemBuilder: (context, index) {
-          final recipe = _recipes[index];
-          final isAdded = _todayMenuState.isSelected(recipe.id);
-          return RecipeCard(
-            recipe: recipe,
-            isAdded: isAdded,
-            onTap: () async {
-              final result = await Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => RecipeDetailScreen(
-                    recipeId: recipe.id,
-                    isFromMyRecipes: true,
-                  ),
-                ),
-              );
-              // 如果详情页有变化，刷新列表
-              if (result == true) {
-                _loadRecipes();
-              }
-            },
-            onAdd: () {
-              if (!mounted) return;
-              final wasAdded = _todayMenuState.toggleSelected(recipe);
-              if (mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(
-                      wasAdded ? '已添加 ${recipe.name}' : '已移除 ${recipe.name}',
-                    ),
-                    duration: AppConstants.snackBarDuration,
-                    behavior: SnackBarBehavior.floating,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                );
-              }
-            },
-          );
-        },
-      ),
-    );
-  }
-
-  /// 构建现代化的FAB
-  Widget _buildModernFAB(ColorScheme colorScheme) {
-    return Container(
-      decoration: BoxDecoration(
-        color: colorScheme.primary,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: colorScheme.primary.withValues(alpha: 0.3),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: () {
-            if (mounted) _showMealListDialog();
-          },
-          borderRadius: BorderRadius.circular(20),
-          child: Container(
-            padding: EdgeInsets.symmetric(
-              horizontal: AppConstants.spacingXL,
-              vertical: AppConstants.spacingL,
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  Icons.receipt_long_rounded,
-                  color: colorScheme.onPrimary,
-                  size: 22,
-                ),
-                SizedBox(width: AppConstants.spacingM),
-                Container(
-                  padding: EdgeInsets.symmetric(
-                    horizontal: AppConstants.spacingM,
-                    vertical: 2,
-                  ),
-                  decoration: BoxDecoration(
-                    color: colorScheme.error,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Text(
-                    '${_todayMenuState.selectedCount}',
-                    style: TextStyle(
-                      color: colorScheme.onError,
-                      fontSize: AppConstants.textSizeS,
-                      fontWeight: FontWeight.w700,
-                      height: 1,
-                      inherit: false,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  /// 显示点餐清单对话框
-  void _showMealListDialog() {
-    if (!mounted) return;
-
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) => ListenableBuilder(
-        listenable: _todayMenuState,
-        builder: (context, child) {
-          final currentMeals = _todayMenuState.selectedMeals;
-          return DraggableScrollableSheet(
-            initialChildSize: 0.7,
-            minChildSize: 0.5,
-            maxChildSize: 0.95,
-            expand: false,
-            builder: (context, scrollController) {
-              return Container(
-                decoration: BoxDecoration(
-                  color: colorScheme.surface,
-                  borderRadius: const BorderRadius.vertical(
-                    top: Radius.circular(28),
-                  ),
-                ),
-                child: Column(
-                  children: [
-                    Container(
-                      margin: EdgeInsets.only(top: AppConstants.spacingL),
-                      width: 40,
-                      height: 4,
-                      decoration: BoxDecoration(
-                        color: colorScheme.outline.withValues(alpha: 0.3),
-                        borderRadius: BorderRadius.circular(2),
-                      ),
-                    ),
-                    Container(
-                      padding: EdgeInsets.fromLTRB(
-                        AppConstants.spacingXL,
-                        AppConstants.spacingXL,
-                        AppConstants.spacingXL,
-                        AppConstants.spacingL,
-                      ),
-                      decoration: BoxDecoration(
-                        border: Border(
-                          bottom: BorderSide(
-                            color: colorScheme.outline.withValues(alpha: 0.1),
-                            width: 1,
-                          ),
-                        ),
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            '已点菜品',
-                            style: theme.textTheme.titleLarge?.copyWith(
-                              fontWeight: FontWeight.w700,
-                              letterSpacing: -0.3,
-                              inherit: false,
-                            ),
-                          ),
-                          Container(
-                            padding: EdgeInsets.symmetric(
-                              horizontal: AppConstants.spacingL,
-                              vertical: AppConstants.spacingS,
-                            ),
-                            decoration: BoxDecoration(
-                              color: colorScheme.primaryContainer,
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Text(
-                              '共 ${currentMeals.length} 道',
-                              style: TextStyle(
-                                fontSize: AppConstants.textSizeM,
-                                fontWeight: FontWeight.w600,
-                                color: colorScheme.onPrimaryContainer,
-                                inherit: false,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    Expanded(
-                      child: currentMeals.isEmpty
-                          ? _buildEmptyState(theme, colorScheme)
-                          : ListView.builder(
-                              controller: scrollController,
-                              padding: EdgeInsets.all(AppConstants.spacingXL),
-                              itemCount: currentMeals.length,
-                              itemBuilder: (context, index) {
-                                final meal = currentMeals[index];
-                                return _buildMealListItem(
-                                  theme,
-                                  colorScheme,
-                                  meal,
-                                  index,
-                                );
-                              },
-                            ),
-                    ),
-                    if (currentMeals.isNotEmpty)
-                      _buildBottomActionBar(theme, colorScheme),
-                  ],
-                ),
-              );
-            },
-          );
-        },
-      ),
-    );
-  }
-
-  /// 构建空状态
-  Widget _buildEmptyState(ThemeData theme, ColorScheme colorScheme) {
+  Widget _buildEmptyState() {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Container(
-            padding: EdgeInsets.all(AppConstants.spacingXXL),
-            decoration: BoxDecoration(
-              color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
-              shape: BoxShape.circle,
-            ),
-            child: Icon(
-              Icons.restaurant_menu_rounded,
-              size: 64,
-              color: colorScheme.onSurface.withValues(alpha: 0.3),
-            ),
-          ),
-          SizedBox(height: AppConstants.spacingXL),
-          Text(
-            '还没有点任何菜品',
-            style: theme.textTheme.bodyLarge?.copyWith(
-              color: colorScheme.onSurface.withValues(alpha: 0.6),
-              inherit: false,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  /// 构建菜品列表项
-  Widget _buildMealListItem(
-    ThemeData theme,
-    ColorScheme colorScheme,
-    Recipe meal,
-    int index,
-  ) {
-    return Container(
-      margin: EdgeInsets.only(bottom: AppConstants.spacingL),
-      decoration: BoxDecoration(
-        color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: colorScheme.outline.withValues(alpha: 0.1),
-          width: 1,
-        ),
-      ),
-      child: ListTile(
-        contentPadding: EdgeInsets.symmetric(
-          horizontal: AppConstants.spacingXL,
-          vertical: AppConstants.spacingM,
-        ),
-        leading: Container(
-          width: 56,
-          height: 56,
-          decoration: BoxDecoration(
-            color: colorScheme.surfaceContainerHighest,
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(12),
-            child: Image.asset(
-              'assets/chinese-potato-strips.jpg',
-              fit: BoxFit.cover,
-              errorBuilder: (context, error, stackTrace) => Icon(
-                Icons.restaurant_rounded,
-                color: colorScheme.onSurface.withValues(alpha: 0.5),
-              ),
-            ),
-          ),
-        ),
-        title: Text(
-          meal.name,
-          style: theme.textTheme.titleMedium?.copyWith(
-            fontWeight: FontWeight.w600,
-            inherit: false,
-          ),
-          overflow: TextOverflow.ellipsis,
-          maxLines: 1,
-        ),
-        subtitle: Padding(
-          padding: EdgeInsets.only(top: AppConstants.spacingXS),
-          child: Text(
-            '${meal.time} · ${meal.difficulty}',
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: colorScheme.onSurface.withValues(alpha: 0.6),
-              inherit: false,
-            ),
-            overflow: TextOverflow.ellipsis,
-            maxLines: 1,
-          ),
-        ),
-        trailing: Material(
-          color: Colors.transparent,
-          child: InkWell(
-            onTap: () {
-              _todayMenuState.removeFromSelected(meal.id);
-              if (_todayMenuState.selectedCount == 0 && mounted) {
-                Navigator.pop(context);
-              }
-            },
-            borderRadius: BorderRadius.circular(8),
+          TweenAnimationBuilder<double>(
+            tween: Tween(begin: 0, end: 15),
+            duration: const Duration(seconds: 2),
+            curve: Curves.easeInOut,
+            builder: (context, value, child) => Transform.translate(offset: Offset(0, value), child: child),
             child: Container(
-              padding: EdgeInsets.all(AppConstants.spacingM),
-              child: Icon(
-                Icons.delete_outline_rounded,
-                color: colorScheme.error,
-                size: 22,
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(color: _sageGreen.withOpacity(0.1), shape: BoxShape.circle),
+              child: const Icon(Icons.restaurant_rounded, size: 48, color: _sageGreen),
+            ),
+          ),
+          const SizedBox(height: 24),
+          const Text("今天还没有可选菜品", style: TextStyle(color: _textSecondary, fontSize: 16, fontWeight: FontWeight.w600)),
+          const SizedBox(height: 8),
+          const Text("去菜谱库收藏一些心仪的菜吧 ~", style: TextStyle(color: Color(0xFFDCD7CD), fontSize: 14)),
+        ],
+      ),
+    );
+  }
+}
+
+// --- Filter Bottom Sheet (1:1 with Recipe Screen) ---
+
+class _FilterBottomSheet extends StatefulWidget {
+  final List<String> selectedTastes;
+  final List<String> selectedDifficulties;
+  final List<String> selectedCuisines;
+  final List<RecipeCategory> tasteCategories;
+  final List<RecipeCategory> difficultyCategories;
+  final List<RecipeCategory> cuisineCategories;
+  final Function(List<String>, List<String>, List<String>) onApply;
+
+  const _FilterBottomSheet({
+    required this.selectedTastes,
+    required this.selectedDifficulties,
+    required this.selectedCuisines,
+    required this.tasteCategories,
+    required this.difficultyCategories,
+    required this.cuisineCategories,
+    required this.onApply,
+  });
+
+  @override
+  State<_FilterBottomSheet> createState() => _FilterBottomSheetState();
+}
+
+class _FilterBottomSheetState extends State<_FilterBottomSheet> {
+  late List<String> _tempTastes;
+  late List<String> _tempDiffs;
+  late List<String> _tempCuisines;
+
+  @override
+  void initState() {
+    super.initState();
+    _tempTastes = List.from(widget.selectedTastes);
+    _tempDiffs = List.from(widget.selectedDifficulties);
+    _tempCuisines = List.from(widget.selectedCuisines);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
+      ),
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Center(
+            child: Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.grey[300],
+                borderRadius: BorderRadius.circular(2),
               ),
             ),
           ),
-        ),
+          const SizedBox(height: 24),
+          const Text("筛选", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+          const SizedBox(height: 24),
+          Flexible(
+            child: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildSection("口味", widget.tasteCategories, _tempTastes),
+                  const SizedBox(height: 20),
+                  _buildSection("难度", widget.difficultyCategories, _tempDiffs),
+                  const SizedBox(height: 20),
+                  _buildSection("菜系", widget.cuisineCategories, _tempCuisines),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 32),
+          Row(
+            children: [
+              Expanded(
+                child: TextButton(
+                  onPressed: () {
+                    setState(() {
+                      _tempTastes.clear();
+                      _tempDiffs.clear();
+                      _tempCuisines.clear();
+                    });
+                  },
+                  child: const Text("重置", style: TextStyle(color: Color(0xFF8C8F90))),
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                flex: 2,
+                child: ElevatedButton(
+                  onPressed: () {
+                    widget.onApply(_tempTastes, _tempDiffs, _tempCuisines);
+                    Navigator.pop(context);
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFFB2AC88), // Consistent Sage Green
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                    elevation: 0,
+                  ),
+                  child: const Text("应用", style: TextStyle(fontWeight: FontWeight.bold)),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 24),
+        ],
       ),
     );
   }
 
-  /// 构建底部操作栏
-  Widget _buildBottomActionBar(ThemeData theme, ColorScheme colorScheme) {
-    return Container(
-      padding: EdgeInsets.fromLTRB(
-        AppConstants.spacingXL,
-        AppConstants.spacingL,
-        AppConstants.spacingXL,
-        AppConstants.spacingXL + MediaQuery.of(context).padding.bottom,
-      ),
-      decoration: BoxDecoration(
-        color: colorScheme.surface,
-        border: Border(
-          top: BorderSide(
-            color: colorScheme.outline.withValues(alpha: 0.1),
-            width: 1,
-          ),
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 10,
-            offset: const Offset(0, -2),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: OutlinedButton(
-              onPressed: () {
-                _todayMenuState.clearSelected();
-                if (mounted) Navigator.pop(context);
+  Widget _buildSection(String title, List<RecipeCategory> options, List<String> selected) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(title, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Color(0xFF8C8F90))),
+        const SizedBox(height: 12),
+        Wrap(
+          spacing: 10,
+          runSpacing: 10,
+          children: options.map((cat) {
+            final isSelected = selected.contains(cat.name);
+            return BouncyCard(
+              isSelected: isSelected,
+              activeShadowColor: const Color(0xFFB2AC88),
+              onTap: () {
+                setState(() {
+                  if (isSelected) {
+                    selected.remove(cat.name);
+                  } else {
+                    selected.add(cat.name);
+                  }
+                });
               },
-              style: OutlinedButton.styleFrom(
-                padding: EdgeInsets.symmetric(vertical: AppConstants.spacingL),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                decoration: BoxDecoration(
+                  color: isSelected ? const Color(0xFFB2AC88) : const Color(0xFFF5F5F0),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                    color: isSelected ? Colors.transparent : Colors.grey[200]!,
+                  ),
                 ),
-                side: BorderSide(
-                  color: colorScheme.outline.withValues(alpha: 0.3),
+                child: Text(
+                  cat.name,
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: isSelected ? Colors.white : const Color(0xFF4A4F50),
+                    fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                  ),
                 ),
               ),
-              child: Text(
-                '清空清单',
-                style: TextStyle(
-                  fontSize: AppConstants.textSizeL,
-                  fontWeight: FontWeight.w600,
-                  color: colorScheme.onSurface,
-                  inherit: false,
-                ),
-              ),
+            );
+          }).toList(),
+        ),
+      ],
+    );
+  }
+}
+
+// --- Order List Sheet ---
+
+class _OrderListSheet extends StatelessWidget {
+  final TodayMenuState todayMenuState;
+  final VoidCallback onConfirm;
+
+  const _OrderListSheet({required this.todayMenuState, required this.onConfirm});
+
+  @override
+  Widget build(BuildContext context) {
+    final meals = todayMenuState.selectedMeals;
+    
+    return Container(
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
+      ),
+      padding: const EdgeInsets.fromLTRB(24, 12, 24, 24),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.grey[200], borderRadius: BorderRadius.circular(2))),
+          const SizedBox(height: 24),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text("已选菜品", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Color(0xFF4A4F50))),
+              Text("${meals.length} 道", style: const TextStyle(color: Color(0xFFB2AC88), fontWeight: FontWeight.w600)),
+            ],
+          ),
+          const SizedBox(height: 16),
+          ConstrainedBox(
+            constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.4),
+            child: ListView.builder(
+              shrinkWrap: true,
+              itemCount: meals.length,
+              itemBuilder: (context, index) {
+                final meal = meals[index];
+                return Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  child: Row(
+                    children: [
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(12),
+                        child: Image.asset(
+                          'assets/chinese-potato-strips.jpg',
+                          width: 50, 
+                          height: 50, 
+                          fit: BoxFit.cover
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(meal.name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                            Text(meal.difficulty, style: const TextStyle(color: Colors.grey, fontSize: 12)),
+                          ],
+                        ),
+                      ),
+                      IconButton(
+                        onPressed: () => todayMenuState.removeFromSelected(meal.id),
+                        icon: const Icon(Icons.remove_circle_outline, color: Color(0xFFE58A73), size: 20),
+                      ),
+                    ],
+                  ),
+                );
+              },
             ),
           ),
-          SizedBox(width: AppConstants.spacingL),
-          Expanded(
-            flex: 2,
+          const SizedBox(height: 24),
+          SizedBox(
+            width: double.infinity,
             child: ElevatedButton(
-              onPressed: _confirmOrder,
+              onPressed: onConfirm,
               style: ElevatedButton.styleFrom(
-                backgroundColor: colorScheme.primary,
-                foregroundColor: colorScheme.onPrimary,
-                padding: EdgeInsets.symmetric(vertical: AppConstants.spacingL),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
-                ),
+                backgroundColor: const Color(0xFFB2AC88),
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                 elevation: 0,
               ),
-              child: Text(
-                '确认点餐',
-                style: TextStyle(
-                  fontSize: AppConstants.textSizeL,
-                  fontWeight: FontWeight.w700,
-                  inherit: false,
-                ),
-              ),
+              child: const Text("确认提交菜单", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
             ),
           ),
+          const SizedBox(height: 12),
         ],
       ),
     );
