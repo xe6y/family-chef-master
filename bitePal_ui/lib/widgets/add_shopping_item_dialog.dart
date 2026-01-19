@@ -4,7 +4,7 @@ import '../services/ingredient_service.dart';
 
 /// 添加购物项对话框
 class AddShoppingItemDialog extends StatefulWidget {
-  final Function(String name) onAdd;
+  final Function(String name, String amount) onAdd;
 
   const AddShoppingItemDialog({
     super.key,
@@ -67,6 +67,40 @@ class _AddShoppingItemDialogState extends State<AddShoppingItemDialog> {
     });
   }
 
+  /// 显示数量输入对话框
+  Future<void> _showAmountDialog(String name) async {
+    final amountController = TextEditingController();
+    
+    await showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('添加 $name'),
+        content: TextField(
+          controller: amountController,
+          decoration: const InputDecoration(
+            labelText: '预计购买数量',
+            hintText: '例如: 2个, 500g',
+            border: OutlineInputBorder(),
+          ),
+          autofocus: true,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('取消'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              widget.onAdd(name, amountController.text);
+              Navigator.pop(context); // Close amount dialog
+            },
+            child: const Text('添加'),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Dialog(
@@ -109,65 +143,72 @@ class _AddShoppingItemDialogState extends State<AddShoppingItemDialog> {
             Expanded(
               child: _isLoading
                   ? const Center(child: CircularProgressIndicator())
-                  : _filteredIngredients.isEmpty
-                      ? Center(
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Text(
-                                _searchController.text.isEmpty ? '暂无食材' : '未找到相关食材',
-                                style: TextStyle(
-                                  color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
-                                ),
-                              ),
-                              if (_searchController.text.isNotEmpty) ...[
-                                const SizedBox(height: 8),
-                                TextButton.icon(
-                                  onPressed: () {
-                                    widget.onAdd(_searchController.text);
-                                  },
-                                  icon: const Icon(Icons.add),
-                                  label: Text('直接添加 "${_searchController.text}"'),
-                                ),
-                              ],
-                            ],
-                          ),
-                        )
-                      : ListView.builder(
-                          itemCount: _filteredIngredients.length,
-                          itemBuilder: (context, index) {
-                            final item = _filteredIngredients[index];
+                  : ListView.builder(
+                      itemCount: _filteredIngredients.length + (_searchController.text.isNotEmpty ? 1 : 0),
+                      itemBuilder: (context, index) {
+                        // 如果有输入内容，第一个显示"直接添加"选项
+                        if (_searchController.text.isNotEmpty) {
+                          if (index == 0) {
                             return ListTile(
                               leading: Container(
                                 width: 40,
                                 height: 40,
                                 decoration: BoxDecoration(
-                                  color: Theme.of(context).colorScheme.primaryContainer,
+                                  color: Theme.of(context).colorScheme.surfaceContainerHighest,
                                   borderRadius: BorderRadius.circular(8),
                                 ),
                                 alignment: Alignment.center,
-                                child: Text(
-                                  item.name.isNotEmpty ? item.name[0] : '?',
-                                  style: TextStyle(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.bold,
-                                    color: Theme.of(context).colorScheme.onPrimaryContainer,
-                                  ),
-                                ),
+                                child: const Icon(Icons.add),
                               ),
-                              title: Text(item.name),
-                              subtitle: Text(item.categoryName),
-                              trailing: const Icon(Icons.add_circle_outline),
+                              title: Text('直接添加 "${_searchController.text}"'),
+                              subtitle: const Text('作为新食材添加'),
                               onTap: () {
-                                widget.onAdd(item.name);
+                                _showAmountDialog(_searchController.text);
                               },
                             );
-                          },
-                        ),
+                          }
+                          // 修正索引以获取正确的食材
+                          final item = _filteredIngredients[index - 1];
+                          return _buildIngredientTile(item);
+                        }
+                        
+                        // 没有输入内容，直接显示列表
+                        final item = _filteredIngredients[index];
+                        return _buildIngredientTile(item);
+                      },
+                    ),
             ),
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildIngredientTile(IngredientItem item) {
+    return ListTile(
+      leading: Container(
+        width: 40,
+        height: 40,
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.primaryContainer,
+          borderRadius: BorderRadius.circular(8),
+        ),
+        alignment: Alignment.center,
+        child: Text(
+          item.name.isNotEmpty ? item.name[0] : '?',
+          style: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+            color: Theme.of(context).colorScheme.onPrimaryContainer,
+          ),
+        ),
+      ),
+      title: Text(item.name),
+      subtitle: Text(item.categoryName),
+      trailing: const Icon(Icons.add_circle_outline),
+      onTap: () {
+        _showAmountDialog(item.name);
+      },
     );
   }
 }

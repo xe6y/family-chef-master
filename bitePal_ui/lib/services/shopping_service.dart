@@ -144,6 +144,7 @@ class ShoppingService {
   /// itemId: 购物项ID
   /// name: 商品名称
   /// amount: 数量
+  /// actualAmount: 实际购买数量
   /// price: 价格
   /// checked: 是否已购买
   /// 返回: 更新后的购物项
@@ -152,6 +153,7 @@ class ShoppingService {
     String itemId, {
     String? name,
     String? amount,
+    String? actualAmount,
     double? price,
     bool? checked,
   }) async {
@@ -160,6 +162,7 @@ class ShoppingService {
       data: {
         if (name != null) 'name': name,
         if (amount != null) 'amount': amount,
+        if (actualAmount != null) 'actualAmount': actualAmount,
         if (price != null) 'price': price,
         if (checked != null) 'checked': checked,
       },
@@ -251,6 +254,40 @@ class ShoppingService {
           .map((e) => ShoppingListHistory.fromJson(e))
           .toList();
       return PagedData<ShoppingListHistory>(
+        list: list,
+        total: response.data['total'] ?? 0,
+        page: response.data['page'] ?? page,
+        pageSize: response.data['pageSize'] ?? pageSize,
+      );
+    }
+
+    return null;
+  }
+
+  /// 获取购物订单历史商品项
+  /// page: 页码
+  /// pageSize: 每页数量
+  /// search: 搜索关键词
+  /// 返回: 历史商品项列表
+  Future<PagedData<ShoppingItem>?> getShoppingHistoryItems({
+    int page = 1,
+    int pageSize = 20,
+    String? search,
+  }) async {
+    final response = await _client.get(
+      ApiConfig.shoppingHistoryItems,
+      queryParams: {
+        'page': page,
+        'pageSize': pageSize,
+        if (search != null) 'search': search,
+      },
+    );
+
+    if (response.isSuccess && response.data != null) {
+      final list = (response.data['list'] as List? ?? [])
+          .map((e) => ShoppingItem.fromJson(e))
+          .toList();
+      return PagedData<ShoppingItem>(
         list: list,
         total: response.data['total'] ?? 0,
         page: response.data['page'] ?? page,

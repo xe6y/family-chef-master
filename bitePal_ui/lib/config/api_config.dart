@@ -82,6 +82,13 @@ class ApiConfig {
   /// 同名食材批次
   static const String ingredientBatches = '/ingredients/batches';
 
+  // ==================== 存储位置接口 ====================
+  /// 存储位置列表
+  static const String storageLocations = '/storage-locations';
+
+  /// 存储位置排序
+  static const String storageLocationsReorder = '/storage-locations/reorder';
+
   // ==================== 购物清单接口 ====================
   /// 购物清单列表
   static const String shoppingLists = '/shopping-lists';
@@ -91,6 +98,9 @@ class ApiConfig {
 
   /// 购物清单历史
   static const String shoppingHistory = '/shopping-lists/history';
+
+  /// 购物清单历史商品项
+  static const String shoppingHistoryItems = '/shopping-lists/history/items';
 
   // ==================== 文件上传接口 ====================
   /// 图片上传

@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
 import '../models/ingredient_item.dart';
+import '../models/shopping_item.dart';
 import '../services/ingredient_service.dart';
+import '../services/storage_location_service.dart';
 import '../config/api_config.dart';
 import '../widgets/refreshable_screen.dart';
 import 'ingredient_detail_screen.dart';
 import 'ingredient_edit_screen.dart';
 import 'ingredient_category_screen.dart';
+import 'shopping_history_selection_screen.dart';
 
 /// 食材库存页面
 class IngredientsScreen extends RefreshableScreen {
@@ -18,9 +21,13 @@ class IngredientsScreen extends RefreshableScreen {
 class _IngredientsScreenState extends State<IngredientsScreen> with RefreshableScreenState<IngredientsScreen> {
   /// 食材服务
   final IngredientService _ingredientService = IngredientService();
+  final StorageLocationService _storageService = StorageLocationService();
 
   /// 当前选中的存储位置
-  String _activeStorage = "fridge";
+  String _activeStorage = ""; // 默认为空，加载后设置为第一个
+
+  /// 存储位置列表
+  List<StorageLocation> _storages = [];
 
   /// 是否正在加载
   bool _isLoading = true;
@@ -34,7 +41,7 @@ class _IngredientsScreenState extends State<IngredientsScreen> with RefreshableS
   @override
   void initState() {
     super.initState();
-    _loadIngredients();
+    _loadInitialData();
   }
 
   @override
@@ -42,11 +49,44 @@ class _IngredientsScreenState extends State<IngredientsScreen> with RefreshableS
     await _loadIngredients();
   }
 
+  Future<void> _loadInitialData() async {
+    await _loadStorageLocations();
+    await _loadIngredients();
+  }
+
+  /// 加载存储位置
+  Future<void> _loadStorageLocations() async {
+    try {
+      final locations = await _storageService.getStorageLocations();
+      if (mounted) {
+        setState(() {
+          _storages = locations;
+          // 如果当前没有选中位置，且有位置数据，选中第一个
+          if (_activeStorage.isEmpty && _storages.isNotEmpty) {
+            _activeStorage = _storages.first.id;
+          }
+        });
+      }
+    } catch (e) {
+      debugPrint('加载存储位置失败: $e');
+    }
+  }
+
   /// 加载食材数据
   Future<void> _loadIngredients() async {
     setState(() => _isLoading = true);
 
     try {
+      // 如果还没有存储位置，先不加载
+      if (_activeStorage.isEmpty && _storages.isEmpty) {
+        // 尝试再次加载存储位置
+        await _loadStorageLocations();
+        if (_activeStorage.isEmpty) {
+             setState(() => _isLoading = false);
+             return;
+        }
+      }
+
       // 加载分组数据
       _groups = await _ingredientService.getIngredientsGrouped(storage: _activeStorage);
 
@@ -56,81 +96,11 @@ class _IngredientsScreenState extends State<IngredientsScreen> with RefreshableS
       }
     } catch (e) {
       debugPrint('加载食材失败: $e');
-      _loadMockData();
     }
 
     if (mounted) {
       setState(() => _isLoading = false);
     }
-  }
-
-  /// 加载模拟数据
-  void _loadMockData() {
-    _groups = [
-      IngredientGroup(
-        category: IngredientCategory(
-          id: 'cat_vegetable',
-          name: '蔬菜',
-          icon: '🥬',
-          color: '#43A047',
-          sortOrder: 2,
-          isSystem: true,
-        ),
-        ingredients: [
-          IngredientItem(
-            id: '1',
-            name: "西红柿",
-            quantity: 2,
-            unit: "个",
-            amount: "2个",
-            storage: "fridge",
-            categoryId: "cat_vegetable",
-            icon: "🍅",
-            expiryDays: 3,
-            expiryText: "3天后过期",
-          ),
-          IngredientItem(
-            id: '2',
-            name: "土豆",
-            quantity: 5,
-            unit: "斤",
-            amount: "5斤",
-            storage: "room",
-            categoryId: "cat_vegetable",
-            icon: "🥔",
-            expiryDays: 14,
-            expiryText: "14天后过期",
-          ),
-        ],
-        count: 2,
-      ),
-      IngredientGroup(
-        category: IngredientCategory(
-          id: 'cat_meat',
-          name: '肉类',
-          icon: '🥩',
-          color: '#E53935',
-          sortOrder: 1,
-          isSystem: true,
-        ),
-        ingredients: [
-          IngredientItem(
-            id: '3',
-            name: "猪肉",
-            quantity: 1,
-            unit: "斤",
-            amount: "1斤",
-            storage: "fridge",
-            categoryId: "cat_meat",
-            icon: "🥩",
-            expiryDays: 0,
-            expiryText: "今天过期",
-            urgent: true,
-          ),
-        ],
-        count: 1,
-      ),
-    ];
   }
 
   /// 删除食材
@@ -167,17 +137,97 @@ class _IngredientsScreenState extends State<IngredientsScreen> with RefreshableS
     }
   }
 
-  /// 打开添加食材页面
-  Future<void> _openAddIngredient() async {
+  /// 处理添加食材逻辑
+  void _handleAddIngredient() {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.add_circle_outline),
+              title: const Text('直接创建'),
+              onTap: () {
+                Navigator.pop(context);
+                _openAddIngredientScreen();
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.history),
+              title: const Text('从历史购物订单选择'),
+              onTap: () {
+                Navigator.pop(context);
+                _selectFromHistory();
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// 打开添加食材页面（直接创建或带预填数据）
+  Future<void> _openAddIngredientScreen({IngredientItem? prefillData}) async {
     final result = await Navigator.push<bool>(
       context,
       MaterialPageRoute(
-        builder: (context) => IngredientEditScreen(defaultStorage: _activeStorage),
+        builder: (context) => IngredientEditScreen(
+          defaultStorage: _activeStorage,
+          ingredient: prefillData, // 如果是预填模式，这里可能需要特殊处理，因为IngredientEditScreen通常用于编辑已存在的。
+          // 更好的做法是传递一个初始值对象，而不是复用编辑对象，或者修改IngredientEditScreen支持initialData。
+          // 暂时我们假设IngredientEditScreen如果传入的ingredient没有id，则视为新建。
+          // 检查 IngredientItem 模型，id通常是必须的。
+          // 我们可以在 IngredientEditScreen 增加一个 initialData 参数。
+        ),
       ),
     );
 
     if (result == true) {
       _loadIngredients();
+    }
+  }
+  
+  /// 从历史选择
+  Future<void> _selectFromHistory() async {
+    final ShoppingItem? selected = await Navigator.push<ShoppingItem>(
+      context,
+      MaterialPageRoute(builder: (context) => const ShoppingHistorySelectionScreen()),
+    );
+
+    if (selected != null) {
+      // 解析数量和单位
+      double quantity = 0;
+      String unit = '个';
+      String amount = selected.amount;
+      
+      // 简单尝试解析 "2个", "500g" 等
+      final RegExp regex = RegExp(r'^(\d+(\.\d+)?)\s*(.*)$');
+      final match = regex.firstMatch(amount);
+      if (match != null) {
+        quantity = double.tryParse(match.group(1) ?? '0') ?? 0;
+        unit = match.group(3) ?? '个';
+      }
+
+      // 构造预填数据的 IngredientItem
+      // 注意：这里 id 为空，表示是新创建
+      final prefill = IngredientItem(
+        id: '', // 空ID表示新建
+        name: selected.name,
+        quantity: quantity,
+        unit: unit,
+        amount: amount,
+        storage: _activeStorage,
+        categoryId: 'cat_other',
+        icon: '🥬',
+        expiryDays: 7,
+        expiryText: '',
+      );
+
+      _openAddIngredientScreen(prefillData: prefill);
     }
   }
 
@@ -206,7 +256,8 @@ class _IngredientsScreenState extends State<IngredientsScreen> with RefreshableS
         builder: (context) => const IngredientCategoryScreen(),
       ),
     );
-    _loadIngredients();
+    // 返回后刷新数据（可能位置或分类有变动）
+    _loadInitialData();
   }
 
   /// 解析颜色字符串
@@ -221,12 +272,6 @@ class _IngredientsScreenState extends State<IngredientsScreen> with RefreshableS
 
   @override
   Widget build(BuildContext context) {
-    final storages = [
-      {'id': 'room', 'label': '常温', 'icon': Icons.home_outlined},
-      {'id': 'fridge', 'label': '冷藏', 'icon': Icons.kitchen_outlined},
-      {'id': 'freezer', 'label': '冷冻', 'icon': Icons.ac_unit},
-    ];
-
     return Scaffold(
       body: SafeArea(
         child: Column(
@@ -245,33 +290,35 @@ class _IngredientsScreenState extends State<IngredientsScreen> with RefreshableS
                         "食材库存",
                         style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
                       ),
-                      IconButton(
-                        icon: const Icon(Icons.category_outlined),
+                      TextButton(
                         onPressed: _openCategoryManagement,
-                        tooltip: '分类管理',
+                        child: const Text('分类管理', style: TextStyle(fontSize: 16)),
                       ),
                     ],
                   ),
                   const SizedBox(height: 24),
 
-                  // 存储位置标签
-                  Container(
-                    padding: const EdgeInsets.all(4),
-                    decoration: BoxDecoration(
-                      color: Theme.of(context).colorScheme.surfaceContainerHighest,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Row(
-                      children: storages.map((storage) {
-                        final isActive = _activeStorage == storage['id'];
-                        return Expanded(
-                          child: InkWell(
+                  // 存储位置标签 (可滚动)
+                  SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Container(
+                      padding: const EdgeInsets.all(4),
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min, // 紧凑布局
+                        children: _storages.map((storage) {
+                          final isActive = _activeStorage == storage.id;
+                          return InkWell(
                             onTap: () {
-                              setState(() => _activeStorage = storage['id'] as String);
+                              setState(() => _activeStorage = storage.id);
                               _loadIngredients();
                             },
+                            borderRadius: BorderRadius.circular(8),
                             child: Container(
-                              padding: const EdgeInsets.symmetric(vertical: 10),
+                              padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
                               decoration: BoxDecoration(
                                 color: isActive ? Theme.of(context).cardColor : Colors.transparent,
                                 borderRadius: BorderRadius.circular(8),
@@ -285,33 +332,20 @@ class _IngredientsScreenState extends State<IngredientsScreen> with RefreshableS
                                       ]
                                     : null,
                               ),
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(
-                                    storage['icon'] as IconData,
-                                    size: 18,
-                                    color: isActive
-                                        ? Theme.of(context).colorScheme.primary
-                                        : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
-                                  ),
-                                  const SizedBox(width: 4),
-                                  Text(
-                                    storage['label'] as String,
-                                    style: TextStyle(
-                                      fontSize: 14,
-                                      fontWeight: isActive ? FontWeight.w600 : FontWeight.normal,
-                                      color: isActive
-                                          ? Theme.of(context).colorScheme.onSurface
-                                          : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
-                                    ),
-                                  ),
-                                ],
+                              child: Text(
+                                storage.name,
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: isActive ? FontWeight.w600 : FontWeight.normal,
+                                  color: isActive
+                                      ? Theme.of(context).colorScheme.onSurface
+                                      : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
+                                ),
                               ),
                             ),
-                          ),
-                        );
-                      }).toList(),
+                          );
+                        }).toList(),
+                      ),
                     ),
                   ),
                 ],
@@ -341,7 +375,7 @@ class _IngredientsScreenState extends State<IngredientsScreen> with RefreshableS
       ),
       floatingActionButton: FloatingActionButton(
         heroTag: "ingredients_fab",
-        onPressed: _openAddIngredient,
+        onPressed: _handleAddIngredient,
         child: const Icon(Icons.add),
       ),
     );
@@ -368,7 +402,7 @@ class _IngredientsScreenState extends State<IngredientsScreen> with RefreshableS
           ),
           const SizedBox(height: 8),
           TextButton.icon(
-            onPressed: _openAddIngredient,
+            onPressed: _handleAddIngredient,
             icon: const Icon(Icons.add),
             label: const Text('添加食材'),
           ),

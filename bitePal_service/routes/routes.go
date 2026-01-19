@@ -111,6 +111,18 @@ func SetupRouter() *gin.Engine {
 			ingredientCategories.PUT("/:categoryId", ingredientCategoryHandler.UpdateCategory) // 更新分类
 			ingredientCategories.DELETE("/:categoryId", ingredientCategoryHandler.DeleteCategory) // 删除分类
 		}
+		
+		// 存储位置相关 (新增)
+		storageLocationHandler := handlers.NewStorageLocationHandler()
+		storageLocations := api.Group("/storage-locations")
+		storageLocations.Use(middleware.AuthMiddleware())
+		{
+			storageLocations.GET("", storageLocationHandler.GetStorageLocations)           // 获取列表
+			storageLocations.POST("", storageLocationHandler.CreateStorageLocation)        // 创建
+			storageLocations.PUT("/:locationId", storageLocationHandler.UpdateStorageLocation) // 更新
+			storageLocations.DELETE("/:locationId", storageLocationHandler.DeleteStorageLocation) // 删除
+			storageLocations.POST("/reorder", storageLocationHandler.ReorderStorageLocations) // 排序
+		}
 
 		// 食材库存相关
 		ingredients := api.Group("/ingredients")
@@ -133,6 +145,7 @@ func SetupRouter() *gin.Engine {
 			shoppingLists.GET("", shoppingHandler.GetShoppingLists)                 // 获取购物清单列表
 			shoppingLists.GET("/current", shoppingHandler.GetCurrentShoppingList)   // 获取当前购物清单
 			shoppingLists.GET("/history", shoppingHandler.GetShoppingHistory)       // 获取购物订单历史
+			shoppingLists.GET("/history/items", shoppingHandler.GetShoppingHistoryItems) // 获取购物订单历史商品项 (新增)
 			shoppingLists.GET("/:listId", shoppingHandler.GetShoppingListDetail)    // 获取购物清单详情
 			shoppingLists.POST("", shoppingHandler.CreateShoppingList)              // 创建购物清单
 			shoppingLists.PUT("/:listId", shoppingHandler.UpdateShoppingList)       // 更新购物清单

@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import '../models/shopping_item.dart';
 import '../services/shopping_service.dart';
 import '../widgets/refreshable_screen.dart';
-import '../widgets/edit_item_dialog.dart';
 import '../widgets/add_shopping_item_dialog.dart';
+import 'purchased_items_screen.dart';
 
 /// 购物清单页面
 class ShoppingScreen extends RefreshableScreen {
@@ -14,16 +14,9 @@ class ShoppingScreen extends RefreshableScreen {
 }
 
 class _ShoppingScreenState extends State<ShoppingScreen> with RefreshableScreenState<ShoppingScreen> {
-  /// 购物清单服务
   final ShoppingService _shoppingService = ShoppingService();
-
-  /// 当前购物清单
   ShoppingList? _currentList;
-
-  /// 购物项列表
-  List<ShoppingItem> _items = [];
-
-  /// 是否正在加载
+  List<ShoppingItem> _items = []; // Items to buy (checked == false)
   bool _isLoading = true;
 
   @override
@@ -37,253 +30,129 @@ class _ShoppingScreenState extends State<ShoppingScreen> with RefreshableScreenS
     await _loadShoppingList();
   }
 
-  /// 加载购物清单
   Future<void> _loadShoppingList() async {
     setState(() => _isLoading = true);
-
     try {
       final list = await _shoppingService.getCurrentShoppingList();
       if (list != null) {
         _currentList = list;
-        _items = list.items;
-      } else {
-        // 使用模拟数据
-        _loadMockData();
+        // Only show unchecked items in the main list
+        _items = list.items.where((item) => !item.checked).toList();
       }
     } catch (e) {
       debugPrint('加载购物清单失败: $e');
-      _loadMockData();
     }
-
-    if (mounted) {
-      setState(() => _isLoading = false);
-    }
+    if (mounted) setState(() => _isLoading = false);
   }
 
-  /// 加载模拟数据
-  void _loadMockData() {
-    _items = [
-      ShoppingItem(id: '1', name: "西红柿", amount: "2个", price: 4.5),
-      ShoppingItem(id: '2', name: "土豆", amount: "3个", price: 3.2),
-      ShoppingItem(id: '3', name: "牛排", amount: "2块", price: 89),
-    ];
-  }
-
-  /// 切换购物项状态
-  Future<void> _toggleItem(String id) async {
-    final index = _items.indexWhere((item) => item.id == id);
-    if (index == -1) return;
-
-    final item = _items[index];
-    final newChecked = !item.checked;
-
-    if (newChecked) {
-      // 勾选时，显示确认对话框输入实际价格和数量
-      await _showConfirmPurchaseDialog(item, index);
-    } else {
-      // 取消勾选，直接更新
-      if (_currentList != null) {
-        await _shoppingService.updateShoppingItem(
-          _currentList!.id,
-          id,
-          checked: false,
-        );
-      }
-      setState(() {
-        _items[index] = item.copyWith(checked: false);
-      });
-    }
-  }
-
-  /// 显示确认购买对话框
-  Future<void> _showConfirmPurchaseDialog(ShoppingItem item, int index) async {
-    final amountController = TextEditingController(text: item.amount);
-    final priceController = TextEditingController(text: item.price.toString());
-
-    return showDialog(
+  Future<void> _deleteItem(ShoppingItem item) async {
+    final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('确认购买'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: amountController,
-              decoration: const InputDecoration(
-                labelText: '实际数量',
-                border: OutlineInputBorder(),
-              ),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: priceController,
-              keyboardType: TextInputType.numberWithOptions(decimal: true),
-              decoration: const InputDecoration(
-                labelText: '实际价格',
-                border: OutlineInputBorder(),
-                prefixText: '¥ ',
-              ),
-            ),
-          ],
-        ),
+        title: const Text('确认删除'),
+        content: Text('确定要删除 "${item.name}" 吗？'),
         actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('取消')),
           TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('取消'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              final newPrice = double.tryParse(priceController.text) ?? item.price;
-              final newAmount = amountController.text;
-
-              if (_currentList != null) {
-                await _shoppingService.updateShoppingItem(
-                  _currentList!.id,
-                  item.id,
-                  amount: newAmount,
-                  price: newPrice,
-                  checked: true,
-                );
-              }
-
-              setState(() {
-                _items[index] = item.copyWith(
-                  amount: newAmount,
-                  price: newPrice,
-                  checked: true,
-                );
-              });
-
-              if (mounted) Navigator.pop(context);
-            },
-            child: const Text('确认'),
+            onPressed: () => Navigator.pop(context, true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('删除'),
           ),
         ],
       ),
     );
-  }
 
-  /// 编辑购物项
-  void _editItem(ShoppingItem item) {
-    showDialog(
-      context: context,
-      builder: (context) => EditItemDialog(
-        item: item,
-        onSave: (updatedItem) async {
-          // 如果有真实的清单ID，调用API更新
-          if (_currentList != null) {
-            await _shoppingService.updateShoppingItem(
-              _currentList!.id,
-              item.id,
-              name: updatedItem.name,
-              amount: updatedItem.amount,
-              price: updatedItem.price,
-            );
-          }
-
-          setState(() {
-            _items = _items.map((i) => i.id == updatedItem.id ? updatedItem : i).toList();
-          });
-        },
-      ),
-    );
-  }
-
-  /// 删除购物项
-  Future<void> _deleteItem(ShoppingItem item) async {
-    if (_currentList != null) {
+    if (confirmed == true && _currentList != null) {
       await _shoppingService.deleteShoppingItem(_currentList!.id, item.id);
-    }
-
-    setState(() {
-      _items.removeWhere((i) => i.id == item.id);
-    });
-
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('已删除'), duration: Duration(seconds: 1)),
-      );
-    }
-  }
-
-  /// 完成购物
-  Future<void> _completeShoppingList() async {
-    if (_currentList != null) {
-      final success = await _shoppingService.completeShoppingList(_currentList!.id);
-      if (success) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('购物结算完成'), duration: Duration(seconds: 1)),
-          );
-        }
-        // 刷新列表，移除已购买的商品
-        await _loadShoppingList();
-      } else {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('结算失败，请重试'), duration: Duration(seconds: 1)),
-          );
-        }
+      setState(() {
+        _items.removeWhere((i) => i.id == item.id);
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('已删除')));
       }
     }
   }
 
-  /// 分享购物清单
-  Future<void> _shareShoppingList() async {
+  Future<void> _markAsPurchased(ShoppingItem item) async {
     if (_currentList != null) {
-      final result = await _shoppingService.shareShoppingList(_currentList!.id);
-      if (result != null && mounted) {
+      // Mark as checked (purchased)
+      // When marking as purchased, we can default actualAmount to estimated amount if not set
+      final actualAmount = item.actualAmount.isNotEmpty ? item.actualAmount : item.amount;
+      
+      await _shoppingService.updateShoppingItem(
+        _currentList!.id,
+        item.id,
+        checked: true,
+        actualAmount: actualAmount,
+      );
+      
+      setState(() {
+        _items.removeWhere((i) => i.id == item.id);
+      });
+      
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('分享链接: ${result.shareUrl}'), duration: const Duration(seconds: 3)),
+          SnackBar(
+            content: Text('已将 "${item.name}" 加入已购买'),
+            duration: const Duration(seconds: 2),
+            action: SnackBarAction(
+              label: '撤销',
+              onPressed: () => _undoPurchase(item),
+            ),
+          ),
         );
       }
     }
   }
+  
+  Future<void> _undoPurchase(ShoppingItem item) async {
+    if (_currentList != null) {
+      await _shoppingService.updateShoppingItem(
+        _currentList!.id,
+        item.id,
+        checked: false,
+      );
+      _loadShoppingList(); // Reload to get it back in order
+    }
+  }
 
-  /// 显示添加购物项对话框
   void _showAddItemDialog() {
     showDialog(
       context: context,
       builder: (context) => AddShoppingItemDialog(
-        onAdd: (name) async {
-          Navigator.pop(context); // 关闭对话框
-
+        onAdd: (name, amount) async {
+          Navigator.pop(context);
           if (_currentList != null) {
-            // 调用API添加，只需要名称，数量和价格为空/0
             await _shoppingService.addShoppingItem(
               _currentList!.id,
               name: name,
-              amount: "",
+              amount: amount,
               price: 0,
             );
             _loadShoppingList();
           } else {
-            // 本地添加
-            setState(() {
-              _items.add(ShoppingItem(
-                id: DateTime.now().millisecondsSinceEpoch.toString(),
-                name: name,
-                amount: "",
-                price: 0,
-              ));
-            });
-          }
-
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('已添加 "$name"'), duration: const Duration(seconds: 1)),
-            );
+             // Create list if not exists? Usually handled by backend or init.
+             // For now assuming list exists as per previous logic.
           }
         },
       ),
     );
   }
 
-  /// 计算总价 (只计算已勾选的商品)
-  double get _total {
-    return _items
-        .where((item) => item.checked)
-        .fold(0.0, (sum, item) => sum + item.price);
+  void _finishShopping() async {
+    if (_currentList != null) {
+      final result = await Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => PurchasedItemsScreen(listId: _currentList!.id),
+        ),
+      );
+      
+      if (result == true) {
+        // Bill generated, refresh list (it should be empty or new list)
+        _loadShoppingList();
+      }
+    }
   }
 
   @override
@@ -292,32 +161,19 @@ class _ShoppingScreenState extends State<ShoppingScreen> with RefreshableScreenS
       body: SafeArea(
         child: Column(
           children: [
-            // 头部
             Padding(
               padding: const EdgeInsets.all(16),
               child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   const Text(
                     "购物清单",
                     style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
                   ),
-                  Row(
-                    children: [
-                      IconButton(
-                        icon: const Icon(Icons.add),
-                        onPressed: _showAddItemDialog,
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.share),
-                        onPressed: _shareShoppingList,
-                      ),
-                    ],
-                  ),
+                  const Spacer(),
+                  // Removed top Add button
                 ],
               ),
             ),
-            // 购物项列表
             Expanded(
               child: _isLoading
                   ? const Center(child: CircularProgressIndicator())
@@ -335,15 +191,10 @@ class _ShoppingScreenState extends State<ShoppingScreen> with RefreshableScreenS
                                   ),
                                   const SizedBox(height: 16),
                                   Text(
-                                    "购物清单为空",
+                                    "待购列表为空",
                                     style: TextStyle(
                                       color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
                                     ),
-                                  ),
-                                  const SizedBox(height: 8),
-                                  TextButton(
-                                    onPressed: _showAddItemDialog,
-                                    child: const Text("添加商品"),
                                   ),
                                 ],
                               ),
@@ -355,52 +206,80 @@ class _ShoppingScreenState extends State<ShoppingScreen> with RefreshableScreenS
                                 final item = _items[index];
                                 return Dismissible(
                                   key: Key(item.id),
-                                  direction: DismissDirection.endToStart,
+                                  // Left Swipe: Mark as Purchased
                                   background: Container(
+                                    alignment: Alignment.centerLeft,
+                                    padding: const EdgeInsets.only(left: 16),
+                                    color: Colors.green,
+                                    child: const Icon(Icons.check, color: Colors.white),
+                                  ),
+                                  // Right Swipe: Delete
+                                  secondaryBackground: Container(
                                     alignment: Alignment.centerRight,
                                     padding: const EdgeInsets.only(right: 16),
                                     color: Colors.red,
                                     child: const Icon(Icons.delete, color: Colors.white),
                                   ),
-                                  onDismissed: (_) => _deleteItem(item),
+                                  confirmDismiss: (direction) async {
+                                    if (direction == DismissDirection.endToStart) {
+                                      // Delete confirm
+                                      return await showDialog<bool>(
+                                        context: context,
+                                        builder: (context) => AlertDialog(
+                                          title: const Text('确认删除'),
+                                          content: Text('确定要删除 "${item.name}" 吗？'),
+                                          actions: [
+                                            TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('取消')),
+                                            TextButton(
+                                              onPressed: () => Navigator.pop(context, true),
+                                              style: TextButton.styleFrom(foregroundColor: Colors.red),
+                                              child: const Text('删除'),
+                                            ),
+                                          ],
+                                        ),
+                                      );
+                                    } else {
+                                      // Mark purchased, auto confirm
+                                      return true;
+                                    }
+                                  },
+                                  onDismissed: (direction) {
+                                    if (direction == DismissDirection.endToStart) {
+                                      _deleteItem(item);
+                                    } else {
+                                      _markAsPurchased(item);
+                                    }
+                                  },
                                   child: Card(
                                     margin: const EdgeInsets.only(bottom: 8),
-                                    child: ListTile(
-                                      leading: IconButton(
-                                        icon: Icon(
-                                          item.checked ? Icons.check_circle : Icons.circle_outlined,
-                                          color: item.checked
-                                              ? Theme.of(context).colorScheme.primary
-                                              : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.4),
-                                        ),
-                                        onPressed: () => _toggleItem(item.id),
-                                      ),
-                                      title: Text(
-                                        item.name,
-                                        style: TextStyle(
-                                          decoration: item.checked ? TextDecoration.lineThrough : null,
-                                          color: item.checked
-                                              ? Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.4)
-                                              : null,
-                                        ),
-                                      ),
-                                      subtitle: Text(item.amount),
-                                      trailing: Row(
-                                        mainAxisSize: MainAxisSize.min,
+                                    child: Container(
+                                      padding: const EdgeInsets.all(16),
+                                      height: 80, // Fixed height for centering
+                                      alignment: Alignment.centerLeft,
+                                      child: Row(
                                         children: [
-                                          Text(
-                                            "¥${item.price.toStringAsFixed(1)}",
-                                            style: TextStyle(
-                                              fontWeight: FontWeight.w600,
-                                              decoration: item.checked ? TextDecoration.lineThrough : null,
-                                              color: item.checked
-                                                  ? Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.4)
-                                                  : null,
+                                          Expanded(
+                                            child: Column(
+                                              mainAxisAlignment: MainAxisAlignment.center, // Center vertically
+                                              crossAxisAlignment: CrossAxisAlignment.start,
+                                              children: [
+                                                Text(
+                                                  item.name,
+                                                  style: const TextStyle(
+                                                    fontSize: 16,
+                                                    fontWeight: FontWeight.w600,
+                                                  ),
+                                                ),
+                                                if (item.amount.isNotEmpty)
+                                                  Text(
+                                                    "预计: ${item.amount}",
+                                                    style: TextStyle(
+                                                      fontSize: 12,
+                                                      color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
+                                                    ),
+                                                  ),
+                                              ],
                                             ),
-                                          ),
-                                          IconButton(
-                                            icon: const Icon(Icons.edit, size: 20),
-                                            onPressed: () => _editItem(item),
                                           ),
                                         ],
                                       ),
@@ -411,69 +290,28 @@ class _ShoppingScreenState extends State<ShoppingScreen> with RefreshableScreenS
                             ),
                     ),
             ),
-            // 底部总计和结账
-            if (_items.isNotEmpty)
-              Container(
-                padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-                decoration: BoxDecoration(
-                  color: Theme.of(context).cardColor,
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.05),
-                      blurRadius: 10,
-                      offset: const Offset(0, -2),
-                    ),
-                  ],
-                ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      children: [
-                        Text(
-                          "此单总计",
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                            color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
-                          ),
-                        ),
-                        Text(
-                          "¥ ${_total.toStringAsFixed(2)}",
-                          style: TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.w700,
-                            color: Theme.of(context).colorScheme.primary,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    SizedBox(
-                      width: double.infinity,
-                      height: 40,
-                      child: ElevatedButton(
-                        onPressed: _completeShoppingList,
-                        style: ElevatedButton.styleFrom(
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          padding: EdgeInsets.zero,
-                        ),
-                        child: const Text(
-                          "购买结束",
-                          style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
-                        ),
-                      ),
-                    ),
-                    SizedBox(height: MediaQuery.of(context).padding.bottom + 8),
-                  ],
-                ),
-              ),
           ],
         ),
+      ),
+      floatingActionButton: Column(
+        mainAxisAlignment: MainAxisAlignment.end,
+        children: [
+          FloatingActionButton.extended(
+            heroTag: 'add_item',
+            onPressed: _showAddItemDialog,
+            icon: const Icon(Icons.add),
+            label: const Text('添加食材'),
+          ),
+          const SizedBox(height: 16),
+          FloatingActionButton.extended(
+            heroTag: 'finish_shopping',
+            onPressed: _finishShopping,
+            backgroundColor: Theme.of(context).colorScheme.primary,
+            foregroundColor: Theme.of(context).colorScheme.onPrimary,
+            icon: const Icon(Icons.check_circle_outline),
+            label: const Text('购物结束'),
+          ),
+        ],
       ),
     );
   }

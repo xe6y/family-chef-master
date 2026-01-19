@@ -4,6 +4,7 @@ import 'package:image_picker/image_picker.dart';
 import '../models/ingredient_item.dart';
 import '../services/ingredient_service.dart';
 import '../services/http_client.dart';
+import '../services/storage_location_service.dart';
 import '../config/api_config.dart';
 
 /// 食材添加/编辑页面 - 全新UI设计
@@ -27,6 +28,9 @@ class _IngredientEditScreenState extends State<IngredientEditScreen> {
   /// 分类服务
   final IngredientCategoryService _categoryService =
       IngredientCategoryService();
+  
+  /// 存储位置服务
+  final StorageLocationService _storageService = StorageLocationService();
 
   /// HTTP客户端
   final HttpClient _httpClient = HttpClient();
@@ -45,9 +49,15 @@ class _IngredientEditScreenState extends State<IngredientEditScreen> {
 
   /// 是否正在加载分类
   bool _isLoadingCategories = true;
+  
+  /// 是否正在加载位置
+  bool _isLoadingStorages = true;
 
   /// 分类列表
   List<IngredientCategory> _categories = [];
+  
+  /// 存储位置列表
+  List<StorageLocation> _storages = [];
 
   /// 选中的图片文件
   File? _selectedImageFile;
@@ -132,7 +142,14 @@ class _IngredientEditScreenState extends State<IngredientEditScreen> {
   void initState() {
     super.initState();
     _initControllers();
-    _loadCategories();
+    _loadInitialData();
+  }
+
+  Future<void> _loadInitialData() async {
+    await Future.wait([
+      _loadCategories(),
+      _loadStorageLocations(),
+    ]);
   }
 
   /// 初始化控制器
@@ -172,7 +189,7 @@ class _IngredientEditScreenState extends State<IngredientEditScreen> {
           }
         }
       }
-    } else if (widget.defaultStorage != null) {
+    } else if (widget.defaultStorage != null && widget.defaultStorage!.isNotEmpty) {
       _selectedStorage = widget.defaultStorage!;
     }
   }
@@ -180,16 +197,49 @@ class _IngredientEditScreenState extends State<IngredientEditScreen> {
   /// 加载分类列表
   Future<void> _loadCategories() async {
     setState(() => _isLoadingCategories = true);
-
     try {
       _categories = await _categoryService.getCategories();
     } catch (e) {
       debugPrint('加载分类失败: $e');
     }
-
-    if (mounted) {
-      setState(() => _isLoadingCategories = false);
+    if (mounted) setState(() => _isLoadingCategories = false);
+  }
+  
+  /// 加载存储位置
+  Future<void> _loadStorageLocations() async {
+    setState(() => _isLoadingStorages = true);
+    try {
+      final locations = await _storageService.getStorageLocations();
+      if (mounted) {
+        setState(() {
+          _storages = locations;
+          // 如果当前选中的位置不在列表中（且列表不为空），选中第一个
+          // 注意：如果是编辑模式，我们可能希望保留原值（即使它已被删除？或者我们显示为"未知"？）
+          // 这里的逻辑是：如果当前选中的位置为空，或者（不在列表中且不是自定义输入），则重置。
+          // 但由于 storage 是字符串ID，我们应该尽量匹配。
+          if (_storages.isNotEmpty && !_storages.any((s) => s.id == _selectedStorage)) {
+             // 如果是新建，且传入的默认值无效，则选中第一个
+             if (!_isEditMode) {
+               _selectedStorage = _storages.first.id;
+             }
+             // 如果是编辑，保留原值，UI上可能需要处理"未找到"的情况，或者自动添加到列表显示
+          }
+          
+          // 如果是新建且没有默认值，选中第一个
+          if (!_isEditMode && (_selectedStorage.isEmpty || _selectedStorage == 'fridge')) {
+             if (_storages.isNotEmpty) {
+                // 检查 'fridge' 是否存在，如果存在则保持，否则选第一个
+                if (!_storages.any((s) => s.id == _selectedStorage)) {
+                  _selectedStorage = _storages.first.id;
+                }
+             }
+          }
+        });
+      }
+    } catch (e) {
+      debugPrint('加载存储位置失败: $e');
     }
+    if (mounted) setState(() => _isLoadingStorages = false);
   }
 
   @override
@@ -975,19 +1025,42 @@ class _IngredientEditScreenState extends State<IngredientEditScreen> {
             ),
           ),
           const SizedBox(height: 12),
-          Container(
-            decoration: BoxDecoration(
-              color: const Color(0xFFF8F9FA),
-              borderRadius: BorderRadius.circular(12),
+          _isLoadingStorages 
+          ? const Center(child: CircularProgressIndicator(color: Color(0xFFFF6B35)))
+          : Container(
+              decoration: BoxDecoration(
+                color: const Color(0xFFF8F9FA),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: const Color(0xFFE9ECEF)),
+              ),
+              child: DropdownButtonFormField<String>(
+                value: _storages.any((s) => s.id == _selectedStorage) ? _selectedStorage : (_storages.isNotEmpty ? _storages.first.id : null),
+                decoration: const InputDecoration(
+                  border: InputBorder.none,
+                  contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                ),
+                icon: const Icon(Icons.keyboard_arrow_down, color: Color(0xFF868E96)),
+                isExpanded: true,
+                items: _storages.map((loc) {
+                  return DropdownMenuItem<String>(
+                    value: loc.id,
+                    child: Text(
+                      loc.name,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w500,
+                        color: Color(0xFF2D3436),
+                      ),
+                    ),
+                  );
+                }).toList(),
+                onChanged: (value) {
+                  if (value != null) {
+                    setState(() => _selectedStorage = value);
+                  }
+                },
+              ),
             ),
-            child: Row(
-              children: [
-                _buildStorageButton('room', '常温', Icons.home_outlined),
-                _buildStorageButton('fridge', '冷藏', Icons.kitchen_outlined),
-                _buildStorageButton('freezer', '冷冻', Icons.ac_unit),
-              ],
-            ),
-          ),
 
           const SizedBox(height: 20),
 
@@ -1061,44 +1134,55 @@ class _IngredientEditScreenState extends State<IngredientEditScreen> {
       ),
     );
   }
+  
+  IconData _getIconForStorage(String id, String name) {
+    if (id.contains('fridge') || name.contains('冷藏')) return Icons.kitchen_outlined;
+    if (id.contains('freezer') || name.contains('冷冻')) return Icons.ac_unit;
+    if (id.contains('room') || name.contains('常温')) return Icons.home_outlined;
+    return Icons.inventory_2_outlined;
+  }
 
   Widget _buildStorageButton(String value, String label, IconData icon) {
     final isSelected = _selectedStorage == value;
-    return Expanded(
-      child: GestureDetector(
-        onTap: () {
-          setState(() => _selectedStorage = value);
-        },
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 14),
-          decoration: BoxDecoration(
-            color: isSelected
-                ? const Color(0xFFFF6B35).withValues(alpha: 0.1)
-                : Colors.transparent,
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Column(
-            children: [
-              Icon(
-                icon,
-                size: 24,
+    // 使用 IntrinsicWidth 使得按钮宽度自适应，或者固定宽度
+    return GestureDetector(
+      onTap: () {
+        setState(() => _selectedStorage = value);
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        margin: const EdgeInsets.all(4),
+        decoration: BoxDecoration(
+          color: isSelected
+              ? const Color(0xFFFF6B35).withValues(alpha: 0.1)
+              : Colors.transparent,
+          borderRadius: BorderRadius.circular(12),
+          border: isSelected 
+              ? Border.all(color: const Color(0xFFFF6B35).withValues(alpha: 0.5))
+              : null,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              icon,
+              size: 24,
+              color: isSelected
+                  ? const Color(0xFFFF6B35)
+                  : const Color(0xFF868E96),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
                 color: isSelected
                     ? const Color(0xFFFF6B35)
                     : const Color(0xFF868E96),
               ),
-              const SizedBox(height: 4),
-              Text(
-                label,
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-                  color: isSelected
-                      ? const Color(0xFFFF6B35)
-                      : const Color(0xFF868E96),
-                ),
-              ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );

@@ -11,11 +11,12 @@ import (
 
 // ShoppingItem 购物项结构
 type ShoppingItem struct {
-	ID      string  `json:"id"`      // 购物项ID
-	Name    string  `json:"name"`    // 商品名称
-	Amount  string  `json:"amount"`  // 数量
-	Price   float64 `json:"price"`   // 价格
-	Checked bool    `json:"checked"` // 是否已购买
+	ID           string  `json:"id"`           // 购物项ID
+	Name         string  `json:"name"`         // 商品名称
+	Amount       string  `json:"amount"`       // 预计购买数量
+	ActualAmount string  `json:"actualAmount"` // 实际购买数量
+	Price        float64 `json:"price"`        // 价格
+	Checked      bool    `json:"checked"`      // 是否已购买
 }
 
 // ShoppingItems 购物项数组类型

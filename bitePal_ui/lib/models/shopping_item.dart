@@ -6,8 +6,11 @@ class ShoppingItem {
   /// 商品名称
   final String name;
 
-  /// 数量
+  /// 预计购买数量
   final String amount;
+
+  /// 实际购买数量
+  final String actualAmount;
 
   /// 价格
   final double price;
@@ -19,6 +22,7 @@ class ShoppingItem {
     required this.id,
     required this.name,
     required this.amount,
+    this.actualAmount = '',
     required this.price,
     this.checked = false,
   });
@@ -31,6 +35,7 @@ class ShoppingItem {
       id: json['id']?.toString() ?? '',
       name: json['name'] ?? '',
       amount: json['amount'] ?? '',
+      actualAmount: json['actualAmount'] ?? '',
       price: (json['price'] ?? 0).toDouble(),
       checked: json['checked'] ?? false,
     );
@@ -43,6 +48,7 @@ class ShoppingItem {
       'id': id,
       'name': name,
       'amount': amount,
+      'actualAmount': actualAmount,
       'price': price,
       'checked': checked,
     };
@@ -53,6 +59,7 @@ class ShoppingItem {
     String? id,
     String? name,
     String? amount,
+    String? actualAmount,
     double? price,
     bool? checked,
   }) {
@@ -60,6 +67,7 @@ class ShoppingItem {
       id: id ?? this.id,
       name: name ?? this.name,
       amount: amount ?? this.amount,
+      actualAmount: actualAmount ?? this.actualAmount,
       price: price ?? this.price,
       checked: checked ?? this.checked,
     );

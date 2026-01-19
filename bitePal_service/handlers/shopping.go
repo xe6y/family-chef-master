@@ -36,10 +36,11 @@ type AddShoppingItemRequest struct {
 
 // UpdateShoppingItemRequest 更新购物项请求结构
 type UpdateShoppingItemRequest struct {
-	Name    string   `json:"name"`    // 商品名称
-	Amount  string   `json:"amount"`  // 数量
-	Price   *float64 `json:"price"`   // 价格
-	Checked *bool    `json:"checked"` // 是否已购买
+	Name         string   `json:"name"`         // 商品名称
+	Amount       string   `json:"amount"`       // 预计购买数量
+	ActualAmount string   `json:"actualAmount"` // 实际购买数量
+	Price        *float64 `json:"price"`        // 价格
+	Checked      *bool    `json:"checked"`      // 是否已购买
 }
 
 // GetShoppingLists 获取购物清单列表
@@ -341,6 +342,9 @@ func (h *ShoppingHandler) UpdateShoppingItem(c *gin.Context) {
 			if req.Amount != "" {
 				list.Items[i].Amount = req.Amount
 			}
+			if req.ActualAmount != "" {
+				list.Items[i].ActualAmount = req.ActualAmount
+			}
 			if req.Price != nil {
 				list.Items[i].Price = *req.Price
 			}
@@ -612,5 +616,71 @@ func (h *ShoppingHandler) GetShoppingHistory(c *gin.Context) {
 
 	c.JSON(http.StatusOK, models.NewSuccessResponseWithMessage("获取成功",
 		models.NewPagedResponse(historyList, total, pagination.Page, pagination.PageSize)))
+}
+
+// GetShoppingHistoryItems 获取购物订单历史商品项
+// @Summary 获取购物订单历史商品项
+// @Description 获取所有已完成购物清单中的商品项，用于添加到食材
+// @Tags 购物清单
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param page query int false "页码" default(1)
+// @Param pageSize query int false "每页数量" default(20)
+// @Param search query string false "搜索关键词"
+// @Success 200 {object} models.Response{data=models.PagedResponse}
+// @Router /api/shopping-lists/history/items [get]
+func (h *ShoppingHandler) GetShoppingHistoryItems(c *gin.Context) {
+	userID := middleware.GetUserIDFromContext(c)
+	pagination := utils.GetPagination(c)
+	search := c.Query("search")
+
+	// 1. 获取所有已完成的清单
+	var lists []models.ShoppingList
+	query := config.DB.Model(&models.ShoppingList{}).
+		Where("user_id = ? AND completed_at IS NOT NULL", userID)
+	
+	// 这里我们实际上需要获取Items里的内容。由于Items是JSON字段，无法直接在SQL中高效查询/搜索JSON数组内容(取决于DB类型，MySQL 5.7+支持但GORM处理略繁琐)。
+	// 为了简化，我们先获取最近的100个已完成清单，然后在内存中提取和去重。
+	// 如果数据量巨大，这会有性能问题，但对于个人购物清单应用，数据量通常可控。
+	
+	// 获取最近的50个已完成清单（通常足够覆盖常用食材）
+	query.Order("completed_at DESC").Limit(50).Find(&lists)
+
+	// 2. 提取所有商品项并去重
+	itemMap := make(map[string]models.ShoppingItem)
+	var allItems []models.ShoppingItem
+
+	for _, list := range lists {
+		for _, item := range list.Items {
+			// 简单的去重逻辑：按名称去重
+			if search != "" && !utils.ContainsIgnoreCase(item.Name, search) {
+				continue
+			}
+			
+			// 如果已经存在，跳过（保留最近的记录，因为我们是按时间倒序遍历清单的）
+			if _, exists := itemMap[item.Name]; !exists {
+				itemMap[item.Name] = item
+				allItems = append(allItems, item)
+			}
+		}
+	}
+
+	// 3. 分页处理内存切片
+	total := int64(len(allItems))
+	start := (pagination.Page - 1) * pagination.PageSize
+	end := start + pagination.PageSize
+
+	if start > int(total) {
+		start = int(total)
+	}
+	if end > int(total) {
+		end = int(total)
+	}
+
+	pagedItems := allItems[start:end]
+
+	c.JSON(http.StatusOK, models.NewSuccessResponseWithMessage("获取成功",
+		models.NewPagedResponse(pagedItems, total, pagination.Page, pagination.PageSize)))
 }
 
