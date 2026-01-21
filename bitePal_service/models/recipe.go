@@ -18,7 +18,19 @@ func (s *StringArray) Scan(value interface{}) error {
 		*s = StringArray{}
 		return nil
 	}
-	return json.Unmarshal(value.([]byte), s)
+
+	var bytes []byte
+	switch v := value.(type) {
+	case []byte:
+		bytes = v
+	case string:
+		bytes = []byte(v)
+	default:
+		*s = StringArray{}
+		return nil
+	}
+
+	return json.Unmarshal(bytes, s)
 }
 
 // Value 写入数据库的值
@@ -42,7 +54,19 @@ func (r *RecipeIngredients) Scan(value interface{}) error {
 		*r = RecipeIngredients{}
 		return nil
 	}
-	return json.Unmarshal(value.([]byte), r)
+
+	var bytes []byte
+	switch v := value.(type) {
+	case []byte:
+		bytes = v
+	case string:
+		bytes = []byte(v)
+	default:
+		*r = RecipeIngredients{}
+		return nil
+	}
+
+	return json.Unmarshal(bytes, r)
 }
 
 // Value 写入数据库的值

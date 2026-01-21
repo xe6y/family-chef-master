@@ -1,6 +1,5 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../models/user.dart';
 import '../services/auth_service.dart';
@@ -209,11 +208,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
-    if (_isLoading)
+    if (_isLoading) {
       return const Scaffold(
         backgroundColor: _oatmeal,
         body: Center(child: CircularProgressIndicator(color: _sageGreen)),
       );
+    }
 
     return Scaffold(
       backgroundColor: _oatmeal,

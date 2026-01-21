@@ -1,6 +1,4 @@
-import 'dart:ui';
 import 'package:flutter/material.dart';
-import '../services/auth_service.dart';
 
 // --- Theme Constants ---
 const Color _oatmeal = Color(0xFFF5F5F0);

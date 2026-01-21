@@ -272,8 +272,9 @@ class _IngredientsScreenState extends State<IngredientsScreen>
   Future<void> _loadIngredients() async {
     setState(() => _isLoading = true);
     try {
-      if (_activeStorage.isEmpty && _storages.isNotEmpty)
+      if (_activeStorage.isEmpty && _storages.isNotEmpty) {
         _activeStorage = _storages.first.id;
+      }
       final groups = await _ingredientService.getIngredientsGrouped(
         storage: _activeStorage,
       );

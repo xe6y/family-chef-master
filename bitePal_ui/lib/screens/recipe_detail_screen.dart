@@ -3,11 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../models/recipe.dart';
-import '../models/recipe_category.dart';
 import '../services/recipe_service.dart';
-import '../services/menu_service.dart';
 import '../services/category_service.dart';
-import '../services/today_menu_state.dart';
 
 // --- Theme Colors ---
 const Color _oatmeal = Color(0xFFF5F5F0);
@@ -719,8 +716,9 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen>
                           runSpacing: 8,
                           children: _difficultyOptions.map((option) {
                             final isSelected = _difficulty == option;
-                            if (!_isEditing && !isSelected)
+                            if (!_isEditing && !isSelected) {
                               return const SizedBox.shrink();
+                            }
                             return GestureDetector(
                               onTap: _isEditing
                                   ? () => setState(() => _difficulty = option)

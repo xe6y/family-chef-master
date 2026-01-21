@@ -375,10 +375,11 @@ class _IngredientEditScreenState extends State<IngredientEditScreen> {
 
   @override
   Widget build(BuildContext context) {
-    if (_isLoading)
+    if (_isLoading) {
       return const Scaffold(
         body: Center(child: CircularProgressIndicator(color: _sageGreen)),
       );
+    }
 
     return Scaffold(
       backgroundColor: _oatmeal,
