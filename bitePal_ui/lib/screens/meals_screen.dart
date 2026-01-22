@@ -41,9 +41,14 @@ class GlassContainer extends StatelessWidget {
         child: Container(
           padding: padding,
           decoration: BoxDecoration(
-            color: (color ?? Theme.of(context).colorScheme.surface).withOpacity(opacity),
+            color: (color ?? Theme.of(context).colorScheme.surface).withValues(
+              alpha: opacity,
+            ),
             borderRadius: BorderRadius.circular(borderRadius),
-            border: Border.all(color: Colors.white.withOpacity(0.2), width: 0.5),
+            border: Border.all(
+              color: Colors.white.withValues(alpha: 0.2),
+              width: 0.5,
+            ),
           ),
           child: child,
         ),
@@ -70,17 +75,22 @@ class BouncyCard extends StatefulWidget {
   State<BouncyCard> createState() => _BouncyCardState();
 }
 
-class _BouncyCardState extends State<BouncyCard> with SingleTickerProviderStateMixin {
+class _BouncyCardState extends State<BouncyCard>
+    with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   late Animation<double> _scaleAnimation;
 
   @override
   void initState() {
     super.initState();
-    _controller = AnimationController(vsync: this, duration: const Duration(milliseconds: 150));
-    _scaleAnimation = Tween<double>(begin: 1.0, end: 0.95).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 150),
     );
+    _scaleAnimation = Tween<double>(
+      begin: 1.0,
+      end: 0.95,
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
   }
 
   @override
@@ -108,7 +118,7 @@ class _BouncyCardState extends State<BouncyCard> with SingleTickerProviderStateM
                     borderRadius: BorderRadius.circular(16),
                     boxShadow: [
                       BoxShadow(
-                        color: widget.activeShadowColor!.withOpacity(0.4),
+                        color: widget.activeShadowColor!.withValues(alpha: 0.4),
                         blurRadius: 12,
                         offset: const Offset(0, 4),
                       ),
@@ -134,13 +144,17 @@ class StatusChip extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: color.withOpacity(0.2)),
+        border: Border.all(color: color.withValues(alpha: 0.2)),
       ),
       child: Text(
         label,
-        style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: color),
+        style: TextStyle(
+          fontSize: 10,
+          fontWeight: FontWeight.w600,
+          color: color,
+        ),
       ),
     );
   }
@@ -155,7 +169,8 @@ class MealsScreen extends RefreshableScreen {
   State<MealsScreen> createState() => _MealsScreenState();
 }
 
-class _MealsScreenState extends State<MealsScreen> with RefreshableScreenState<MealsScreen> {
+class _MealsScreenState extends State<MealsScreen>
+    with RefreshableScreenState<MealsScreen> {
   final MealService _mealService = MealService();
   final RecipeService _recipeService = RecipeService();
   final CategoryService _categoryService = CategoryService();
@@ -166,17 +181,17 @@ class _MealsScreenState extends State<MealsScreen> with RefreshableScreenState<M
   List<Recipe> _recipes = [];
   bool _isLoading = true;
   String _searchKeyword = '';
-  
+
   // Filter State
   final List<String> _selectedTastes = [];
   final List<String> _selectedDifficulties = [];
   final List<String> _selectedCuisines = [];
-  
+
   // Data
   List<RecipeCategory> _tasteCategories = [];
   List<RecipeCategory> _difficultyCategories = [];
   List<RecipeCategory> _cuisineCategories = [];
-  
+
   // Theme Colors (Morandi - Consistent with Recipes)
   static const Color _sageGreen = Color(0xFFB2AC88);
   static const Color _oatmeal = Color(0xFFF5F5F0);
@@ -205,10 +220,7 @@ class _MealsScreenState extends State<MealsScreen> with RefreshableScreenState<M
   }
 
   Future<void> _loadData() async {
-    await Future.wait([
-      _loadCategories(),
-      _loadRecipes(),
-    ]);
+    await Future.wait([_loadCategories(), _loadRecipes()]);
   }
 
   Future<void> _loadCategories() async {
@@ -231,9 +243,33 @@ class _MealsScreenState extends State<MealsScreen> with RefreshableScreenState<M
   }
 
   void _loadDefaultCategories() {
-    _tasteCategories = [RecipeCategory(id: '1', type: 'taste', name: '清淡', sortOrder: 1, isActive: true)];
-    _difficultyCategories = [RecipeCategory(id: '1', type: 'difficulty', name: '简单', sortOrder: 1, isActive: true)];
-    _cuisineCategories = [RecipeCategory(id: '1', type: 'cuisine', name: '家常菜', sortOrder: 1, isActive: true)];
+    _tasteCategories = [
+      RecipeCategory(
+        id: '1',
+        type: 'taste',
+        name: '清淡',
+        sortOrder: 1,
+        isActive: true,
+      ),
+    ];
+    _difficultyCategories = [
+      RecipeCategory(
+        id: '1',
+        type: 'difficulty',
+        name: '简单',
+        sortOrder: 1,
+        isActive: true,
+      ),
+    ];
+    _cuisineCategories = [
+      RecipeCategory(
+        id: '1',
+        type: 'cuisine',
+        name: '家常菜',
+        sortOrder: 1,
+        isActive: true,
+      ),
+    ];
   }
 
   @override
@@ -246,26 +282,38 @@ class _MealsScreenState extends State<MealsScreen> with RefreshableScreenState<M
     try {
       await _todayMenuState.loadTodayMenu();
       final favResult = await _recipeService.getMyRecipes(favorite: true);
-      
+
       final Map<String, Recipe> uniqueMap = {};
-      for (var r in _todayMenuState.menuRecipes) { uniqueMap[r.id] = r; }
+      for (var r in _todayMenuState.menuRecipes) {
+        uniqueMap[r.id] = r;
+      }
       if (favResult != null) {
-        for (var r in favResult.list) { uniqueMap[r.id] = r; }
+        for (var r in favResult.list) {
+          uniqueMap[r.id] = r;
+        }
       }
 
       var list = uniqueMap.values.toList();
-      
+
       if (_searchKeyword.isNotEmpty) {
         list = list.where((r) => r.name.contains(_searchKeyword)).toList();
       }
       if (_selectedTastes.isNotEmpty) {
-        list = list.where((r) => _selectedTastes.any((t) => r.categories.contains(t))).toList();
+        list = list
+            .where((r) => _selectedTastes.any((t) => r.categories.contains(t)))
+            .toList();
       }
       if (_selectedDifficulties.isNotEmpty) {
-        list = list.where((r) => _selectedDifficulties.contains(r.difficulty)).toList();
+        list = list
+            .where((r) => _selectedDifficulties.contains(r.difficulty))
+            .toList();
       }
       if (_selectedCuisines.isNotEmpty) {
-        list = list.where((r) => _selectedCuisines.any((c) => r.categories.contains(c))).toList();
+        list = list
+            .where(
+              (r) => _selectedCuisines.any((c) => r.categories.contains(c)),
+            )
+            .toList();
       }
 
       _recipes = list;
@@ -277,7 +325,16 @@ class _MealsScreenState extends State<MealsScreen> with RefreshableScreenState<M
 
   void _loadMockData() {
     _recipes = [
-      Recipe(id: '1', name: "番茄炒蛋", time: "15分钟", difficulty: "简单", tags: ["家常"], tagColors: ["bg-green-500"], favorite: true, categories: ["酸甜"]),
+      Recipe(
+        id: '1',
+        name: "番茄炒蛋",
+        time: "15分钟",
+        difficulty: "简单",
+        tags: ["家常"],
+        tagColors: ["bg-green-500"],
+        favorite: true,
+        categories: ["酸甜"],
+      ),
     ];
   }
 
@@ -295,9 +352,12 @@ class _MealsScreenState extends State<MealsScreen> with RefreshableScreenState<M
         cuisineCategories: _cuisineCategories,
         onApply: (tastes, diffs, cuisines) {
           setState(() {
-            _selectedTastes.clear(); _selectedTastes.addAll(tastes);
-            _selectedDifficulties.clear(); _selectedDifficulties.addAll(diffs);
-            _selectedCuisines.clear(); _selectedCuisines.addAll(cuisines);
+            _selectedTastes.clear();
+            _selectedTastes.addAll(tastes);
+            _selectedDifficulties.clear();
+            _selectedDifficulties.addAll(diffs);
+            _selectedCuisines.clear();
+            _selectedCuisines.addAll(cuisines);
           });
           _loadRecipes();
         },
@@ -309,14 +369,19 @@ class _MealsScreenState extends State<MealsScreen> with RefreshableScreenState<M
     final selected = _todayMenuState.selectedMeals;
     if (selected.isEmpty) return;
 
-    final orderRecipes = selected.map((r) => OrderRecipe(recipeId: r.id, recipeName: r.name)).toList();
+    final orderRecipes = selected
+        .map((r) => OrderRecipe(recipeId: r.id, recipeName: r.name))
+        .toList();
     final order = await _mealService.createMealOrder(orderRecipes);
-    
+
     if (order != null && mounted) {
       _todayMenuState.clearSelected();
       await _todayMenuState.refreshTodayMenu();
+      if (!mounted) return;
       HapticFeedback.mediumImpact();
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('点餐成功！祝您用餐愉快 🍽️')));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('点餐成功！祝您用餐愉快 🍽️')));
       if (Navigator.canPop(context)) Navigator.pop(context);
     }
   }
@@ -347,10 +412,13 @@ class _MealsScreenState extends State<MealsScreen> with RefreshableScreenState<M
             surfaceTintColor: Colors.transparent,
             title: const Text(
               "家庭点餐",
-              style: TextStyle(fontWeight: FontWeight.w800, color: _textPrimary),
+              style: TextStyle(
+                fontWeight: FontWeight.w800,
+                color: _textPrimary,
+              ),
             ),
             actions: [
-               IconButton(
+              IconButton(
                 icon: const Icon(Icons.tune_rounded, color: _textPrimary),
                 onPressed: _showFilterModal,
               ),
@@ -373,11 +441,17 @@ class _MealsScreenState extends State<MealsScreen> with RefreshableScreenState<M
                           controller: _searchController,
                           decoration: const InputDecoration(
                             hintText: "今天想吃点什么？",
-                            hintStyle: TextStyle(color: _textSecondary, fontSize: 14),
+                            hintStyle: TextStyle(
+                              color: _textSecondary,
+                              fontSize: 14,
+                            ),
                             border: InputBorder.none,
                             isDense: true,
                           ),
-                          style: const TextStyle(fontSize: 14, color: _textPrimary),
+                          style: const TextStyle(
+                            fontSize: 14,
+                            color: _textPrimary,
+                          ),
                           onSubmitted: (val) {
                             _searchKeyword = val;
                             _loadRecipes();
@@ -394,16 +468,21 @@ class _MealsScreenState extends State<MealsScreen> with RefreshableScreenState<M
           SliverPadding(
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 100),
             sliver: _isLoading
-                ? const SliverFillRemaining(child: Center(child: CircularProgressIndicator(color: _sageGreen)))
+                ? const SliverFillRemaining(
+                    child: Center(
+                      child: CircularProgressIndicator(color: _sageGreen),
+                    ),
+                  )
                 : _recipes.isEmpty
-                    ? SliverFillRemaining(child: _buildEmptyState())
-                    : SliverMasonryGrid.count(
-                        crossAxisCount: 2,
-                        mainAxisSpacing: 16,
-                        crossAxisSpacing: 16,
-                        childCount: _recipes.length,
-                        itemBuilder: (context, index) => _buildMealCard(_recipes[index]),
-                      ),
+                ? SliverFillRemaining(child: _buildEmptyState())
+                : SliverMasonryGrid.count(
+                    crossAxisCount: 2,
+                    mainAxisSpacing: 16,
+                    crossAxisSpacing: 16,
+                    childCount: _recipes.length,
+                    itemBuilder: (context, index) =>
+                        _buildMealCard(_recipes[index]),
+                  ),
           ),
         ],
       ),
@@ -414,9 +493,19 @@ class _MealsScreenState extends State<MealsScreen> with RefreshableScreenState<M
               elevation: 4,
               label: Row(
                 children: [
-                  const Icon(Icons.shopping_basket_rounded, color: Colors.white, size: 20),
+                  const Icon(
+                    Icons.shopping_basket_rounded,
+                    color: Colors.white,
+                    size: 20,
+                  ),
                   const SizedBox(width: 8),
-                  Text("${_todayMenuState.selectedCount} 道菜品", style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                  Text(
+                    "${_todayMenuState.selectedCount} 道菜品",
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
                 ],
               ),
             )
@@ -426,12 +515,18 @@ class _MealsScreenState extends State<MealsScreen> with RefreshableScreenState<M
 
   Widget _buildMealCard(Recipe recipe) {
     final isAdded = _todayMenuState.isSelected(recipe.id);
-    
+
     return BouncyCard(
       isSelected: isAdded,
       activeShadowColor: _sageGreen,
       onTap: () async {
-        Navigator.push(context, MaterialPageRoute(builder: (_) => RecipeDetailScreen(recipeId: recipe.id, isFromMyRecipes: true)));
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) =>
+                RecipeDetailScreen(recipeId: recipe.id, isFromMyRecipes: true),
+          ),
+        );
       },
       child: Container(
         decoration: BoxDecoration(
@@ -442,14 +537,18 @@ class _MealsScreenState extends State<MealsScreen> with RefreshableScreenState<M
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             ClipRRect(
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(20),
+              ),
               child: AspectRatio(
                 aspectRatio: 1.1,
                 child: Stack(
                   fit: StackFit.expand,
                   children: [
                     Image.asset(
-                      (recipe.image != null && recipe.image!.isNotEmpty && recipe.image!.startsWith('assets/'))
+                      (recipe.image != null &&
+                              recipe.image!.isNotEmpty &&
+                              recipe.image!.startsWith('assets/'))
                           ? recipe.image!
                           : 'assets/chinese-potato-strips.jpg',
                       fit: BoxFit.cover,
@@ -459,7 +558,9 @@ class _MealsScreenState extends State<MealsScreen> with RefreshableScreenState<M
                       right: 8,
                       child: StatusChip(
                         label: recipe.difficulty,
-                        color: recipe.difficulty == "简单" ? _sageGreen : _persimmon,
+                        color: recipe.difficulty == "简单"
+                            ? _sageGreen
+                            : _persimmon,
                       ),
                     ),
                   ],
@@ -471,12 +572,25 @@ class _MealsScreenState extends State<MealsScreen> with RefreshableScreenState<M
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(recipe.name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: _textPrimary)),
+                  Text(
+                    recipe.name,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 15,
+                      color: _textPrimary,
+                    ),
+                  ),
                   const SizedBox(height: 12),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text("${recipe.time} ", style: const TextStyle(fontSize: 12, color: _textSecondary)),
+                      Text(
+                        "${recipe.time} ",
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: _textSecondary,
+                        ),
+                      ),
                       GestureDetector(
                         onTap: () {
                           HapticFeedback.lightImpact();
@@ -486,7 +600,9 @@ class _MealsScreenState extends State<MealsScreen> with RefreshableScreenState<M
                           duration: const Duration(milliseconds: 200),
                           padding: const EdgeInsets.all(6),
                           decoration: BoxDecoration(
-                            color: isAdded ? _sageGreen : _sageGreen.withOpacity(0.1),
+                            color: isAdded
+                                ? _sageGreen
+                                : _sageGreen.withValues(alpha: 0.1),
                             shape: BoxShape.circle,
                           ),
                           child: Icon(
@@ -516,17 +632,35 @@ class _MealsScreenState extends State<MealsScreen> with RefreshableScreenState<M
             tween: Tween(begin: 0, end: 15),
             duration: const Duration(seconds: 2),
             curve: Curves.easeInOut,
-            builder: (context, value, child) => Transform.translate(offset: Offset(0, value), child: child),
+            builder: (context, value, child) =>
+                Transform.translate(offset: Offset(0, value), child: child),
             child: Container(
               padding: const EdgeInsets.all(24),
-              decoration: BoxDecoration(color: _sageGreen.withOpacity(0.1), shape: BoxShape.circle),
-              child: const Icon(Icons.restaurant_rounded, size: 48, color: _sageGreen),
+              decoration: BoxDecoration(
+                color: _sageGreen.withValues(alpha: 0.1),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.restaurant_rounded,
+                size: 48,
+                color: _sageGreen,
+              ),
             ),
           ),
           const SizedBox(height: 24),
-          const Text("今天还没有可选菜品", style: TextStyle(color: _textSecondary, fontSize: 16, fontWeight: FontWeight.w600)),
+          const Text(
+            "今天还没有可选菜品",
+            style: TextStyle(
+              color: _textSecondary,
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
           const SizedBox(height: 8),
-          const Text("去菜谱库收藏一些心仪的菜吧 ~", style: TextStyle(color: Color(0xFFDCD7CD), fontSize: 14)),
+          const Text(
+            "去菜谱库收藏一些心仪的菜吧 ~",
+            style: TextStyle(color: Color(0xFFDCD7CD), fontSize: 14),
+          ),
         ],
       ),
     );
@@ -594,7 +728,10 @@ class _FilterBottomSheetState extends State<_FilterBottomSheet> {
             ),
           ),
           const SizedBox(height: 24),
-          const Text("筛选", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+          const Text(
+            "筛选",
+            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+          ),
           const SizedBox(height: 24),
           Flexible(
             child: SingleChildScrollView(
@@ -622,7 +759,10 @@ class _FilterBottomSheetState extends State<_FilterBottomSheet> {
                       _tempCuisines.clear();
                     });
                   },
-                  child: const Text("重置", style: TextStyle(color: Color(0xFF8C8F90))),
+                  child: const Text(
+                    "重置",
+                    style: TextStyle(color: Color(0xFF8C8F90)),
+                  ),
                 ),
               ),
               const SizedBox(width: 16),
@@ -634,13 +774,20 @@ class _FilterBottomSheetState extends State<_FilterBottomSheet> {
                     Navigator.pop(context);
                   },
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFFB2AC88), // Consistent Sage Green
+                    backgroundColor: const Color(
+                      0xFFB2AC88,
+                    ), // Consistent Sage Green
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
                     elevation: 0,
                   ),
-                  child: const Text("应用", style: TextStyle(fontWeight: FontWeight.bold)),
+                  child: const Text(
+                    "应用",
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
                 ),
               ),
             ],
@@ -651,11 +798,22 @@ class _FilterBottomSheetState extends State<_FilterBottomSheet> {
     );
   }
 
-  Widget _buildSection(String title, List<RecipeCategory> options, List<String> selected) {
+  Widget _buildSection(
+    String title,
+    List<RecipeCategory> options,
+    List<String> selected,
+  ) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(title, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Color(0xFF8C8F90))),
+        Text(
+          title,
+          style: const TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+            color: Color(0xFF8C8F90),
+          ),
+        ),
         const SizedBox(height: 12),
         Wrap(
           spacing: 10,
@@ -676,9 +834,14 @@ class _FilterBottomSheetState extends State<_FilterBottomSheet> {
               },
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 200),
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 8,
+                ),
                 decoration: BoxDecoration(
-                  color: isSelected ? const Color(0xFFB2AC88) : const Color(0xFFF5F5F0),
+                  color: isSelected
+                      ? const Color(0xFFB2AC88)
+                      : const Color(0xFFF5F5F0),
                   borderRadius: BorderRadius.circular(20),
                   border: Border.all(
                     color: isSelected ? Colors.transparent : Colors.grey[200]!,
@@ -689,7 +852,9 @@ class _FilterBottomSheetState extends State<_FilterBottomSheet> {
                   style: TextStyle(
                     fontSize: 14,
                     color: isSelected ? Colors.white : const Color(0xFF4A4F50),
-                    fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                    fontWeight: isSelected
+                        ? FontWeight.w600
+                        : FontWeight.normal,
                   ),
                 ),
               ),
@@ -707,12 +872,15 @@ class _OrderListSheet extends StatelessWidget {
   final TodayMenuState todayMenuState;
   final VoidCallback onConfirm;
 
-  const _OrderListSheet({required this.todayMenuState, required this.onConfirm});
+  const _OrderListSheet({
+    required this.todayMenuState,
+    required this.onConfirm,
+  });
 
   @override
   Widget build(BuildContext context) {
     final meals = todayMenuState.selectedMeals;
-    
+
     return Container(
       decoration: const BoxDecoration(
         color: Colors.white,
@@ -722,18 +890,40 @@ class _OrderListSheet extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.grey[200], borderRadius: BorderRadius.circular(2))),
+          Container(
+            width: 40,
+            height: 4,
+            decoration: BoxDecoration(
+              color: Colors.grey[200],
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
           const SizedBox(height: 24),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text("已选菜品", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Color(0xFF4A4F50))),
-              Text("${meals.length} 道", style: const TextStyle(color: Color(0xFFB2AC88), fontWeight: FontWeight.w600)),
+              const Text(
+                "已选菜品",
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF4A4F50),
+                ),
+              ),
+              Text(
+                "${meals.length} 道",
+                style: const TextStyle(
+                  color: Color(0xFFB2AC88),
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
             ],
           ),
           const SizedBox(height: 16),
           ConstrainedBox(
-            constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.4),
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.of(context).size.height * 0.4,
+            ),
             child: ListView.builder(
               shrinkWrap: true,
               itemCount: meals.length,
@@ -747,9 +937,9 @@ class _OrderListSheet extends StatelessWidget {
                         borderRadius: BorderRadius.circular(12),
                         child: Image.asset(
                           'assets/chinese-potato-strips.jpg',
-                          width: 50, 
-                          height: 50, 
-                          fit: BoxFit.cover
+                          width: 50,
+                          height: 50,
+                          fit: BoxFit.cover,
                         ),
                       ),
                       const SizedBox(width: 16),
@@ -757,14 +947,31 @@ class _OrderListSheet extends StatelessWidget {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(meal.name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
-                            Text(meal.difficulty, style: const TextStyle(color: Colors.grey, fontSize: 12)),
+                            Text(
+                              meal.name,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 15,
+                              ),
+                            ),
+                            Text(
+                              meal.difficulty,
+                              style: const TextStyle(
+                                color: Colors.grey,
+                                fontSize: 12,
+                              ),
+                            ),
                           ],
                         ),
                       ),
                       IconButton(
-                        onPressed: () => todayMenuState.removeFromSelected(meal.id),
-                        icon: const Icon(Icons.remove_circle_outline, color: Color(0xFFE58A73), size: 20),
+                        onPressed: () =>
+                            todayMenuState.removeFromSelected(meal.id),
+                        icon: const Icon(
+                          Icons.remove_circle_outline,
+                          color: Color(0xFFE58A73),
+                          size: 20,
+                        ),
                       ),
                     ],
                   ),
@@ -781,10 +988,15 @@ class _OrderListSheet extends StatelessWidget {
                 backgroundColor: const Color(0xFFB2AC88),
                 foregroundColor: Colors.white,
                 padding: const EdgeInsets.symmetric(vertical: 16),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
                 elevation: 0,
               ),
-              child: const Text("确认提交菜单", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+              child: const Text(
+                "确认提交菜单",
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+              ),
             ),
           ),
           const SizedBox(height: 12),

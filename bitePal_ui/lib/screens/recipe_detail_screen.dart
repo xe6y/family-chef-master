@@ -41,12 +41,12 @@ class GlassContainer extends StatelessWidget {
         child: Container(
           padding: padding,
           decoration: BoxDecoration(
-            color: (color ?? Theme.of(context).colorScheme.surface).withOpacity(
-              opacity,
+            color: (color ?? Theme.of(context).colorScheme.surface).withValues(
+              alpha: opacity,
             ),
             borderRadius: BorderRadius.circular(borderRadius),
             border: Border.all(
-              color: Colors.white.withOpacity(0.3),
+              color: Colors.white.withValues(alpha: 0.3),
               width: 0.5,
             ),
           ),
@@ -117,7 +117,7 @@ class _BouncyCardState extends State<BouncyCard>
               ), // Slightly smaller radius
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.03), // Softer shadow
+                  color: Colors.black.withValues(alpha: 0.03), // Softer shadow
                   blurRadius: 12,
                   offset: const Offset(0, 4),
                 ),
@@ -183,7 +183,9 @@ class _MinimalInputState extends State<MinimalInput> {
     return AnimatedContainer(
       duration: const Duration(milliseconds: 200),
       decoration: BoxDecoration(
-        color: _isFocused ? _sageGreen.withOpacity(0.05) : Colors.transparent,
+        color: _isFocused
+            ? _sageGreen.withValues(alpha: 0.05)
+            : Colors.transparent,
         borderRadius: BorderRadius.circular(8),
       ),
       padding: const EdgeInsets.symmetric(horizontal: 4),
@@ -200,7 +202,7 @@ class _MinimalInputState extends State<MinimalInput> {
           hintText: widget.hintText,
           hintStyle: TextStyle(
             fontSize: 13,
-            color: _textSecondary.withOpacity(0.3), // More transparent
+            color: _textSecondary.withValues(alpha: 0.3), // More transparent
             fontWeight: FontWeight.normal,
           ),
           border: InputBorder.none,
@@ -458,7 +460,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen>
                 height: 22,
                 alignment: Alignment.center,
                 decoration: BoxDecoration(
-                  color: _sageGreen.withOpacity(0.15),
+                  color: _sageGreen.withValues(alpha: 0.15),
                   shape: BoxShape.circle,
                 ),
                 child: Text(
@@ -551,7 +553,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen>
                           end: Alignment.bottomCenter,
                           colors: [
                             Colors.transparent,
-                            Colors.black.withOpacity(0.4),
+                            Colors.black.withValues(alpha: 0.4),
                           ],
                         ),
                       ),
@@ -735,7 +737,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen>
                                   border: Border.all(
                                     color: isSelected
                                         ? Colors.transparent
-                                        : Colors.grey.withOpacity(0.1),
+                                        : Colors.grey.withValues(alpha: 0.1),
                                   ),
                                 ),
                                 child: Text(
@@ -858,7 +860,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen>
                               Container(
                                 height: 16,
                                 width: 1,
-                                color: Colors.grey.withOpacity(0.2),
+                                color: Colors.grey.withValues(alpha: 0.2),
                                 margin: const EdgeInsets.symmetric(
                                   horizontal: 8,
                                 ),
@@ -900,7 +902,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen>
                                   ),
                                   child: Icon(
                                     Icons.remove_circle_outline,
-                                    color: Colors.grey.withOpacity(0.4),
+                                    color: Colors.grey.withValues(alpha: 0.4),
                                     size: 18,
                                   ),
                                 ),
@@ -991,7 +993,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen>
           color: Colors.white,
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.03),
+              color: Colors.black.withValues(alpha: 0.03),
               blurRadius: 10,
               offset: const Offset(0, -4),
             ),

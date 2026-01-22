@@ -40,12 +40,12 @@ class GlassContainer extends StatelessWidget {
         child: Container(
           padding: padding,
           decoration: BoxDecoration(
-            color: (color ?? Theme.of(context).colorScheme.surface).withOpacity(
-              opacity,
+            color: (color ?? Theme.of(context).colorScheme.surface).withValues(
+              alpha: opacity,
             ),
             borderRadius: BorderRadius.circular(borderRadius),
             border: Border.all(
-              color: Colors.white.withOpacity(0.2),
+              color: Colors.white.withValues(alpha: 0.2),
               width: 0.5,
             ),
           ),
@@ -114,7 +114,7 @@ class _BouncyCardState extends State<BouncyCard>
               borderRadius: BorderRadius.circular(20),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.03),
+                  color: Colors.black.withValues(alpha: 0.03),
                   blurRadius: 12,
                   offset: const Offset(0, 4),
                 ),
@@ -174,7 +174,7 @@ class _StatusChipState extends State<StatusChip>
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: widget.color.withOpacity(0.1),
+        color: widget.color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(8),
       ),
       child: Stack(
@@ -186,7 +186,9 @@ class _StatusChipState extends State<StatusChip>
                 builder: (context, child) => Container(
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(8),
-                    color: widget.color.withOpacity(_opacityAnimation.value),
+                    color: widget.color.withValues(
+                      alpha: _opacityAnimation.value,
+                    ),
                   ),
                 ),
               ),
@@ -363,7 +365,7 @@ class _IngredientsScreenState extends State<IngredientsScreen>
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: _oatmeal.withOpacity(0.5),
+          color: _oatmeal.withValues(alpha: 0.5),
           borderRadius: BorderRadius.circular(16),
         ),
         child: Row(
@@ -417,7 +419,7 @@ class _IngredientsScreenState extends State<IngredientsScreen>
       context,
       MaterialPageRoute(builder: (_) => const ShoppingHistorySelectionScreen()),
     );
-    if (selected != null) {
+    if (selected != null && mounted) {
       final prefill = IngredientItem(
         id: '',
         name: selected.name,
@@ -439,7 +441,7 @@ class _IngredientsScreenState extends State<IngredientsScreen>
           ),
         ),
       );
-      if (res == true) _loadIngredients();
+      if (res == true && mounted) _loadIngredients();
     }
   }
 
@@ -625,7 +627,7 @@ class _IngredientsScreenState extends State<IngredientsScreen>
               height: 80,
               width: double.infinity,
               decoration: BoxDecoration(
-                color: _oatmeal.withOpacity(0.3),
+                color: _oatmeal.withValues(alpha: 0.3),
                 borderRadius: const BorderRadius.vertical(
                   top: Radius.circular(20),
                 ),
@@ -641,7 +643,7 @@ class _IngredientsScreenState extends State<IngredientsScreen>
                       return Image.asset(
                         item.thumbnail,
                         fit: BoxFit.cover,
-                        errorBuilder: (_, __, ___) =>
+                        errorBuilder: (_, _, _) =>
                             _buildIconPlaceholder(item.icon),
                       );
                     }
@@ -703,7 +705,7 @@ class _IngredientsScreenState extends State<IngredientsScreen>
             child: Container(
               padding: const EdgeInsets.all(24),
               decoration: BoxDecoration(
-                color: _sageGreen.withOpacity(0.1),
+                color: _sageGreen.withValues(alpha: 0.1),
                 shape: BoxShape.circle,
               ),
               child: const Icon(
@@ -778,7 +780,9 @@ class _StorageHeaderDelegate extends SliverPersistentHeaderDelegate {
                       boxShadow: [
                         if (isActive)
                           BoxShadow(
-                            color: const Color(0xFFB2AC88).withOpacity(0.3),
+                            color: const Color(
+                              0xFFB2AC88,
+                            ).withValues(alpha: 0.3),
                             blurRadius: 8,
                             offset: const Offset(0, 2),
                           ),

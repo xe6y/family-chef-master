@@ -7,7 +7,6 @@ import '../widgets/refreshable_screen.dart';
 // --- Theme Constants ---
 const Color _oatmeal = Color(0xFFF5F5F0);
 const Color _sageGreen = Color(0xFFB2AC88);
-const Color _persimmon = Color(0xFFE58A73);
 const Color _textPrimary = Color(0xFF4A4F50);
 const Color _textSecondary = Color(0xFF8C8F90);
 
@@ -98,7 +97,7 @@ class _ShoppingHistoryScreenState extends State<ShoppingHistoryScreen>
           Icon(
             Icons.history_edu_rounded,
             size: 64,
-            color: _textSecondary.withOpacity(0.2),
+            color: _textSecondary.withValues(alpha: 0.2),
           ),
           const SizedBox(height: 16),
           const Text(
@@ -161,7 +160,7 @@ class _HistoryExpandableCardState extends State<_HistoryExpandableCard> {
         borderRadius: BorderRadius.circular(24),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.02),
+            color: Colors.black.withValues(alpha: 0.02),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),

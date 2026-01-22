@@ -80,7 +80,7 @@ class _FamilyMembersScreenState extends State<FamilyMembersScreen> {
           Container(
             padding: const EdgeInsets.all(32),
             decoration: BoxDecoration(
-              color: _sageGreen.withOpacity(0.1),
+              color: _sageGreen.withValues(alpha: 0.1),
               shape: BoxShape.circle,
             ),
             child: const Icon(Icons.home_rounded, size: 64, color: _sageGreen),
@@ -132,7 +132,7 @@ class _FamilyMembersScreenState extends State<FamilyMembersScreen> {
               borderRadius: BorderRadius.circular(32),
               boxShadow: [
                 BoxShadow(
-                  color: _sageGreen.withOpacity(0.3),
+                  color: _sageGreen.withValues(alpha: 0.3),
                   blurRadius: 20,
                   offset: const Offset(0, 10),
                 ),
@@ -170,7 +170,7 @@ class _FamilyMembersScreenState extends State<FamilyMembersScreen> {
                         horizontal: 16,
                         vertical: 12,
                       ),
-                      color: Colors.white.withOpacity(0.2),
+                      color: Colors.white.withValues(alpha: 0.2),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
@@ -257,7 +257,7 @@ class _FamilyMembersScreenState extends State<FamilyMembersScreen> {
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.02),
+            color: Colors.black.withValues(alpha: 0.02),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -299,7 +299,7 @@ class _FamilyMembersScreenState extends State<FamilyMembersScreen> {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               decoration: BoxDecoration(
-                color: _sageGreen.withOpacity(0.1),
+                color: _sageGreen.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: const Text(

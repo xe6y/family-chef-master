@@ -131,7 +131,7 @@ class _AppSettingsScreenState extends State<AppSettingsScreen> {
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.02),
+            color: Colors.black.withValues(alpha: 0.02),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -142,7 +142,7 @@ class _AppSettingsScreenState extends State<AppSettingsScreen> {
           Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: _sageGreen.withOpacity(0.1),
+              color: _sageGreen.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Icon(icon, color: _sageGreen, size: 20),
@@ -182,7 +182,7 @@ class _AppSettingsScreenState extends State<AppSettingsScreen> {
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.02),
+            color: Colors.black.withValues(alpha: 0.02),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -193,7 +193,7 @@ class _AppSettingsScreenState extends State<AppSettingsScreen> {
           Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: _sageGreen.withOpacity(0.1),
+              color: _sageGreen.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Icon(icon, color: _sageGreen, size: 20),

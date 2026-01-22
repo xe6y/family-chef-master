@@ -38,12 +38,12 @@ class GlassContainer extends StatelessWidget {
         child: Container(
           padding: padding,
           decoration: BoxDecoration(
-            color: (color ?? Theme.of(context).colorScheme.surface).withOpacity(
-              opacity,
+            color: (color ?? Theme.of(context).colorScheme.surface).withValues(
+              alpha: opacity,
             ),
             borderRadius: BorderRadius.circular(borderRadius),
             border: Border.all(
-              color: Colors.white.withOpacity(0.2),
+              color: Colors.white.withValues(alpha: 0.2),
               width: 0.5,
             ),
           ),
@@ -116,7 +116,7 @@ class _BouncyCardState extends State<BouncyCard>
                     borderRadius: BorderRadius.circular(16),
                     boxShadow: [
                       BoxShadow(
-                        color: widget.activeShadowColor!.withOpacity(0.4),
+                        color: widget.activeShadowColor!.withValues(alpha: 0.4),
                         blurRadius: 12,
                         offset: const Offset(0, 4),
                       ),
@@ -194,11 +194,11 @@ class _StatusChipState extends State<StatusChip>
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: widget.color.withOpacity(0.1),
+        color: widget.color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(8),
         border: widget.isBreathing
             ? null
-            : Border.all(color: widget.color.withOpacity(0.2)),
+            : Border.all(color: widget.color.withValues(alpha: 0.2)),
       ),
       child: Stack(
         children: [
@@ -210,7 +210,9 @@ class _StatusChipState extends State<StatusChip>
                   return Container(
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(8),
-                      color: widget.color.withOpacity(_opacityAnimation.value),
+                      color: widget.color.withValues(
+                        alpha: _opacityAnimation.value,
+                      ),
                     ),
                   );
                 },
@@ -266,7 +268,6 @@ class _RecipesScreenState extends State<RecipesScreen>
   // Theme Colors (Morandi)
   static const Color _sageGreen = Color(0xFFB2AC88);
   static const Color _oatmeal = Color(0xFFF5F5F0);
-  static const Color _persimmon = Color(0xFFE58A73);
 
   @override
   void initState() {
@@ -685,9 +686,6 @@ class _RecipesScreenState extends State<RecipesScreen>
       }
     }
 
-    // 判断是否为专家级别（用于呼吸动效）
-    bool isExpert = recipe.difficulty == "专业厨师" || recipe.difficulty == "硬核挑战";
-
     return GestureDetector(
       onTap: () async {
         final result = await Navigator.push(
@@ -707,7 +705,7 @@ class _RecipesScreenState extends State<RecipesScreen>
           borderRadius: BorderRadius.circular(20),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.04),
+              color: Colors.black.withValues(alpha: 0.04),
               blurRadius: 16,
               offset: const Offset(0, 4),
             ),
@@ -746,7 +744,7 @@ class _RecipesScreenState extends State<RecipesScreen>
                               child: child,
                             );
                           },
-                      errorBuilder: (_, __, ___) => Container(
+                      errorBuilder: (_, _, _) => Container(
                         color: _oatmeal,
                         child: const Icon(Icons.restaurant, color: Colors.grey),
                       ),
@@ -821,10 +819,10 @@ class _RecipesScreenState extends State<RecipesScreen>
                           vertical: 4,
                         ),
                         decoration: BoxDecoration(
-                          color: diffColor.withOpacity(0.15),
+                          color: diffColor.withValues(alpha: 0.15),
                           borderRadius: BorderRadius.circular(6),
                           border: Border.all(
-                            color: diffColor.withOpacity(0.3),
+                            color: diffColor.withValues(alpha: 0.3),
                             width: 0.5,
                           ),
                         ),
@@ -870,9 +868,9 @@ class _RecipesScreenState extends State<RecipesScreen>
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.15),
+        color: color.withValues(alpha: 0.15),
         borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: color.withOpacity(0.3), width: 0.5),
+        border: Border.all(color: color.withValues(alpha: 0.3), width: 0.5),
       ),
       child: Text(
         tagName,
@@ -924,7 +922,7 @@ class _RecipesScreenState extends State<RecipesScreen>
               width: 100,
               height: 100,
               decoration: BoxDecoration(
-                color: _sageGreen.withOpacity(0.1),
+                color: _sageGreen.withValues(alpha: 0.1),
                 shape: BoxShape.circle,
               ),
               child: const Icon(
@@ -974,7 +972,7 @@ class _TabHeaderDelegate extends SliverPersistentHeaderDelegate {
           height: 44,
           padding: const EdgeInsets.all(4),
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.4),
+            color: Colors.white.withValues(alpha: 0.4),
             borderRadius: BorderRadius.circular(30),
           ),
           child: LayoutBuilder(
@@ -995,7 +993,7 @@ class _TabHeaderDelegate extends SliverPersistentHeaderDelegate {
                         borderRadius: BorderRadius.circular(26),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withOpacity(0.05),
+                            color: Colors.black.withValues(alpha: 0.05),
                             blurRadius: 4,
                             offset: const Offset(0, 2),
                           ),

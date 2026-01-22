@@ -8,7 +8,6 @@ import '../widgets/refreshable_screen.dart';
 // --- Theme Constants ---
 const Color _oatmeal = Color(0xFFF5F5F0);
 const Color _sageGreen = Color(0xFFB2AC88);
-const Color _persimmon = Color(0xFFE58A73);
 const Color _textPrimary = Color(0xFF4A4F50);
 const Color _textSecondary = Color(0xFF8C8F90);
 
@@ -65,7 +64,7 @@ class _BouncyCardState extends State<BouncyCard>
               borderRadius: BorderRadius.circular(20),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.03),
+                  color: Colors.black.withValues(alpha: 0.03),
                   blurRadius: 16,
                   offset: const Offset(0, 4),
                 ),
@@ -124,8 +123,8 @@ class _MinimalInputState extends State<MinimalInput> {
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
       decoration: BoxDecoration(
         color: _isFocused
-            ? _sageGreen.withOpacity(0.05)
-            : _oatmeal.withOpacity(0.5),
+            ? _sageGreen.withValues(alpha: 0.05)
+            : _oatmeal.withValues(alpha: 0.5),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Row(
@@ -153,7 +152,7 @@ class _MinimalInputState extends State<MinimalInput> {
               decoration: InputDecoration(
                 hintText: widget.hintText,
                 hintStyle: TextStyle(
-                  color: _textSecondary.withOpacity(0.3),
+                  color: _textSecondary.withValues(alpha: 0.3),
                   fontSize: 13,
                   fontWeight: FontWeight.normal,
                 ),
@@ -297,7 +296,9 @@ class _PurchasedItemsScreenState extends State<PurchasedItemsScreen>
                                     Container(
                                       padding: const EdgeInsets.all(8),
                                       decoration: BoxDecoration(
-                                        color: _sageGreen.withOpacity(0.1),
+                                        color: _sageGreen.withValues(
+                                          alpha: 0.1,
+                                        ),
                                         borderRadius: BorderRadius.circular(10),
                                       ),
                                       child: const Icon(
@@ -415,7 +416,7 @@ class _PurchasedItemsScreenState extends State<PurchasedItemsScreen>
         borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 20,
             offset: const Offset(0, -10),
           ),
@@ -482,7 +483,7 @@ class _PurchasedItemsScreenState extends State<PurchasedItemsScreen>
           Icon(
             Icons.receipt_long_rounded,
             size: 64,
-            color: _textSecondary.withOpacity(0.2),
+            color: _textSecondary.withValues(alpha: 0.2),
           ),
           const SizedBox(height: 16),
           const Text(

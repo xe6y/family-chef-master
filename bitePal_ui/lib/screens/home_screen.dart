@@ -187,9 +187,7 @@ class _HomeScreenState extends State<HomeScreen>
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
       body: _isLoading
-          ? Center(
-              child: CircularProgressIndicator(color: colorScheme.primary),
-            )
+          ? Center(child: CircularProgressIndicator(color: colorScheme.primary))
           : SafeArea(
               bottom: false,
               child: Column(
@@ -351,11 +349,7 @@ class _HomeScreenState extends State<HomeScreen>
       case MoodState.excited:
         return (Icons.emoji_emotions_rounded, const Color(0xFFFFB74D), '兴奋');
       case MoodState.calm:
-        return (
-          Icons.sentiment_satisfied_rounded,
-          colorScheme.primary,
-          '平静',
-        );
+        return (Icons.sentiment_satisfied_rounded, colorScheme.primary, '平静');
       case MoodState.sleepy:
         return (
           Icons.sentiment_dissatisfied_rounded,
@@ -366,12 +360,6 @@ class _HomeScreenState extends State<HomeScreen>
         return (Icons.ramen_dining_rounded, colorScheme.tertiary, '饿了');
       case MoodState.thinking:
         return (Icons.help_outline_rounded, const Color(0xFF7C4DFF), '纠结');
-      default:
-        return (
-          Icons.sentiment_satisfied_rounded,
-          colorScheme.primary,
-          '平静',
-        );
     }
   }
 
@@ -389,10 +377,7 @@ class _HomeScreenState extends State<HomeScreen>
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text(
-              "今天心情如何？",
-              style: theme.textTheme.titleLarge,
-            ),
+            Text("今天心情如何？", style: theme.textTheme.titleLarge),
             const SizedBox(height: 20),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -426,10 +411,7 @@ class _HomeScreenState extends State<HomeScreen>
                         child: Icon(icon, color: Colors.white, size: 28),
                       ),
                       const SizedBox(height: 8),
-                      Text(
-                        label,
-                        style: theme.textTheme.labelMedium,
-                      ),
+                      Text(label, style: theme.textTheme.labelMedium),
                     ],
                   ),
                 );
@@ -453,11 +435,7 @@ class _HomeScreenState extends State<HomeScreen>
       case MoodState.excited:
         return (Icons.emoji_emotions_rounded, const Color(0xFFFFB74D), '兴奋');
       case MoodState.calm:
-        return (
-          Icons.sentiment_satisfied_rounded,
-          colorScheme.primary,
-          '平静',
-        );
+        return (Icons.sentiment_satisfied_rounded, colorScheme.primary, '平静');
       case MoodState.sleepy:
         return (
           Icons.sentiment_dissatisfied_rounded,
@@ -468,12 +446,6 @@ class _HomeScreenState extends State<HomeScreen>
         return (Icons.ramen_dining_rounded, colorScheme.tertiary, '饿了');
       case MoodState.thinking:
         return (Icons.help_outline_rounded, const Color(0xFF7C4DFF), '纠结');
-      default:
-        return (
-          Icons.sentiment_satisfied_rounded,
-          colorScheme.primary,
-          '平静',
-        );
     }
   }
 
@@ -481,7 +453,7 @@ class _HomeScreenState extends State<HomeScreen>
   Widget _buildTodayRecommendationCard() {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
-    
+
     return Container(
       decoration: BoxDecoration(
         gradient: LinearGradient(
@@ -629,10 +601,7 @@ class _HomeScreenState extends State<HomeScreen>
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      "今日菜单",
-                      style: theme.textTheme.titleMedium,
-                    ),
+                    Text("今日菜单", style: theme.textTheme.titleMedium),
                     if (hasMenu)
                       Text(
                         "已有 ${_todayRecipes.length} 道菜品",
@@ -689,7 +658,7 @@ class _HomeScreenState extends State<HomeScreen>
   Widget _buildMenuItem(Recipe recipe) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
-    
+
     return GestureDetector(
       onTap: () {
         Navigator.push(
@@ -734,9 +703,7 @@ class _HomeScreenState extends State<HomeScreen>
             Expanded(
               child: Text(
                 recipe.name,
-                style: theme.textTheme.titleSmall?.copyWith(
-                  fontSize: 14,
-                ),
+                style: theme.textTheme.titleSmall?.copyWith(fontSize: 14),
               ),
             ),
             // 标签
@@ -843,23 +810,25 @@ class _HomeScreenState extends State<HomeScreen>
               width: 32,
               height: 32,
               decoration: BoxDecoration(
-                color: (urgentCount > 0 ? colorScheme.tertiary : colorScheme.primary)
-                    .withValues(alpha: 0.1),
+                color:
+                    (urgentCount > 0
+                            ? colorScheme.tertiary
+                            : colorScheme.primary)
+                        .withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(10),
               ),
               child: Icon(
                 urgentCount > 0
                     ? Icons.warning_rounded
                     : Icons.notifications_none_rounded,
-                color: urgentCount > 0 ? colorScheme.tertiary : colorScheme.primary,
+                color: urgentCount > 0
+                    ? colorScheme.tertiary
+                    : colorScheme.primary,
                 size: 18,
               ),
             ),
             const SizedBox(width: 10),
-            Text(
-              "食材提醒",
-              style: theme.textTheme.titleMedium,
-            ),
+            Text("食材提醒", style: theme.textTheme.titleMedium),
             const Spacer(),
             if (urgentCount > 0)
               Container(
@@ -898,7 +867,9 @@ class _HomeScreenState extends State<HomeScreen>
       padding: const EdgeInsets.only(bottom: 10),
       child: Container(
         decoration: BoxDecoration(
-          color: isUrgent ? colorScheme.tertiary.withValues(alpha: 0.05) : colorScheme.surface,
+          color: isUrgent
+              ? colorScheme.tertiary.withValues(alpha: 0.05)
+              : colorScheme.surface,
           borderRadius: BorderRadius.circular(16),
           boxShadow: [
             BoxShadow(
@@ -936,10 +907,7 @@ class _HomeScreenState extends State<HomeScreen>
                     ingredient.name,
                     style: theme.textTheme.titleSmall?.copyWith(fontSize: 14),
                   ),
-                  Text(
-                    ingredient.amount,
-                    style: theme.textTheme.bodySmall,
-                  ),
+                  Text(ingredient.amount, style: theme.textTheme.bodySmall),
                 ],
               ),
             ),
@@ -973,10 +941,7 @@ class _HomeScreenState extends State<HomeScreen>
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          "快捷入口",
-          style: theme.textTheme.titleMedium,
-        ),
+        Text("快捷入口", style: theme.textTheme.titleMedium),
         const SizedBox(height: 12),
         Row(
           children: [

@@ -108,11 +108,13 @@ class _MinimalInputState extends State<MinimalInput> {
       padding: const EdgeInsets.symmetric(horizontal: 12),
       decoration: BoxDecoration(
         color: _isFocused
-            ? _sageGreen.withOpacity(0.08)
-            : _oatmeal.withOpacity(0.5),
+            ? _sageGreen.withValues(alpha: 0.08)
+            : _oatmeal.withValues(alpha: 0.5),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: _isFocused ? _sageGreen.withOpacity(0.2) : Colors.transparent,
+          color: _isFocused
+              ? _sageGreen.withValues(alpha: 0.2)
+              : Colors.transparent,
         ),
       ),
       child: Row(
@@ -121,7 +123,9 @@ class _MinimalInputState extends State<MinimalInput> {
             Icon(
               widget.prefixIcon,
               size: 18,
-              color: _isFocused ? _sageGreen : _textSecondary.withOpacity(0.5),
+              color: _isFocused
+                  ? _sageGreen
+                  : _textSecondary.withValues(alpha: 0.5),
             ),
           if (widget.prefixIcon != null) const SizedBox(width: 8),
           Expanded(
@@ -138,7 +142,7 @@ class _MinimalInputState extends State<MinimalInput> {
               decoration: InputDecoration(
                 hintText: widget.hintText,
                 hintStyle: TextStyle(
-                  color: _textSecondary.withOpacity(0.3),
+                  color: _textSecondary.withValues(alpha: 0.3),
                   fontWeight: FontWeight.normal,
                 ),
                 border: InputBorder.none,
@@ -382,7 +386,7 @@ class _AddShoppingItemDialogState extends State<AddShoppingItemDialog> {
         child: Container(
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
-            color: _sageGreen.withOpacity(0.1),
+            color: _sageGreen.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(16),
           ),
           child: Row(
@@ -433,7 +437,7 @@ class _AddShoppingItemDialogState extends State<AddShoppingItemDialog> {
         child: Container(
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
-            color: _oatmeal.withOpacity(0.3),
+            color: _oatmeal.withValues(alpha: 0.3),
             borderRadius: BorderRadius.circular(16),
           ),
           child: Row(

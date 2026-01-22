@@ -43,10 +43,10 @@ class GlassContainer extends StatelessWidget {
         child: Container(
           padding: padding,
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(opacity),
+            color: Colors.white.withValues(alpha: opacity),
             borderRadius: BorderRadius.circular(borderRadius),
             border: Border.all(
-              color: Colors.white.withOpacity(0.3),
+              color: Colors.white.withValues(alpha: 0.3),
               width: 0.5,
             ),
           ),
@@ -115,7 +115,7 @@ class _BouncyCardState extends State<BouncyCard>
               borderRadius: BorderRadius.circular(20),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.03),
+                  color: Colors.black.withValues(alpha: 0.03),
                   blurRadius: 16,
                   offset: const Offset(0, 4),
                 ),
@@ -176,7 +176,9 @@ class _MinimalInputState extends State<MinimalInput> {
     return AnimatedContainer(
       duration: const Duration(milliseconds: 200),
       decoration: BoxDecoration(
-        color: _isFocused ? _sageGreen.withOpacity(0.05) : Colors.transparent,
+        color: _isFocused
+            ? _sageGreen.withValues(alpha: 0.05)
+            : Colors.transparent,
         borderRadius: BorderRadius.circular(12),
       ),
       padding: const EdgeInsets.symmetric(horizontal: 12),
@@ -193,7 +195,7 @@ class _MinimalInputState extends State<MinimalInput> {
           hintText: widget.hintText,
           hintStyle: TextStyle(
             fontSize: 14,
-            color: _textSecondary.withOpacity(0.4),
+            color: _textSecondary.withValues(alpha: 0.4),
           ),
           border: InputBorder.none,
           isDense: true,
@@ -223,7 +225,6 @@ class _IngredientEditScreenState extends State<IngredientEditScreen> {
   final StorageLocationService _storageService = StorageLocationService();
   final HttpClient _httpClient = HttpClient();
   final ImagePicker _imagePicker = ImagePicker();
-  final _formKey = GlobalKey<FormState>();
 
   // State
   bool _isSaving = false;
@@ -420,7 +421,7 @@ class _IngredientEditScreenState extends State<IngredientEditScreen> {
                           end: Alignment.bottomCenter,
                           colors: [
                             Colors.transparent,
-                            Colors.black.withOpacity(0.2),
+                            Colors.black.withValues(alpha: 0.2),
                           ],
                         ),
                       ),
@@ -672,7 +673,7 @@ class _IngredientEditScreenState extends State<IngredientEditScreen> {
         color: Colors.white,
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.03),
+            color: Colors.black.withValues(alpha: 0.03),
             blurRadius: 10,
             offset: const Offset(0, -4),
           ),
@@ -850,5 +851,5 @@ class SliverChildListFromGenerator extends SliverChildDelegate {
   @override
   bool shouldRebuild(covariant SliverChildDelegate oldDelegate) => true;
   @override
-  int? get childCount => children.length;
+  int? get estimatedChildCount => children.length;
 }

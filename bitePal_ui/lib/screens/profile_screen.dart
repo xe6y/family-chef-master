@@ -42,10 +42,10 @@ class GlassContainer extends StatelessWidget {
         child: Container(
           padding: padding,
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(opacity),
+            color: Colors.white.withValues(alpha: opacity),
             borderRadius: BorderRadius.circular(borderRadius),
             border: Border.all(
-              color: Colors.white.withOpacity(0.2),
+              color: Colors.white.withValues(alpha: 0.2),
               width: 0.5,
             ),
           ),
@@ -115,7 +115,7 @@ class _BouncyCardState extends State<BouncyCard>
               borderRadius: BorderRadius.circular(24),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.02),
+                  color: Colors.black.withValues(alpha: 0.02),
                   blurRadius: 12,
                   offset: const Offset(0, 4),
                 ),
@@ -232,7 +232,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     width: 200,
                     height: 200,
                     decoration: BoxDecoration(
-                      color: _sageGreen.withOpacity(0.1),
+                      color: _sageGreen.withValues(alpha: 0.1),
                       shape: BoxShape.circle,
                     ),
                   ),
@@ -432,7 +432,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         shape: BoxShape.circle,
         boxShadow: [
           BoxShadow(
-            color: _sageGreen.withOpacity(0.2),
+            color: _sageGreen.withValues(alpha: 0.2),
             blurRadius: 20,
             offset: const Offset(0, 8),
           ),
@@ -480,7 +480,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   unit,
                   style: TextStyle(
                     fontSize: 12,
-                    color: color.withOpacity(0.6),
+                    color: color.withValues(alpha: 0.6),
                     fontWeight: FontWeight.bold,
                   ),
                 ),
@@ -507,7 +507,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             Container(
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                color: _sageGreen.withOpacity(0.1),
+                color: _sageGreen.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(14),
               ),
               child: Icon(icon, color: _sageGreen, size: 20),

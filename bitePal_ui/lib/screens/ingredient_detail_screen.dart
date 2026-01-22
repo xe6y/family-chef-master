@@ -48,7 +48,9 @@ class _IngredientDetailScreenState extends State<IngredientDetailScreen> {
 
     try {
       // 加载食材详情
-      final detail = await _ingredientService.getIngredientDetail(widget.ingredientId);
+      final detail = await _ingredientService.getIngredientDetail(
+        widget.ingredientId,
+      );
       if (detail != null) {
         _ingredient = detail;
         // 加载同名批次
@@ -85,11 +87,13 @@ class _IngredientDetailScreenState extends State<IngredientDetailScreen> {
     );
 
     if (confirmed == true) {
-      final success = await _ingredientService.deleteIngredient(widget.ingredientId);
+      final success = await _ingredientService.deleteIngredient(
+        widget.ingredientId,
+      );
       if (success && mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('删除成功')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('删除成功')));
         Navigator.pop(context, true);
       }
     }
@@ -142,39 +146,39 @@ class _IngredientDetailScreenState extends State<IngredientDetailScreen> {
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _ingredient == null
-              ? const Center(child: Text('食材不存在'))
-              : RefreshIndicator(
-                  onRefresh: _loadData,
-                  child: SingleChildScrollView(
-                    physics: const AlwaysScrollableScrollPhysics(),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // 头部信息
-                        _buildHeader(),
-                        const SizedBox(height: 16),
+          ? const Center(child: Text('食材不存在'))
+          : RefreshIndicator(
+              onRefresh: _loadData,
+              child: SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // 头部信息
+                    _buildHeader(),
+                    const SizedBox(height: 16),
 
-                        // 基本信息卡片
-                        _buildInfoCard(),
-                        const SizedBox(height: 16),
+                    // 基本信息卡片
+                    _buildInfoCard(),
+                    const SizedBox(height: 16),
 
-                        // 备注信息
-                        if (_ingredient!.note.isNotEmpty) ...[
-                          _buildNoteCard(),
-                          const SizedBox(height: 16),
-                        ],
+                    // 备注信息
+                    if (_ingredient!.note.isNotEmpty) ...[
+                      _buildNoteCard(),
+                      const SizedBox(height: 16),
+                    ],
 
-                        // 同名批次
-                        if (_batches.length > 1) ...[
-                          _buildBatchesSection(),
-                          const SizedBox(height: 16),
-                        ],
+                    // 同名批次
+                    if (_batches.length > 1) ...[
+                      _buildBatchesSection(),
+                      const SizedBox(height: 16),
+                    ],
 
-                        const SizedBox(height: 80),
-                      ],
-                    ),
-                  ),
+                    const SizedBox(height: 80),
+                  ],
                 ),
+              ),
+            ),
     );
   }
 
@@ -214,7 +218,7 @@ class _IngredientDetailScreenState extends State<IngredientDetailScreen> {
                           ? ingredient.thumbnail
                           : '${ApiConfig.devBaseUrl.replaceAll('/api', '')}${ingredient.thumbnail}',
                       fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => Center(
+                      errorBuilder: (_, _, _) => Center(
                         child: Text(
                           ingredient.icon,
                           style: const TextStyle(fontSize: 48),
@@ -234,10 +238,7 @@ class _IngredientDetailScreenState extends State<IngredientDetailScreen> {
           // 名称
           Text(
             ingredient.name,
-            style: const TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-            ),
+            style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 8),
 
@@ -246,10 +247,14 @@ class _IngredientDetailScreenState extends State<IngredientDetailScreen> {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
               decoration: BoxDecoration(
-                color: _parseColor(ingredient.category!.color).withValues(alpha: 0.1),
+                color: _parseColor(
+                  ingredient.category!.color,
+                ).withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(16),
                 border: Border.all(
-                  color: _parseColor(ingredient.category!.color).withValues(alpha: 0.3),
+                  color: _parseColor(
+                    ingredient.category!.color,
+                  ).withValues(alpha: 0.3),
                 ),
               ),
               child: Row(
@@ -305,8 +310,8 @@ class _IngredientDetailScreenState extends State<IngredientDetailScreen> {
                 valueColor: ingredient.urgent
                     ? Colors.red
                     : ingredient.expiryDays <= 3
-                        ? Colors.orange
-                        : null,
+                    ? Colors.orange
+                    : null,
                 trailing: Text(
                   ingredient.expiryText,
                   style: TextStyle(
@@ -314,12 +319,13 @@ class _IngredientDetailScreenState extends State<IngredientDetailScreen> {
                     color: ingredient.urgent
                         ? Colors.red
                         : ingredient.expiryDays <= 3
-                            ? Colors.orange
-                            : Theme.of(context).colorScheme.primary,
+                        ? Colors.orange
+                        : Theme.of(context).colorScheme.primary,
                   ),
                 ),
               ),
-              if (ingredient.purchaseDate != null && ingredient.purchaseDate!.isNotEmpty) ...[
+              if (ingredient.purchaseDate != null &&
+                  ingredient.purchaseDate!.isNotEmpty) ...[
                 const Divider(),
                 _buildInfoRow(
                   icon: Icons.shopping_cart_outlined,
@@ -351,7 +357,9 @@ class _IngredientDetailScreenState extends State<IngredientDetailScreen> {
           Text(
             label,
             style: TextStyle(
-              color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
+              color: Theme.of(
+                context,
+              ).colorScheme.onSurface.withValues(alpha: 0.6),
             ),
           ),
           const Spacer(),
@@ -360,10 +368,7 @@ class _IngredientDetailScreenState extends State<IngredientDetailScreen> {
           else
             Text(
               value,
-              style: TextStyle(
-                fontWeight: FontWeight.w500,
-                color: valueColor,
-              ),
+              style: TextStyle(fontWeight: FontWeight.w500, color: valueColor),
             ),
         ],
       ),
@@ -390,10 +395,7 @@ class _IngredientDetailScreenState extends State<IngredientDetailScreen> {
                   const SizedBox(width: 8),
                   const Text(
                     '备注',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                    ),
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
                   ),
                 ],
               ),
@@ -401,7 +403,9 @@ class _IngredientDetailScreenState extends State<IngredientDetailScreen> {
               Text(
                 _ingredient!.note,
                 style: TextStyle(
-                  color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.8),
+                  color: Theme.of(
+                    context,
+                  ).colorScheme.onSurface.withValues(alpha: 0.8),
                 ),
               ),
             ],
@@ -434,58 +438,65 @@ class _IngredientDetailScreenState extends State<IngredientDetailScreen> {
               ],
             ),
           ),
-          ..._batches.map((batch) => Card(
-                margin: const EdgeInsets.only(bottom: 8),
-                child: ListTile(
-                  leading: Container(
-                    width: 40,
-                    height: 40,
-                    decoration: BoxDecoration(
-                      color: batch.id == widget.ingredientId
-                          ? Theme.of(context).colorScheme.primary.withValues(alpha: 0.1)
-                          : Theme.of(context).colorScheme.surfaceContainerHighest,
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Center(
-                      child: Text(batch.icon, style: const TextStyle(fontSize: 20)),
-                    ),
-                  ),
-                  title: Text(
-                    batch.displayAmount,
-                    style: TextStyle(
-                      fontWeight: batch.id == widget.ingredientId
-                          ? FontWeight.bold
-                          : FontWeight.normal,
-                    ),
-                  ),
-                  subtitle: Text('过期: ${batch.expiryDate ?? '-'}'),
-                  trailing: Text(
-                    batch.expiryText,
-                    style: TextStyle(
-                      color: batch.urgent
-                          ? Colors.red
-                          : batch.expiryDays <= 3
-                              ? Colors.orange
-                              : null,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                  selected: batch.id == widget.ingredientId,
-                  onTap: batch.id == widget.ingredientId
-                      ? null
-                      : () {
-                          Navigator.pushReplacement(
+          ..._batches.map(
+            (batch) => Card(
+              margin: const EdgeInsets.only(bottom: 8),
+              child: ListTile(
+                leading: Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: batch.id == widget.ingredientId
+                        ? Theme.of(
                             context,
-                            MaterialPageRoute(
-                              builder: (context) => IngredientDetailScreen(
-                                ingredientId: batch.id,
-                                initialIngredient: batch,
-                              ),
-                            ),
-                          );
-                        },
+                          ).colorScheme.primary.withValues(alpha: 0.1)
+                        : Theme.of(context).colorScheme.surfaceContainerHighest,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Center(
+                    child: Text(
+                      batch.icon,
+                      style: const TextStyle(fontSize: 20),
+                    ),
+                  ),
                 ),
-              )),
+                title: Text(
+                  batch.displayAmount,
+                  style: TextStyle(
+                    fontWeight: batch.id == widget.ingredientId
+                        ? FontWeight.bold
+                        : FontWeight.normal,
+                  ),
+                ),
+                subtitle: Text('过期: ${batch.expiryDate ?? '-'}'),
+                trailing: Text(
+                  batch.expiryText,
+                  style: TextStyle(
+                    color: batch.urgent
+                        ? Colors.red
+                        : batch.expiryDays <= 3
+                        ? Colors.orange
+                        : null,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                selected: batch.id == widget.ingredientId,
+                onTap: batch.id == widget.ingredientId
+                    ? null
+                    : () {
+                        Navigator.pushReplacement(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => IngredientDetailScreen(
+                              ingredientId: batch.id,
+                              initialIngredient: batch,
+                            ),
+                          ),
+                        );
+                      },
+              ),
+            ),
+          ),
         ],
       ),
     );
@@ -505,4 +516,3 @@ class _IngredientDetailScreenState extends State<IngredientDetailScreen> {
     }
   }
 }
-

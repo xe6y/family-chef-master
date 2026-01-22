@@ -115,7 +115,7 @@ class AppTheme {
       // Navigation Bar Theme
       navigationBarTheme: NavigationBarThemeData(
         backgroundColor: Colors.transparent,
-        indicatorColor: primary.withOpacity(0.3),
+        indicatorColor: primary.withValues(alpha: 0.3),
         labelTextStyle: WidgetStateProperty.all(
           _textTheme.labelSmall?.copyWith(
             color: textPrimary,
