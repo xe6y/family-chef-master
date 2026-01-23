@@ -72,6 +72,7 @@ func autoMigrate() error {
 		&Family{},
 		&FamilyMemberInfo{},
 		&StorageLocation{},
+		&UserTag{},
 	)
 	if err != nil {
 		return err

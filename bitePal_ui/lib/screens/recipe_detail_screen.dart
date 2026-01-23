@@ -5,6 +5,8 @@ import 'package:google_fonts/google_fonts.dart';
 import '../models/recipe.dart';
 import '../services/recipe_service.dart';
 import '../services/category_service.dart';
+import '../services/user_tag_service.dart';
+import '../services/ingredient_service.dart';
 
 // --- Theme Colors ---
 const Color _oatmeal = Color(0xFFF5F5F0);
@@ -236,12 +238,17 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen>
     with SingleTickerProviderStateMixin {
   final RecipeService _recipeService = RecipeService();
   final CategoryService _categoryService = CategoryService();
+  final UserTagService _userTagService = UserTagService();
+  final IngredientService _ingredientService = IngredientService();
 
   // State
   Recipe? _recipe;
   bool _isLoading = true;
   bool _isEditing = false;
   late AnimationController _rotateController;
+
+  // 食材充足状态缓存 (食材名称 -> 充足状态)
+  final Map<String, String> _ingredientStatusCache = {};
 
   // Controllers
   late TextEditingController _nameController;
@@ -251,6 +258,8 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen>
 
   List<Ingredient> _ingredients = [];
   List<String> _steps = [];
+  List<String> _tags = [];
+  List<String> _tagColors = [];
 
   @override
   void initState() {
@@ -323,7 +332,12 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen>
           _difficulty = recipe.difficulty;
           _ingredients = List.from(recipe.ingredients ?? []);
           _steps = List.from(recipe.steps ?? []);
+          _tags = List.from(recipe.tags);
+          _tagColors = List.from(recipe.tagColors);
         });
+
+        // 加载完成后检查所有食材状态
+        _checkAllIngredientsStatus();
       }
     } catch (e) {
       debugPrint('加载详情失败: $e');
@@ -336,6 +350,58 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen>
     _timeController.dispose();
     _rotateController.dispose();
     super.dispose();
+  }
+
+  // --- Ingredient Status Check ---
+
+  /// 检查食材充足状态
+  /// 返回: 'sufficient' (充足) / 'insufficient' (不足) / 'unknown' (未知)
+  Future<String> _checkIngredientStatus(String ingredientName) async {
+    // 如果已有缓存，直接返回
+    if (_ingredientStatusCache.containsKey(ingredientName)) {
+      return _ingredientStatusCache[ingredientName]!;
+    }
+
+    try {
+      // 查询库存中是否有该食材
+      final batches = await _ingredientService.getIngredientBatches(
+        ingredientName,
+      );
+
+      String status;
+      if (batches.isEmpty) {
+        status = 'unknown'; // 未知（库存中没有该食材）
+      } else {
+        // 计算总数量
+        final totalQuantity = batches.fold<double>(
+          0,
+          (sum, item) => sum + item.quantity,
+        );
+
+        // 简单判断：数量大于0则充足
+        status = totalQuantity > 0 ? 'sufficient' : 'insufficient';
+      }
+
+      // 缓存结果
+      _ingredientStatusCache[ingredientName] = status;
+      return status;
+    } catch (e) {
+      debugPrint('检查食材状态失败: $e');
+      return 'unknown';
+    }
+  }
+
+  /// 批量检查所有食材状态
+  Future<void> _checkAllIngredientsStatus() async {
+    if (_ingredients.isEmpty) return;
+
+    // 并发检查所有食材状态
+    await Future.wait(
+      _ingredients.map((ingredient) => _checkIngredientStatus(ingredient.name)),
+    );
+
+    // 刷新UI
+    if (mounted) setState(() {});
   }
 
   // --- Actions ---
@@ -388,9 +454,9 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen>
 
       difficulty: _difficulty,
 
-      tags: [], // 可以在后续需求中补齐标签编辑
+      tags: _tags, // 使用标签数据
 
-      tagColors: [],
+      tagColors: _tagColors,
 
       categories: [],
 
@@ -445,12 +511,96 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen>
     }
   }
 
+  // --- Tag Management Methods ---
+
+  void _addTag(String tagName, String tagColor) {
+    if (tagName.trim().isEmpty) return;
+    setState(() {
+      _tags.add(tagName.trim());
+      _tagColors.add(tagColor);
+    });
+  }
+
+  void _removeTag(int index) {
+    setState(() {
+      _tags.removeAt(index);
+      _tagColors.removeAt(index);
+    });
+  }
+
+  Future<void> _showAddTagDialog() async {
+    String selectedColor = '#B2AC88'; // Default sage green
+    List<UserTag> userTags = [];
+
+    // Load user tags
+    try {
+      final tags = await _userTagService.getUserTags();
+      if (tags != null) {
+        userTags = tags;
+      }
+    } catch (e) {
+      debugPrint('加载用户标签失败: $e');
+    }
+
+    if (!mounted) return;
+
+    await showDialog(
+      context: context,
+      builder: (context) => _AddTagDialog(
+        selectedColor: selectedColor,
+        userTags: userTags,
+        onAddTag: (name, color) => _addTag(name, color),
+      ),
+    );
+  }
+
+  // --- Helper Methods ---
+
+  /// 构建食材状态指示器
+  Widget _buildIngredientStatusIndicator(String ingredientName) {
+    final status = _ingredientStatusCache[ingredientName] ?? 'unknown';
+
+    IconData icon;
+    Color color;
+
+    switch (status) {
+      case 'sufficient':
+        icon = Icons.check_circle;
+        color = const Color(0xFF43A047); // 绿色
+        break;
+      case 'insufficient':
+        icon = Icons.warning;
+        color = const Color(0xFFFF9800); // 橙色
+        break;
+      case 'unknown':
+      default:
+        icon = Icons.remove_circle_outline;
+        color = const Color(0xFFBDBDBD); // 灰色
+        break;
+    }
+
+    return Icon(icon, size: 16, color: color);
+  }
+
+  Color _parseColor(String colorString) {
+    try {
+      if (colorString.startsWith('#')) {
+        return Color(
+          int.parse(colorString.substring(1), radix: 16) + 0xFF000000,
+        );
+      }
+      return _sageGreen;
+    } catch (e) {
+      return _sageGreen;
+    }
+  }
+
   Widget _buildStepItem(int index) {
     return Column(
       key: ValueKey("step_$index"),
       children: [
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
           child: Row(
             crossAxisAlignment:
                 CrossAxisAlignment.center, // Perfect vertical alignment
@@ -764,7 +914,126 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen>
             ),
           ),
 
-          // 3. Ingredients Section - Dense List
+          // 3. Tags Section
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+              child: BouncyCard(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 16,
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        const Icon(
+                          Icons.local_offer_rounded,
+                          size: 18,
+                          color: _textSecondary,
+                        ),
+                        const SizedBox(width: 8),
+                        const Text(
+                          "菜品标签",
+                          style: TextStyle(fontSize: 14, color: _textSecondary),
+                        ),
+                        const Spacer(),
+                        if (_isEditing)
+                          GestureDetector(
+                            onTap: _showAddTagDialog,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 4,
+                              ),
+                              decoration: BoxDecoration(
+                                color: _sageGreen.withValues(alpha: 0.1),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(Icons.add, size: 14, color: _sageGreen),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    "添加",
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: _sageGreen,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                    if (_tags.isNotEmpty) ...[
+                      const SizedBox(height: 12),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: List.generate(_tags.length, (index) {
+                          final tagColor = _tagColors.length > index
+                              ? _parseColor(_tagColors[index])
+                              : _sageGreen;
+                          return Container(
+                            padding: EdgeInsets.symmetric(
+                              horizontal: _isEditing ? 8 : 12,
+                              vertical: 6,
+                            ),
+                            decoration: BoxDecoration(
+                              color: tagColor.withValues(alpha: 0.15),
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(
+                                color: tagColor.withValues(alpha: 0.3),
+                                width: 1,
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  _tags[index],
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    color: tagColor,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                                if (_isEditing) ...[
+                                  const SizedBox(width: 4),
+                                  GestureDetector(
+                                    onTap: () => _removeTag(index),
+                                    child: Icon(
+                                      Icons.close,
+                                      size: 14,
+                                      color: tagColor.withValues(alpha: 0.7),
+                                    ),
+                                  ),
+                                ],
+                              ],
+                            ),
+                          );
+                        }),
+                      ),
+                    ] else if (!_isEditing)
+                      const Padding(
+                        padding: EdgeInsets.only(top: 8),
+                        child: Text(
+                          "暂无标签",
+                          style: TextStyle(fontSize: 13, color: _textSecondary),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+
+          // 4. Ingredients Section - Dense List
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
@@ -807,21 +1076,21 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen>
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: BouncyCard(
-                padding: const EdgeInsets.symmetric(vertical: 4),
+                padding: const EdgeInsets.symmetric(vertical: 12),
                 child: Column(
                   children: List.generate(_ingredients.length, (index) {
                     return Column(
                       children: [
                         Padding(
                           padding: const EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 8,
+                            horizontal: 20,
+                            vertical: 12,
                           ),
                           child: Row(
                             children: [
-                              // Ingredient Name (70%)
+                              // Ingredient Name (60%)
                               Expanded(
-                                flex: 7,
+                                flex: 6,
                                 child: _isEditing
                                     ? MinimalInput(
                                         controller:
@@ -856,6 +1125,13 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen>
                                         ),
                                       ),
                               ),
+                              // Status Indicator (只在非编辑模式显示)
+                              if (!_isEditing) ...[
+                                const SizedBox(width: 8),
+                                _buildIngredientStatusIndicator(
+                                  _ingredients[index].name,
+                                ),
+                              ],
                               // Vertical Divider
                               Container(
                                 height: 16,
@@ -959,7 +1235,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen>
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 100),
             sliver: SliverToBoxAdapter(
               child: BouncyCard(
-                padding: EdgeInsets.zero,
+                padding: const EdgeInsets.symmetric(vertical: 12),
                 child: _isEditing
                     ? ReorderableListView.builder(
                         shrinkWrap: true,
@@ -1059,6 +1335,343 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen>
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+// --- Add Tag Dialog Component ---
+
+class _AddTagDialog extends StatefulWidget {
+  final String selectedColor;
+  final List<UserTag> userTags;
+  final Function(String, String) onAddTag;
+
+  const _AddTagDialog({
+    required this.selectedColor,
+    required this.userTags,
+    required this.onAddTag,
+  });
+
+  @override
+  State<_AddTagDialog> createState() => _AddTagDialogState();
+}
+
+class _AddTagDialogState extends State<_AddTagDialog> {
+  late String _selectedColor;
+  late TextEditingController _tagController;
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedColor = widget.selectedColor;
+    _tagController = TextEditingController();
+  }
+
+  @override
+  void dispose() {
+    _tagController.dispose();
+    super.dispose();
+  }
+
+  // Predefined color options
+  final List<Map<String, dynamic>> _colorOptions = [
+    {'name': '鼠尾草绿', 'value': '#B2AC88'},
+    {'name': '番茄红', 'value': '#E74C3C'},
+    {'name': '南瓜橙', 'value': '#E67E22'},
+    {'name': '柠檬黄', 'value': '#F39C12'},
+    {'name': '薄荷绿', 'value': '#2ECC71'},
+    {'name': '天空蓝', 'value': '#3498DB'},
+    {'name': '薰衣草紫', 'value': '#9B59B6'},
+    {'name': '玫瑰粉', 'value': '#E91E63'},
+  ];
+
+  Color _parseColor(String colorString) {
+    try {
+      if (colorString.startsWith('#')) {
+        return Color(
+          int.parse(colorString.substring(1), radix: 16) + 0xFF000000,
+        );
+      }
+      return _sageGreen;
+    } catch (e) {
+      return _sageGreen;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      backgroundColor: Colors.transparent,
+      child: Container(
+        constraints: const BoxConstraints(maxWidth: 400),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [_buildHeader(), _buildContent(), _buildActions()],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildHeader() {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: _oatmeal,
+        borderRadius: const BorderRadius.only(
+          topLeft: Radius.circular(20),
+          topRight: Radius.circular(20),
+        ),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.local_offer_rounded, color: _sageGreen, size: 24),
+          const SizedBox(width: 12),
+          const Text(
+            '添加标签',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: _textPrimary,
+            ),
+          ),
+          const Spacer(),
+          GestureDetector(
+            onTap: () => Navigator.pop(context),
+            child: const Icon(Icons.close, color: _textSecondary, size: 20),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildContent() {
+    return Padding(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _buildCustomTagInput(),
+          const SizedBox(height: 20),
+          _buildColorPicker(),
+          if (widget.userTags.isNotEmpty) ...[
+            const SizedBox(height: 20),
+            _buildCommonTags(),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCustomTagInput() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          '自定义标签',
+          style: TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+            color: _textPrimary,
+          ),
+        ),
+        const SizedBox(height: 8),
+        TextField(
+          controller: _tagController,
+          autofocus: true,
+          decoration: InputDecoration(
+            hintText: '输入标签名称...',
+            hintStyle: const TextStyle(color: _textSecondary, fontSize: 14),
+            filled: true,
+            fillColor: _oatmeal,
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide.none,
+            ),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 16,
+              vertical: 12,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildColorPicker() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          '选择颜色',
+          style: TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+            color: _textPrimary,
+          ),
+        ),
+        const SizedBox(height: 12),
+        Wrap(
+          spacing: 12,
+          runSpacing: 12,
+          children: _colorOptions.map((colorOption) {
+            final isSelected = _selectedColor == colorOption['value'];
+            final color = _parseColor(colorOption['value']);
+            return GestureDetector(
+              onTap: () {
+                setState(() {
+                  _selectedColor = colorOption['value'];
+                });
+              },
+              child: Column(
+                children: [
+                  Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: color,
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: isSelected ? color : Colors.transparent,
+                        width: 3,
+                      ),
+                      boxShadow: isSelected
+                          ? [
+                              BoxShadow(
+                                color: color.withValues(alpha: 0.4),
+                                blurRadius: 8,
+                                spreadRadius: 2,
+                              ),
+                            ]
+                          : null,
+                    ),
+                    child: isSelected
+                        ? const Icon(Icons.check, color: Colors.white, size: 20)
+                        : null,
+                  ),
+                ],
+              ),
+            );
+          }).toList(),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildCommonTags() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          '常用标签',
+          style: TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+            color: _textPrimary,
+          ),
+        ),
+        const SizedBox(height: 12),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: widget.userTags.map((tag) {
+            final tagColor = _parseColor(tag.color);
+            return GestureDetector(
+              onTap: () {
+                widget.onAddTag(tag.name, tag.color);
+                Navigator.pop(context);
+              },
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 6,
+                ),
+                decoration: BoxDecoration(
+                  color: tagColor.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                    color: tagColor.withValues(alpha: 0.3),
+                    width: 1,
+                  ),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      tag.name,
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: tagColor,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      '${tag.useCount}',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: tagColor.withValues(alpha: 0.6),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          }).toList(),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildActions() {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: const BoxDecoration(
+        border: Border(top: BorderSide(color: Color(0xFFEEEEEE), width: 1)),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: OutlinedButton(
+              onPressed: () => Navigator.pop(context),
+              style: OutlinedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                side: const BorderSide(color: Color(0xFFE0E0E0)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                foregroundColor: _textSecondary,
+              ),
+              child: const Text('取消'),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: ElevatedButton(
+              onPressed: () {
+                if (_tagController.text.trim().isNotEmpty) {
+                  widget.onAddTag(_tagController.text.trim(), _selectedColor);
+                  Navigator.pop(context);
+                }
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: _sageGreen,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                elevation: 0,
+              ),
+              child: const Text('添加'),
+            ),
+          ),
+        ],
       ),
     );
   }

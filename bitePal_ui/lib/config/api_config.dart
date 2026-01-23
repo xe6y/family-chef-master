@@ -125,4 +125,8 @@ class ApiConfig {
   // ==================== 菜谱分类接口 ====================
   /// 菜谱分类列表
   static const String recipeCategories = '/categories';
+
+  // ==================== 用户标签接口 ====================
+  /// 用户常用标签
+  static const String userTags = '/user-tags';
 }

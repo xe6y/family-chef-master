@@ -34,6 +34,7 @@ func SetupRouter() *gin.Engine {
 		preferenceHandler := handlers.NewPreferenceHandler()
 		uploadHandler := handlers.NewUploadHandler()
 		familyHandler := handlers.NewFamilyHandler()
+		userTagHandler := handlers.NewUserTagHandler()
 
 		// ==================== 认证接口（无需Token） ====================
 		auth := api.Group("/auth")
@@ -174,6 +175,13 @@ func SetupRouter() *gin.Engine {
 			family.POST("/invite-code", familyHandler.RefreshInviteCode)  // 刷新邀请码
 			family.PUT("/members/:memberId", familyHandler.UpdateMember)  // 更新成员信息
 			family.DELETE("/members/:memberId", familyHandler.RemoveMember) // 移除成员
+		}
+
+		// 用户标签相关
+		userTags := api.Group("/user-tags")
+		userTags.Use(middleware.AuthMiddleware())
+		{
+			userTags.GET("", userTagHandler.GetUserTags) // 获取用户常用标签
 		}
 	}
 
