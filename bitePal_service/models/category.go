@@ -23,15 +23,15 @@ const (
 
 // RecipeCategory 菜谱分类配置
 type RecipeCategory struct {
-	ID        string       `json:"id" gorm:"primaryKey"`       // 分类ID
-	Type      CategoryType `json:"type" gorm:"not null;index"` // 分类类型（taste/cuisine/difficulty/meal_type）
-	Name      string       `json:"name" gorm:"not null"`       // 分类名称
-	Color     string       `json:"color"`                      // 显示颜色（可选）
-	Icon      string       `json:"icon"`                       // 图标（可选）
-	SortOrder int          `json:"sortOrder" gorm:"default:0"` // 排序顺序
-	IsActive  bool         `json:"isActive" gorm:"default:1"`  // 是否启用
-	CreatedAt time.Time    `json:"createdAt"`                  // 创建时间
-	UpdatedAt time.Time    `json:"updatedAt"`                  // 更新时间
+	ID        string       `json:"id" gorm:"type:varchar(36);primaryKey"`       // 分类ID
+	Type      CategoryType `json:"type" gorm:"type:varchar(20);not null;index"` // 分类类型（taste/cuisine/difficulty/meal_type）
+	Name      string       `json:"name" gorm:"type:varchar(50);not null;index"` // 分类名称
+	Color     string       `json:"color" gorm:"type:varchar(20)"`               // 显示颜色（可选）
+	Icon      string       `json:"icon" gorm:"type:varchar(10)"`                // 图标（可选）
+	SortOrder int          `json:"sortOrder" gorm:"default:0;index"`            // 排序顺序
+	IsActive  bool         `json:"isActive" gorm:"default:1;index"`             // 是否启用
+	CreatedAt time.Time    `json:"createdAt"`                                   // 创建时间
+	UpdatedAt time.Time    `json:"updatedAt"`                                   // 更新时间
 }
 
 // BeforeCreate 创建前钩子，自动生成ID

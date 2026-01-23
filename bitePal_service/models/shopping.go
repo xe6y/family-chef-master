@@ -45,15 +45,15 @@ func (s ShoppingItems) Value() (driver.Value, error) {
 
 // ShoppingList 购物清单模型
 type ShoppingList struct {
-	ID          string         `json:"id" gorm:"primaryKey"`      // 清单ID
-	Name        string         `json:"name"`                      // 清单名称
-	Items       ShoppingItems  `json:"items" gorm:"type:json"`    // 购物项列表
-	TotalPrice  float64        `json:"totalPrice"`                // 总价
-	UserID      string         `json:"userId" gorm:"index"`       // 用户ID
-	CreatedAt   time.Time      `json:"createdAt"`                 // 创建时间
-	UpdatedAt   time.Time      `json:"updatedAt"`                 // 更新时间
-	CompletedAt *time.Time     `json:"completedAt"`               // 完成时间
-	DeletedAt   gorm.DeletedAt `json:"-" gorm:"index"`            // 软删除时间
+	ID          string         `json:"id" gorm:"type:varchar(36);primaryKey"`    // 清单ID
+	Name        string         `json:"name" gorm:"type:varchar(100)"`            // 清单名称
+	Items       ShoppingItems  `json:"items" gorm:"type:json"`                   // 购物项列表
+	TotalPrice  float64        `json:"totalPrice" gorm:"type:decimal(10,2)"`     // 总价
+	UserID      string         `json:"userId" gorm:"type:varchar(36);index"`     // 用户ID
+	CreatedAt   time.Time      `json:"createdAt"`                                // 创建时间
+	UpdatedAt   time.Time      `json:"updatedAt"`                                // 更新时间
+	CompletedAt *time.Time     `json:"completedAt" gorm:"index"`                 // 完成时间
+	DeletedAt   gorm.DeletedAt `json:"-" gorm:"index"`                           // 软删除时间
 }
 
 // BeforeCreate 创建前钩子，自动生成ID

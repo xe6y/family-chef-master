@@ -48,13 +48,13 @@ func (o OrderRecipes) Value() (driver.Value, error) {
 
 // MealOrder 点餐清单模型
 type MealOrder struct {
-	ID        string         `json:"id" gorm:"primaryKey"`      // 点餐ID
-	Recipes   OrderRecipes   `json:"recipes" gorm:"type:json"`  // 菜谱列表
-	Status    string         `json:"status" gorm:"index"`       // 状态
-	UserID    string         `json:"userId" gorm:"index"`       // 用户ID
-	CreatedAt time.Time      `json:"createdAt"`                 // 创建时间
-	UpdatedAt time.Time      `json:"updatedAt"`                 // 更新时间
-	DeletedAt gorm.DeletedAt `json:"-" gorm:"index"`            // 软删除时间
+	ID        string         `json:"id" gorm:"type:varchar(36);primaryKey"`                        // 点餐ID
+	Recipes   OrderRecipes   `json:"recipes" gorm:"type:json"`                                     // 菜谱列表
+	Status    string         `json:"status" gorm:"type:varchar(20);not null;default:'pending';index"` // 状态
+	UserID    string         `json:"userId" gorm:"type:varchar(36);not null;index"`                // 用户ID
+	CreatedAt time.Time      `json:"createdAt"`                                                    // 创建时间
+	UpdatedAt time.Time      `json:"updatedAt"`                                                    // 更新时间
+	DeletedAt gorm.DeletedAt `json:"-" gorm:"index"`                                               // 软删除时间
 }
 
 // BeforeCreate 创建前钩子，自动生成ID和默认状态

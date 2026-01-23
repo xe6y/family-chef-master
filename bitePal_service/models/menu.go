@@ -43,13 +43,13 @@ func (m MenuRecipes) Value() (driver.Value, error) {
 
 // TodayMenu 今日菜单模型
 type TodayMenu struct {
-	ID        string         `json:"id" gorm:"primaryKey"`      // 菜单ID
-	Date      string         `json:"date" gorm:"index"`         // 日期（YYYY-MM-DD）
-	Recipes   MenuRecipes    `json:"recipes" gorm:"type:json"`  // 菜谱列表
-	UserID    string         `json:"userId" gorm:"index"`       // 用户ID
-	CreatedAt time.Time      `json:"createdAt"`                 // 创建时间
-	UpdatedAt time.Time      `json:"updatedAt"`                 // 更新时间
-	DeletedAt gorm.DeletedAt `json:"-" gorm:"index"`            // 软删除时间
+	ID        string         `json:"id" gorm:"type:varchar(36);primaryKey"`                                 // 菜单ID
+	Date      string         `json:"date" gorm:"type:varchar(10);not null;uniqueIndex:idx_user_date"`      // 日期（YYYY-MM-DD）
+	Recipes   MenuRecipes    `json:"recipes" gorm:"type:json"`                                              // 菜谱列表
+	UserID    string         `json:"userId" gorm:"type:varchar(36);not null;uniqueIndex:idx_user_date"`    // 用户ID
+	CreatedAt time.Time      `json:"createdAt"`                                                             // 创建时间
+	UpdatedAt time.Time      `json:"updatedAt"`                                                             // 更新时间
+	DeletedAt gorm.DeletedAt `json:"-" gorm:"index"`                                                        // 软删除时间
 }
 
 // BeforeCreate 创建前钩子，自动生成ID

@@ -30,16 +30,16 @@ const (
 
 // IngredientCategory 食材分类模型
 type IngredientCategory struct {
-	ID        string         `json:"id" gorm:"primaryKey"`          // 分类ID
-	Name      string         `json:"name" gorm:"not null"`          // 分类名称
-	Icon      string         `json:"icon"`                          // 分类图标（emoji）
-	Color     string         `json:"color"`                         // 分类颜色
-	SortOrder int            `json:"sortOrder" gorm:"default:0"`    // 排序顺序
-	IsSystem  bool           `json:"isSystem" gorm:"default:false"` // 是否为系统预设分类
-	UserID    string         `json:"userId" gorm:"index"`           // 用户ID（系统分类为空）
-	CreatedAt time.Time      `json:"createdAt"`                     // 创建时间
-	UpdatedAt time.Time      `json:"updatedAt"`                     // 更新时间
-	DeletedAt gorm.DeletedAt `json:"-" gorm:"index"`                // 软删除时间
+	ID        string         `json:"id" gorm:"type:varchar(36);primaryKey"`                                    // 分类ID
+	Name      string         `json:"name" gorm:"type:varchar(50);not null;uniqueIndex:idx_user_category_name"` // 分类名称
+	Icon      string         `json:"icon" gorm:"type:varchar(10)"`                                             // 分类图标（emoji）
+	Color     string         `json:"color" gorm:"type:varchar(20)"`                                            // 分类颜色
+	SortOrder int            `json:"sortOrder" gorm:"default:0;index"`                                         // 排序顺序
+	IsSystem  bool           `json:"isSystem" gorm:"default:false;index"`                                      // 是否为系统预设分类
+	UserID    string         `json:"userId" gorm:"type:varchar(36);uniqueIndex:idx_user_category_name"`        // 用户ID（系统分类为空）
+	CreatedAt time.Time      `json:"createdAt"`                                                                // 创建时间
+	UpdatedAt time.Time      `json:"updatedAt"`                                                                // 更新时间
+	DeletedAt gorm.DeletedAt `json:"-" gorm:"index"`                                                           // 软删除时间
 }
 
 // BeforeCreate 创建前钩子，自动生成ID
@@ -52,23 +52,23 @@ func (c *IngredientCategory) BeforeCreate(tx *gorm.DB) error {
 
 // IngredientItem 食材库存模型
 type IngredientItem struct {
-	ID           string         `json:"id" gorm:"primaryKey"`    // 食材ID
-	Name         string         `json:"name" gorm:"not null"`    // 食材名称
-	Quantity     float64        `json:"quantity"`                // 数量数值
-	Unit         string         `json:"unit"`                    // 单位（个、斤、克、毫升等）
-	Amount       string         `json:"amount"`                  // 数量描述（兼容旧版本，如：2个）
-	Storage      string         `json:"storage"`                 // 存储位置（room/fridge/freezer）
-	CategoryID   string         `json:"categoryId" gorm:"index"` // 食材类型分类ID
-	Thumbnail    string         `json:"thumbnail"`               // 缩略图URL
-	Icon         string         `json:"icon"`                    // 图标（emoji，兼容旧版本）
-	Note         string         `json:"note"`                    // 备注
-	BatchID      string         `json:"batchId" gorm:"index"`    // 批次ID（用于区分同一食材不同批次）
-	ExpiryDate   time.Time      `json:"expiryDate"`              // 过期日期
-	PurchaseDate time.Time      `json:"purchaseDate"`            // 购买日期
-	UserID       string         `json:"userId" gorm:"index"`     // 用户ID
-	CreatedAt    time.Time      `json:"createdAt"`               // 创建时间
-	UpdatedAt    time.Time      `json:"updatedAt"`               // 更新时间
-	DeletedAt    gorm.DeletedAt `json:"-" gorm:"index"`          // 软删除时间
+	ID           string         `json:"id" gorm:"type:varchar(36);primaryKey"`                          // 食材ID
+	Name         string         `json:"name" gorm:"type:varchar(100);not null;index"`                   // 食材名称
+	Quantity     float64        `json:"quantity" gorm:"type:decimal(10,2)"`                             // 数量数值
+	Unit         string         `json:"unit" gorm:"type:varchar(20)"`                                   // 单位（个、斤、克、毫升等）
+	Amount       string         `json:"amount" gorm:"type:varchar(50)"`                                 // 数量描述（兼容旧版本，如：2个）
+	Storage      string         `json:"storage" gorm:"type:varchar(20);index"`                          // 存储位置（room/fridge/freezer）
+	CategoryID   string         `json:"categoryId" gorm:"type:varchar(36);not null;index"`              // 食材类型分类ID
+	Thumbnail    string         `json:"thumbnail" gorm:"type:varchar(500)"`                             // 缩略图URL
+	Icon         string         `json:"icon" gorm:"type:varchar(10)"`                                   // 图标（emoji，兼容旧版本）
+	Note         string         `json:"note" gorm:"type:text"`                                          // 备注
+	BatchID      string         `json:"batchId" gorm:"type:varchar(36);index"`                          // 批次ID（用于区分同一食材不同批次）
+	ExpiryDate   time.Time      `json:"expiryDate" gorm:"index:idx_user_expiry"`                        // 过期日期
+	PurchaseDate time.Time      `json:"purchaseDate"`                                                   // 购买日期
+	UserID       string         `json:"userId" gorm:"type:varchar(36);not null;index:idx_user_expiry"` // 用户ID
+	CreatedAt    time.Time      `json:"createdAt"`                                                      // 创建时间
+	UpdatedAt    time.Time      `json:"updatedAt"`                                                      // 更新时间
+	DeletedAt    gorm.DeletedAt `json:"-" gorm:"index"`                                                 // 软删除时间
 
 	// 关联关系
 	Category *IngredientCategory `json:"category,omitempty" gorm:"foreignKey:CategoryID"` // 所属分类

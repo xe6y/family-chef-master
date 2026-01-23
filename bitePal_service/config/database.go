@@ -1,11 +1,12 @@
 package config
 
 import (
+	"fmt"
 	"log"
 
 	. "bitePal_service/models"
 
-	"gorm.io/driver/sqlite"
+	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
 )
@@ -24,14 +25,24 @@ func InitDB(cfg *Config) error {
 		Logger: logger.Default.LogMode(logger.Info),
 	}
 
-	// 连接SQLite数据库
-	DB, err = gorm.Open(sqlite.Open(cfg.DatabasePath), gormConfig)
+	// 构建 MariaDB/MySQL DSN (Data Source Name)
+	// 格式: username:password@tcp(host:port)/dbname?charset=utf8mb4&parseTime=True&loc=Local
+	dsn := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?charset=utf8mb4&parseTime=True&loc=Local",
+		cfg.DBUser,
+		cfg.DBPassword,
+		cfg.DBHost,
+		cfg.DBPort,
+		cfg.DBName,
+	)
+
+	// 连接 MariaDB 数据库
+	DB, err = gorm.Open(mysql.Open(dsn), gormConfig)
 	if err != nil {
 		log.Printf("数据库连接失败: %v", err)
 		return err
 	}
 
-	log.Printf("数据库连接成功: %s", cfg.DatabasePath)
+	log.Printf("数据库连接成功: %s@%s:%s/%s", cfg.DBUser, cfg.DBHost, cfg.DBPort, cfg.DBName)
 
 	// 自动迁移数据库表结构
 	if err := autoMigrate(); err != nil {

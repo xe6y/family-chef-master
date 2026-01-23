@@ -9,13 +9,13 @@ import (
 
 // Family 家庭模型
 type Family struct {
-	ID        string         `json:"id" gorm:"primaryKey"`      // 家庭ID
-	Name      string         `json:"name"`                      // 家庭名称
-	InviteCode string        `json:"inviteCode" gorm:"uniqueIndex"` // 邀请码
-	OwnerID   string         `json:"ownerId" gorm:"index"`      // 创建者ID
-	CreatedAt time.Time      `json:"createdAt"`                 // 创建时间
-	UpdatedAt time.Time      `json:"updatedAt"`                 // 更新时间
-	DeletedAt gorm.DeletedAt `json:"-" gorm:"index"`            // 软删除时间
+	ID         string         `json:"id" gorm:"type:varchar(36);primaryKey"`                  // 家庭ID
+	Name       string         `json:"name" gorm:"type:varchar(100);not null"`                 // 家庭名称
+	InviteCode string         `json:"inviteCode" gorm:"type:varchar(10);uniqueIndex;not null"` // 邀请码
+	OwnerID    string         `json:"ownerId" gorm:"type:varchar(36);not null;index"`         // 创建者ID
+	CreatedAt  time.Time      `json:"createdAt"`                                              // 创建时间
+	UpdatedAt  time.Time      `json:"updatedAt"`                                              // 更新时间
+	DeletedAt  gorm.DeletedAt `json:"-" gorm:"index"`                                         // 软删除时间
 }
 
 // BeforeCreate 创建前钩子，自动生成ID和邀请码
@@ -32,15 +32,15 @@ func (f *Family) BeforeCreate(tx *gorm.DB) error {
 
 // FamilyMemberInfo 家庭成员信息（关联用户）
 type FamilyMemberInfo struct {
-	ID        string         `json:"id" gorm:"primaryKey"`      // 成员ID
-	FamilyID  string         `json:"familyId" gorm:"index"`     // 家庭ID
-	UserID    string         `json:"userId" gorm:"uniqueIndex"` // 用户ID
-	Nickname  string         `json:"nickname"`                  // 在家庭中的昵称
-	Role      string         `json:"role"`                      // 角色：owner/member
-	JoinedAt  time.Time      `json:"joinedAt"`                  // 加入时间
-	CreatedAt time.Time      `json:"createdAt"`                 // 创建时间
-	UpdatedAt time.Time      `json:"updatedAt"`                 // 更新时间
-	DeletedAt gorm.DeletedAt `json:"-" gorm:"index"`            // 软删除时间
+	ID        string         `json:"id" gorm:"type:varchar(36);primaryKey"`                                      // 成员ID
+	FamilyID  string         `json:"familyId" gorm:"type:varchar(36);not null;uniqueIndex:idx_family_user"`     // 家庭ID
+	UserID    string         `json:"userId" gorm:"type:varchar(36);not null;uniqueIndex:idx_family_user;index"` // 用户ID
+	Nickname  string         `json:"nickname" gorm:"type:varchar(50)"`                                           // 在家庭中的昵称
+	Role      string         `json:"role" gorm:"type:varchar(20);not null;index"`                                // 角色：owner/member
+	JoinedAt  time.Time      `json:"joinedAt"`                                                                   // 加入时间
+	CreatedAt time.Time      `json:"createdAt"`                                                                  // 创建时间
+	UpdatedAt time.Time      `json:"updatedAt"`                                                                  // 更新时间
+	DeletedAt gorm.DeletedAt `json:"-" gorm:"index"`                                                             // 软删除时间
 }
 
 // 家庭角色常量

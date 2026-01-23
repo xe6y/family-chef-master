@@ -9,14 +9,14 @@ import (
 
 // StorageLocation 存储位置模型
 type StorageLocation struct {
-	ID        string         `json:"id" gorm:"primaryKey"`          // 位置ID
-	Name      string         `json:"name" gorm:"not null"`          // 位置名称
-	SortOrder int            `json:"sortOrder" gorm:"default:0"`    // 排序顺序
-	IsSystem  bool           `json:"isSystem" gorm:"default:false"` // 是否为系统预设
-	UserID    string         `json:"userId" gorm:"index"`           // 用户ID（系统预设为空）
-	CreatedAt time.Time      `json:"createdAt"`                     // 创建时间
-	UpdatedAt time.Time      `json:"updatedAt"`                     // 更新时间
-	DeletedAt gorm.DeletedAt `json:"-" gorm:"index"`                // 软删除时间
+	ID        string         `json:"id" gorm:"type:varchar(36);primaryKey"`                                    // 位置ID
+	Name      string         `json:"name" gorm:"type:varchar(50);not null;uniqueIndex:idx_user_storage_name"` // 位置名称
+	SortOrder int            `json:"sortOrder" gorm:"default:0;index"`                                         // 排序顺序
+	IsSystem  bool           `json:"isSystem" gorm:"default:false;index"`                                      // 是否为系统预设
+	UserID    string         `json:"userId" gorm:"type:varchar(36);uniqueIndex:idx_user_storage_name"`         // 用户ID（系统预设为空）
+	CreatedAt time.Time      `json:"createdAt"`                                                                // 创建时间
+	UpdatedAt time.Time      `json:"updatedAt"`                                                                // 更新时间
+	DeletedAt gorm.DeletedAt `json:"-" gorm:"index"`                                                           // 软删除时间
 }
 
 // BeforeCreate 创建前钩子，自动生成ID
