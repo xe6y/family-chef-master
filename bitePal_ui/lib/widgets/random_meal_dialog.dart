@@ -63,35 +63,19 @@ class _RandomMealDialogState extends State<RandomMealDialog> {
         _recommendedRecipe = result.recipe;
         _reason = result.reason;
       } else {
-        // 使用模拟数据
-        _recommendedRecipe = Recipe(
-          id: '1',
-          name: mode == 'quick' ? '番茄炒蛋' : '红烧肉',
-          time: mode == 'quick' ? '15分钟' : '45分钟',
-          difficulty: mode == 'quick' ? '简单' : '中等',
-          tags: ['推荐'],
-          tagColors: ['bg-blue-500'],
-          categories: ['家常菜'],
-        );
-        _reason = mode == 'inventory'
-            ? '根据您的库存，推荐这道菜'
-            : mode == 'quick'
-                ? '快速简单，非常适合'
-                : '今天试试这道菜吧';
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('未找到合适的推荐菜谱，请稍后再试')),
+          );
+        }
       }
     } catch (e) {
       debugPrint('获取推荐失败: $e');
-      // 使用模拟数据
-      _recommendedRecipe = Recipe(
-        id: '1',
-        name: '番茄炒蛋',
-        time: '15分钟',
-        difficulty: '简单',
-        tags: ['推荐'],
-        tagColors: ['bg-blue-500'],
-        categories: ['家常菜'],
-      );
-      _reason = '今天就做这道菜吧！';
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('获取推荐失败，请检查网络连接')),
+        );
+      }
     }
 
     if (mounted) {

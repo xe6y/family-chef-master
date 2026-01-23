@@ -294,10 +294,10 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen>
         });
       } else {
         // Fallback if DB is empty
-        _difficultyOptions = ["简单", "中等", "困难"];
+        _difficultyOptions = ["有手就行", "家常便饭", "餐厅招牌", "硬核挑战", "专业厨师"];
       }
     } catch (e) {
-      _difficultyOptions = ["简单", "中等", "困难"];
+      _difficultyOptions = ["有手就行", "家常便饭", "餐厅招牌", "硬核挑战", "专业厨师"];
     }
   }
 

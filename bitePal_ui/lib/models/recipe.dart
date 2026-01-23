@@ -12,7 +12,7 @@ class Recipe {
   /// 制作时间
   final String time;
 
-  /// 难度（简单/中等/困难）
+  /// 难度（有手就行/家常便饭/餐厅招牌/硬核挑战/专业厨师）
   final String difficulty;
 
   /// 难度颜色（从数据库读取）
@@ -68,7 +68,7 @@ class Recipe {
       name: json['name'] ?? '',
       image: json['image'],
       time: json['time'] ?? '',
-      difficulty: json['difficulty'] ?? '简单',
+      difficulty: json['difficulty'] ?? '有手就行',
       difficultyColor: json['difficultyColor'],
       tags: List<String>.from(json['tags'] ?? []),
       tagColors: List<String>.from(json['tagColors'] ?? []),

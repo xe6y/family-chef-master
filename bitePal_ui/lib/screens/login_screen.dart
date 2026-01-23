@@ -14,7 +14,8 @@ class LoginScreen extends StatefulWidget {
   State<LoginScreen> createState() => _LoginScreenState();
 }
 
-class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStateMixin {
+class _LoginScreenState extends State<LoginScreen>
+    with SingleTickerProviderStateMixin {
   /// 认证服务
   final AuthService _authService = AuthService();
 
@@ -48,12 +49,13 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
     _fadeAnimation = Tween<double>(begin: 0, end: 1).animate(
       CurvedAnimation(parent: _animationController, curve: Curves.easeOut),
     );
-    _slideAnimation = Tween<Offset>(
-      begin: const Offset(0, 0.1),
-      end: Offset.zero,
-    ).animate(
-      CurvedAnimation(parent: _animationController, curve: Curves.easeOutCubic),
-    );
+    _slideAnimation =
+        Tween<Offset>(begin: const Offset(0, 0.1), end: Offset.zero).animate(
+          CurvedAnimation(
+            parent: _animationController,
+            curve: Curves.easeOutCubic,
+          ),
+        );
     _animationController.forward();
   }
 
@@ -106,9 +108,8 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => RegisterScreen(
-          onRegisterSuccess: widget.onLoginSuccess,
-        ),
+        builder: (context) =>
+            RegisterScreen(onRegisterSuccess: widget.onLoginSuccess),
       ),
     );
   }
@@ -266,17 +267,12 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
           // 标题
           const Text(
             '欢迎回来',
-            style: TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-            ),
+            style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 8),
           Text(
             '登录你的账号继续',
-            style: TextStyle(
-              color: AppColors.onSurfaceVariantLight,
-            ),
+            style: TextStyle(color: AppColors.onSurfaceVariantLight),
           ),
           const SizedBox(height: 24),
 
@@ -293,15 +289,16 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
               ),
               child: Row(
                 children: [
-                  Icon(Icons.error_outline_rounded, color: AppColors.error, size: 20),
+                  Icon(
+                    Icons.error_outline_rounded,
+                    color: AppColors.error,
+                    size: 20,
+                  ),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
                       _errorMessage!,
-                      style: TextStyle(
-                        color: AppColors.error,
-                        fontSize: 13,
-                      ),
+                      style: TextStyle(color: AppColors.error, fontSize: 13),
                     ),
                   ),
                 ],
@@ -372,6 +369,35 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                     ),
             ),
           ),
+          const SizedBox(height: 16),
+
+          // 注册入口 - 移到卡片内部，更显眼
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(
+                '还没有账号？',
+                style: TextStyle(
+                  color: AppColors.onSurfaceVariantLight,
+                  fontSize: 14,
+                ),
+              ),
+              TextButton(
+                onPressed: _goToRegister,
+                style: TextButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                ),
+                child: Text(
+                  '立即注册',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.primary,
+                    fontSize: 14,
+                  ),
+                ),
+              ),
+            ],
+          ),
         ],
       ),
     );
@@ -392,10 +418,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
       children: [
         Text(
           label,
-          style: const TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w600,
-          ),
+          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
         ),
         const SizedBox(height: 8),
         TextField(
@@ -416,7 +439,9 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
               borderSide: BorderSide(color: AppColors.primary, width: 2),
             ),
           ),
-          textInputAction: obscureText ? TextInputAction.done : TextInputAction.next,
+          textInputAction: obscureText
+              ? TextInputAction.done
+              : TextInputAction.next,
           onSubmitted: onSubmitted,
         ),
       ],
@@ -427,51 +452,14 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
   Widget _buildFooter() {
     return Column(
       children: [
-        // 注册入口
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text(
-              '还没有账号？',
-              style: TextStyle(color: AppColors.onSurfaceVariantLight),
-            ),
-            TextButton(
-              onPressed: _goToRegister,
-              child: Text(
-                '立即注册',
-                style: TextStyle(
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.primary,
-                ),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 16),
-        // 分割线
-        Row(
-          children: [
-            Expanded(child: Divider(color: AppColors.outlineLight)),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Text(
-                '或',
-                style: TextStyle(color: AppColors.onSurfaceVariantLight),
-              ),
-            ),
-            Expanded(child: Divider(color: AppColors.outlineLight)),
-          ],
-        ),
-        const SizedBox(height: 16),
         // 跳过登录
-        OutlinedButton(
+        TextButton(
           onPressed: widget.onLoginSuccess,
-          style: OutlinedButton.styleFrom(
+          style: TextButton.styleFrom(
             foregroundColor: AppColors.onSurfaceVariantLight,
-            side: BorderSide(color: AppColors.outlineLight),
-            padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
           ),
-          child: const Text('跳过登录，先看看'),
+          child: const Text('跳过登录，先看看', style: TextStyle(fontSize: 14)),
         ),
       ],
     );

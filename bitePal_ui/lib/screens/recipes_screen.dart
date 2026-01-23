@@ -6,6 +6,7 @@ import '../models/recipe_category.dart';
 import '../services/recipe_service.dart';
 import '../services/category_service.dart';
 import '../widgets/refreshable_screen.dart';
+import '../widgets/recipe_card.dart';
 import 'recipe_detail_screen.dart';
 
 // --- Helper Components (Internal for this screen per requirement) ---
@@ -352,21 +353,21 @@ class _RecipesScreenState extends State<RecipesScreen>
       RecipeCategory(
         id: '1',
         type: 'difficulty',
-        name: '简单',
+        name: '有手就行',
         sortOrder: 1,
         isActive: true,
       ),
       RecipeCategory(
         id: '2',
         type: 'difficulty',
-        name: '中等',
+        name: '家常便饭',
         sortOrder: 2,
         isActive: true,
       ),
       RecipeCategory(
         id: '3',
         type: 'difficulty',
-        name: '困难',
+        name: '硬核挑战',
         sortOrder: 3,
         isActive: true,
       ),
@@ -432,71 +433,11 @@ class _RecipesScreenState extends State<RecipesScreen>
         if (result != null) _onlineRecipes = result.list;
       }
     } catch (e) {
-      _loadMockData();
+      debugPrint('Error loading recipes: $e');
+      // If error occurs, we just keep the empty lists or previous state
+      // Optionally show a snackbar or error state
     }
     if (mounted) setState(() => _isLoading = false);
-  }
-
-  void _loadMockData() {
-    _myRecipes = [
-      Recipe(
-        id: '1',
-        name: "番茄炒蛋",
-        time: "15分钟",
-        difficulty: "有手就行",
-        difficultyColor: "#E8F5E9",
-        tags: ["家常", "快手"],
-        tagColors: ["#10B981", "#F59E0B"],
-        favorite: true,
-        categories: ["家常菜", "酸甜"],
-      ),
-      Recipe(
-        id: '4',
-        name: "红烧肉",
-        time: "45分钟",
-        difficulty: "家常便饭",
-        difficultyColor: "#E3F2FD",
-        tags: ["常做"],
-        tagColors: ["#3B82F6"],
-        favorite: false,
-        categories: ["川菜", "咸鲜"],
-      ),
-      Recipe(
-        id: '3',
-        name: "清蒸鲈鱼",
-        time: "25分钟",
-        difficulty: "有手就行",
-        difficultyColor: "#E8F5E9",
-        tags: ["健康"],
-        tagColors: ["#10B981"],
-        favorite: true,
-        categories: ["粤菜", "清淡"],
-      ),
-    ];
-    _onlineRecipes = [
-      Recipe(
-        id: '101',
-        name: "宫保鸡丁",
-        time: "30分钟",
-        difficulty: "餐厅招牌",
-        difficultyColor: "#FFFDE7",
-        tags: ["热门", "川菜"],
-        tagColors: ["#EF4444", "#F59E0B"],
-        favorite: false,
-        categories: ["川菜", "麻辣"],
-      ),
-      Recipe(
-        id: '102',
-        name: "糖醋里脊",
-        time: "25分钟",
-        difficulty: "家常便饭",
-        difficultyColor: "#E3F2FD",
-        tags: ["热门"],
-        tagColors: ["#EF4444"],
-        favorite: false,
-        categories: ["鲁菜", "酸甜"],
-      ),
-    ];
   }
 
   List<Recipe> get _currentRecipes =>
@@ -662,238 +603,27 @@ class _RecipesScreenState extends State<RecipesScreen>
                     childCount: _currentRecipes.length,
                     itemBuilder: (context, index) {
                       final recipe = _currentRecipes[index];
-                      return _buildMagazineCard(recipe);
+                      return RecipeCard(
+                        recipe: recipe,
+                        onTap: () async {
+                          final result = await Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => RecipeDetailScreen(
+                                recipeId: recipe.id,
+                                isFromMyRecipes: _activeTab == "my",
+                              ),
+                            ),
+                          );
+                          if (result == true) _loadRecipes();
+                        },
+                      );
                     },
                   ),
           ),
         ],
       ),
     );
-  }
-
-  // --- Magazine Style Card ---
-  Widget _buildMagazineCard(Recipe recipe) {
-    // 使用数据库中的难度颜色，如果没有则使用默认颜色
-    Color diffColor = _sageGreen;
-    if (recipe.difficultyColor != null && recipe.difficultyColor!.isNotEmpty) {
-      try {
-        // 解析颜色字符串（支持 #RRGGBB 格式）
-        final colorStr = recipe.difficultyColor!.replaceAll('#', '');
-        diffColor = Color(int.parse('FF$colorStr', radix: 16));
-      } catch (e) {
-        // 如果解析失败，使用默认颜色
-        diffColor = _sageGreen;
-      }
-    }
-
-    return GestureDetector(
-      onTap: () async {
-        final result = await Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => RecipeDetailScreen(
-              recipeId: recipe.id,
-              isFromMyRecipes: _activeTab == "my",
-            ),
-          ),
-        );
-        if (result == true) _loadRecipes();
-      },
-      child: Container(
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(20),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.04),
-              blurRadius: 16,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Image with fade-in
-            ClipRRect(
-              borderRadius: const BorderRadius.vertical(
-                top: Radius.circular(20),
-              ),
-              child: AspectRatio(
-                aspectRatio: 1, // Square for top part
-                child: Builder(
-                  builder: (context) {
-                    final imagePath = recipe.image;
-                    final isValidAsset =
-                        imagePath != null &&
-                        imagePath.isNotEmpty &&
-                        imagePath.startsWith('assets/');
-
-                    return Image.asset(
-                      isValidAsset
-                          ? imagePath
-                          : 'assets/chinese-potato-strips.jpg',
-                      fit: BoxFit.cover,
-                      frameBuilder:
-                          (context, child, frame, wasSynchronouslyLoaded) {
-                            if (wasSynchronouslyLoaded) return child;
-                            return AnimatedOpacity(
-                              opacity: frame == null ? 0 : 1,
-                              duration: const Duration(milliseconds: 500),
-                              curve: Curves.easeOut,
-                              child: child,
-                            );
-                          },
-                      errorBuilder: (_, _, _) => Container(
-                        color: _oatmeal,
-                        child: const Icon(Icons.restaurant, color: Colors.grey),
-                      ),
-                    );
-                  },
-                ),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.all(12),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    recipe.name,
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFF4A4F50),
-                      height: 1.2,
-                    ),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 8),
-                  // 标签行（最多显示两个标签）
-                  if (recipe.tags.isNotEmpty)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 8),
-                      child: Row(
-                        children: [
-                          for (
-                            int i = 0;
-                            i <
-                                (recipe.tags.length > 2
-                                    ? 2
-                                    : recipe.tags.length);
-                            i++
-                          ) ...[
-                            _buildRecipeTag(
-                              recipe.tags[i],
-                              i < recipe.tagColors.length
-                                  ? recipe.tagColors[i]
-                                  : null,
-                            ),
-                            if (i < 1 && recipe.tags.length > 1)
-                              const SizedBox(width: 6),
-                          ],
-                        ],
-                      ),
-                    ),
-                  Row(
-                    children: [
-                      const Icon(
-                        Icons.access_time_rounded,
-                        size: 14,
-                        color: Color(0xFF8C8F90),
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        recipe.time,
-                        style: const TextStyle(
-                          fontSize: 12,
-                          color: Color(0xFF8C8F90),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      // 难度标签
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 4,
-                        ),
-                        decoration: BoxDecoration(
-                          color: diffColor.withValues(alpha: 0.15),
-                          borderRadius: BorderRadius.circular(6),
-                          border: Border.all(
-                            color: diffColor.withValues(alpha: 0.3),
-                            width: 0.5,
-                          ),
-                        ),
-                        child: Text(
-                          recipe.difficulty,
-                          style: TextStyle(
-                            fontSize: 10,
-                            fontWeight: FontWeight.w600,
-                            color: diffColor,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // --- Recipe Tag Widget ---
-  Widget _buildRecipeTag(String tagName, String? tagColor) {
-    // 解析标签颜色
-    Color color = _sageGreen;
-    if (tagColor != null && tagColor.isNotEmpty) {
-      try {
-        // 支持多种颜色格式
-        if (tagColor.startsWith('#')) {
-          final colorStr = tagColor.replaceAll('#', '');
-          color = Color(int.parse('FF$colorStr', radix: 16));
-        } else if (tagColor.startsWith('bg-')) {
-          // 支持 Tailwind CSS 风格的颜色类名
-          color = _parseTailwindColor(tagColor);
-        }
-      } catch (e) {
-        color = _sageGreen;
-      }
-    }
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.15),
-        borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: color.withValues(alpha: 0.3), width: 0.5),
-      ),
-      child: Text(
-        tagName,
-        style: TextStyle(
-          fontSize: 10,
-          fontWeight: FontWeight.w600,
-          color: color,
-        ),
-      ),
-    );
-  }
-
-  // --- Parse Tailwind Color ---
-  Color _parseTailwindColor(String tailwindClass) {
-    // 简单的 Tailwind 颜色映射
-    if (tailwindClass.contains('blue')) return const Color(0xFF3B82F6);
-    if (tailwindClass.contains('red')) return const Color(0xFFEF4444);
-    if (tailwindClass.contains('green')) return const Color(0xFF10B981);
-    if (tailwindClass.contains('yellow')) return const Color(0xFFF59E0B);
-    if (tailwindClass.contains('purple')) return const Color(0xFF8B5CF6);
-    if (tailwindClass.contains('pink')) return const Color(0xFFEC4899);
-    if (tailwindClass.contains('orange')) return const Color(0xFFF97316);
-    return _sageGreen;
   }
 
   // --- Empty State with Floating Animation ---

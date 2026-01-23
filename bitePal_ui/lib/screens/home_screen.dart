@@ -91,73 +91,13 @@ class _HomeScreenState extends State<HomeScreen>
       _updateMoodByTime();
     } catch (e) {
       debugPrint('加载数据失败: $e');
-      _loadMockData();
+      // On error, lists remain empty which is handled by UI
     }
 
     if (mounted) {
       setState(() => _isLoading = false);
       _animationController.forward();
     }
-  }
-
-  void _loadMockData() {
-    _todayRecipes = [
-      Recipe(
-        id: '1',
-        name: "番茄炒蛋",
-        time: "15 分钟",
-        difficulty: "家常便饭",
-        tags: ["常做"],
-        tagColors: ["bg-blue-500"],
-        favorite: false,
-        categories: ["家常菜", "酸甜"],
-      ),
-      Recipe(
-        id: '4',
-        name: "红烧肉",
-        time: "45 分钟",
-        difficulty: "餐厅招牌",
-        tags: ["常做"],
-        tagColors: ["bg-blue-500"],
-        favorite: false,
-        categories: ["川菜", "咸鲜"],
-      ),
-    ];
-
-    _expiringIngredients = [
-      IngredientItem(
-        id: '1',
-        name: "生菜",
-        amount: "1颗",
-        storage: "fridge",
-        icon: "🥬",
-        expiryDays: 0,
-        expiryText: "今天",
-        urgent: true,
-      ),
-      IngredientItem(
-        id: '2',
-        name: "培根",
-        amount: "200g",
-        storage: "fridge",
-        icon: "🥓",
-        expiryDays: 1,
-        expiryText: "明天",
-        urgent: false,
-      ),
-      IngredientItem(
-        id: '3',
-        name: "牛奶",
-        amount: "500ml",
-        storage: "fridge",
-        icon: "🥛",
-        expiryDays: 3,
-        expiryText: "3天后",
-        urgent: false,
-      ),
-    ];
-
-    _updateMoodByTime();
   }
 
   void _updateMoodByTime() {

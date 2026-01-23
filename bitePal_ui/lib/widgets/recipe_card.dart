@@ -3,19 +3,19 @@ import '../models/recipe.dart';
 import '../utils/app_theme.dart';
 
 const Map<String, Color> _difficultyBackgrounds = {
-  '有手就行': Color(0xFFE8F5E9),
-  '家常便饭': Color(0xFFE3F2FD),
-  '餐厅招牌': Color(0xFFFFFDE7),
-  '硬核挑战': Color(0xFFFFF3E0),
-  '专业厨师': Color(0xFFFFEBEE),
+  '有手就行': Color(0xFFD4EDDA),
+  '家常便饭': Color(0xFFCCE5FF),
+  '餐厅招牌': Color(0xFFFFF4CC),
+  '硬核挑战': Color(0xFFFFE0B2),
+  '专业厨师': Color(0xFFFFDADA),
 };
 
 const Map<String, Color> _difficultyTextColors = {
-  '有手就行': Color(0xFF4CAF50),
-  '家常便饭': Color(0xFF2196F3),
-  '餐厅招牌': Color(0xFFFBC02D),
-  '硬核挑战': Color(0xFFF57C00),
-  '专业厨师': Color(0xFFD32F2F),
+  '有手就行': Color(0xFF2E7D32),
+  '家常便饭': Color(0xFF1565C0),
+  '餐厅招牌': Color(0xFFF57F17),
+  '硬核挑战': Color(0xFFE65100),
+  '专业厨师': Color(0xFFC62828),
 };
 
 class RecipeCard extends StatelessWidget {
@@ -135,6 +135,15 @@ class RecipeCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
                 children: [
+                  // 标签（移到第一行）
+                  if (recipe.tags.isNotEmpty) ...[
+                    Wrap(
+                      spacing: 4,
+                      runSpacing: 4,
+                      children: _buildTags(colorScheme),
+                    ),
+                    const SizedBox(height: 8),
+                  ],
                   // 菜名
                   Text(
                     recipe.name,
@@ -149,44 +158,38 @@ class RecipeCard extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                   ),
                   const SizedBox(height: 8),
-                  // 时间和难度
+                  // 难度和时间
                   Row(
                     children: [
-                      Icon(
-                        Icons.access_time_rounded,
-                        size: 13,
-                        color: colorScheme.onSurface.withValues(alpha: 0.6),
-                      ),
-                      const SizedBox(width: 4),
-                      Flexible(
-                        child: Text(
-                          recipe.time,
-                          style: TextStyle(
-                            fontSize: 11,
-                            color: colorScheme.onSurface.withValues(alpha: 0.7),
-                            inherit: false,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      if (recipe.difficulty.isNotEmpty)
+                      if (recipe.difficulty.isNotEmpty) ...[
                         _buildDifficultyBadge(recipe.difficulty, colorScheme),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  // 标签和添加按钮
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
+                        const SizedBox(width: 8),
+                      ],
                       Expanded(
-                        child: Wrap(
-                          spacing: 5,
-                          runSpacing: 5,
-                          children: _buildTags(colorScheme),
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.access_time_rounded,
+                              size: 13,
+                              color: colorScheme.onSurface.withValues(alpha: 0.6),
+                            ),
+                            const SizedBox(width: 4),
+                            Flexible(
+                              child: Text(
+                                recipe.time,
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: colorScheme.onSurface.withValues(alpha: 0.7),
+                                  inherit: false,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
+                      // 添加按钮（移到右侧）
                       if (onAdd != null) ...[
                         const SizedBox(width: 6),
                         Material(
@@ -197,8 +200,8 @@ class RecipeCard extends StatelessWidget {
                             },
                             borderRadius: BorderRadius.circular(20),
                             child: Container(
-                              width: 32,
-                              height: 32,
+                              width: 28,
+                              height: 28,
                               decoration: BoxDecoration(
                                 color: isAdded
                                     ? colorScheme.primary
@@ -219,7 +222,7 @@ class RecipeCard extends StatelessWidget {
                               child: Icon(
                                 isAdded ? Icons.check : Icons.add,
                                 color: Colors.white,
-                                size: 18,
+                                size: 16,
                               ),
                             ),
                           ),
@@ -268,30 +271,46 @@ class RecipeCard extends StatelessWidget {
       return [];
     }
 
-    // 只显示前两个标签，防止溢出
-    final displayTags = recipe.tags.take(2).toList();
+    // 动态计算可以显示的标签数量
+    // 根据标签长度决定显示数量：如果标签都很短，可以显示3个；如果有长标签，显示2个
+    int maxTags = 3;
+    if (recipe.tags.isNotEmpty) {
+      final avgLength = recipe.tags.take(3).fold<int>(
+            0,
+            (sum, tag) => sum + (tag.length > 4 ? 4 : tag.length),
+          ) /
+          recipe.tags.take(3).length;
+      // 如果平均长度大于3，只显示2个标签
+      if (avgLength > 3) {
+        maxTags = 2;
+      }
+    }
+
+    final displayTags = recipe.tags.take(maxTags).toList();
 
     return displayTags.asMap().entries.map((entry) {
       final index = entry.key;
       final tag = entry.value;
+      // 限制标签长度为4个字符
+      final displayTag = tag.length > 4 ? tag.substring(0, 4) : tag;
       final tagColorClass = index < recipe.tagColors.length
           ? recipe.tagColors[index]
           : null;
-      final backgroundColor = TagColorUtils.parseColor(tagColorClass);
-      final textColor = TagColorUtils.getTextColor(backgroundColor);
+      final tagColor = TagColorUtils.parseColor(tagColorClass);
       return Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
         decoration: BoxDecoration(
-          color: backgroundColor,
-          borderRadius: BorderRadius.circular(10),
+          color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
+          borderRadius: BorderRadius.circular(6),
         ),
         child: Text(
-          tag,
+          displayTag,
           style: TextStyle(
-            fontSize: 10,
-            color: textColor,
-            fontWeight: FontWeight.w600,
+            fontSize: 9,
+            color: tagColor,
+            fontWeight: FontWeight.w500,
             inherit: false,
+            height: 1.2,
           ),
         ),
       );

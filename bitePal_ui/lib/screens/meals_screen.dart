@@ -318,24 +318,9 @@ class _MealsScreenState extends State<MealsScreen>
 
       _recipes = list;
     } catch (e) {
-      _loadMockData();
+      debugPrint('Error loading meal recipes: $e');
     }
     if (mounted) setState(() => _isLoading = false);
-  }
-
-  void _loadMockData() {
-    _recipes = [
-      Recipe(
-        id: '1',
-        name: "番茄炒蛋",
-        time: "15分钟",
-        difficulty: "简单",
-        tags: ["家常"],
-        tagColors: ["bg-green-500"],
-        favorite: true,
-        categories: ["酸甜"],
-      ),
-    ];
   }
 
   void _showFilterModal() {
