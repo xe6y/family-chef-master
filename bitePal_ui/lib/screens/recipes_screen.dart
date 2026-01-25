@@ -253,6 +253,7 @@ class _RecipesScreenState extends State<RecipesScreen>
   String _activeTab = "my";
   String _searchKeyword = '';
   bool _isLoading = true;
+  bool _isSearchExpanded = false;
 
   // Filter State
   final List<String> _selectedTastes = [];
@@ -443,6 +444,27 @@ class _RecipesScreenState extends State<RecipesScreen>
   List<Recipe> get _currentRecipes =>
       _activeTab == "my" ? _myRecipes : _onlineRecipes;
 
+  void _toggleTab() {
+    setState(() {
+      _activeTab = _activeTab == "my" ? "online" : "my";
+    });
+    _loadRecipes();
+  }
+
+  void _toggleSearch() {
+    setState(() {
+      _isSearchExpanded = !_isSearchExpanded;
+      if (!_isSearchExpanded) {
+        // 只有当搜索关键词不为空时才刷新
+        if (_searchKeyword.isNotEmpty) {
+          _searchController.clear();
+          _searchKeyword = '';
+          _loadRecipes();
+        }
+      }
+    });
+  }
+
   void _showFilterModal() {
     showModalBottomSheet(
       context: context,
@@ -474,114 +496,20 @@ class _RecipesScreenState extends State<RecipesScreen>
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: _oatmeal,
-      floatingActionButton: FloatingActionButton(
-        onPressed: () async {
-          final result = await Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) =>
-                  const RecipeDetailScreen(isCreateMode: true),
-            ),
-          );
-          if (result == true) _loadRecipes();
-        },
-        backgroundColor: _sageGreen,
-        child: const Icon(Icons.add, color: Colors.white),
-      ),
       body: CustomScrollView(
         controller: _scrollController,
         slivers: [
-          // 1. Immersive Header & Search
-          SliverAppBar(
-            pinned: true,
-            floating: true,
-            expandedHeight: 120,
-            backgroundColor: _oatmeal,
-            surfaceTintColor: Colors.transparent,
-            title: const Text(
-              "菜谱库",
-              style: TextStyle(
-                fontWeight: FontWeight.w800,
-                color: Color(0xFF4A4F50),
+          // 1. 紧凑标题栏（菜谱库 + 切换按钮 + 搜索 + 筛选）
+          SliverToBoxAdapter(
+            child: Container(
+              color: _oatmeal,
+              padding: EdgeInsets.fromLTRB(
+                16,
+                MediaQuery.of(context).padding.top + 12,
+                16,
+                12,
               ),
-            ),
-            actions: [
-              IconButton(
-                icon: const Icon(Icons.tune_rounded, color: Color(0xFF4A4F50)),
-                onPressed: _showFilterModal,
-              ),
-              const SizedBox(width: 8),
-            ],
-            flexibleSpace: FlexibleSpaceBar(
-              background: Container(color: _oatmeal),
-              expandedTitleScale: 1.0,
-              titlePadding: const EdgeInsets.symmetric(
-                horizontal: 16,
-                vertical: 12,
-              ),
-              title: LayoutBuilder(
-                builder: (context, constraints) {
-                  // Simple animation based on collapse state could be added here
-                  // For now, we keep the search bar constant in the flexible space
-                  // but visually aligned.
-                  return const SizedBox.shrink();
-                },
-              ),
-            ),
-            bottom: PreferredSize(
-              preferredSize: const Size.fromHeight(60),
-              child: Container(
-                padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-                child: GlassContainer(
-                  borderRadius: 24,
-                  opacity: 0.6,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 4,
-                  ),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.search, color: Color(0xFF8C8F90)),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: TextField(
-                          controller: _searchController,
-                          decoration: const InputDecoration(
-                            hintText: "搜索美味...",
-                            hintStyle: TextStyle(
-                              color: Color(0xFF8C8F90),
-                              fontSize: 14,
-                            ),
-                            border: InputBorder.none,
-                            isDense: true,
-                            contentPadding: EdgeInsets.zero,
-                          ),
-                          style: const TextStyle(
-                            fontSize: 14,
-                            color: Color(0xFF4A4F50),
-                          ),
-                          onSubmitted: (val) {
-                            _searchKeyword = val;
-                            _loadRecipes();
-                          },
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ),
-
-          // 2. Tab Switcher
-          SliverPersistentHeader(
-            pinned: true,
-            delegate: _TabHeaderDelegate(
-              activeTab: _activeTab,
-              onTabChanged: (tab) {
-                setState(() => _activeTab = tab);
-                _loadRecipes();
-              },
+              child: _buildCompactHeader(),
             ),
           ),
 
@@ -622,6 +550,200 @@ class _RecipesScreenState extends State<RecipesScreen>
                   ),
           ),
         ],
+      ),
+    );
+  }
+
+  // --- Compact Header ---
+  Widget _buildCompactHeader() {
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeInOut,
+      child: Row(
+        children: [
+          // 标签切换按钮（替代菜谱库标题）
+          if (!_isSearchExpanded)
+            _buildTabSwitchButton(),
+
+          const Spacer(),
+
+          // 搜索区域（可展开）
+          _buildSearchArea(),
+
+          const SizedBox(width: 8),
+
+          // 筛选按钮
+          if (!_isSearchExpanded)
+            _buildFilterButton(),
+
+          // 添加菜谱按钮
+          if (!_isSearchExpanded) ...[
+            const SizedBox(width: 8),
+            _buildAddButton(),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTabSwitchButton() {
+    return GestureDetector(
+      onTap: _toggleTab,
+      child: Container(
+        padding: const EdgeInsets.all(4),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(24),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.08),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _buildTabOption(
+              label: "我的私房",
+              isActive: _activeTab == "my",
+              color: const Color(0xFF7B9E89), // 深绿色
+            ),
+            const SizedBox(width: 4),
+            _buildTabOption(
+              label: "探索发现",
+              isActive: _activeTab == "online",
+              color: const Color(0xFFE8956F), // 橙色
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTabOption({
+    required String label,
+    required bool isActive,
+    required Color color,
+  }) {
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 250),
+      curve: Curves.easeInOut,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      decoration: BoxDecoration(
+        color: isActive ? color : Colors.transparent,
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          fontSize: 15,
+          fontWeight: FontWeight.w700,
+          color: isActive ? Colors.white : const Color(0xFF8C8F90),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSearchArea() {
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeInOut,
+      width: _isSearchExpanded ? MediaQuery.of(context).size.width - 80 : 40,
+      height: 40,
+      child: GlassContainer(
+        borderRadius: 20,
+        opacity: 0.6,
+        padding: const EdgeInsets.symmetric(horizontal: 8),
+        child: Row(
+          children: [
+            GestureDetector(
+              onTap: _toggleSearch,
+              child: Icon(
+                _isSearchExpanded ? Icons.arrow_back : Icons.search,
+                color: const Color(0xFF8C8F90),
+                size: 20,
+              ),
+            ),
+            if (_isSearchExpanded) ...[
+              const SizedBox(width: 8),
+              Expanded(
+                child: TextField(
+                  controller: _searchController,
+                  autofocus: true,
+                  decoration: const InputDecoration(
+                    hintText: "搜索美味...",
+                    hintStyle: TextStyle(
+                      color: Color(0xFF8C8F90),
+                      fontSize: 14,
+                    ),
+                    border: InputBorder.none,
+                    isDense: true,
+                    contentPadding: EdgeInsets.zero,
+                  ),
+                  style: const TextStyle(
+                    fontSize: 14,
+                    color: Color(0xFF4A4F50),
+                  ),
+                  onSubmitted: (val) {
+                    _searchKeyword = val;
+                    _loadRecipes();
+                  },
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFilterButton() {
+    return GestureDetector(
+      onTap: _showFilterModal,
+      child: GlassContainer(
+        borderRadius: 20,
+        opacity: 0.6,
+        padding: const EdgeInsets.all(8),
+        child: const Icon(
+          Icons.tune_rounded,
+          color: Color(0xFF4A4F50),
+          size: 20,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAddButton() {
+    return GestureDetector(
+      onTap: () async {
+        final result = await Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => const RecipeDetailScreen(isCreateMode: true),
+          ),
+        );
+        if (result == true) _loadRecipes();
+      },
+      child: Container(
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: _sageGreen,
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(
+              color: _sageGreen.withValues(alpha: 0.3),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: const Icon(
+          Icons.add,
+          color: Colors.white,
+          size: 20,
+        ),
       ),
     );
   }

@@ -10,6 +10,7 @@ import '../services/category_service.dart';
 import '../services/recipe_service.dart';
 import '../services/today_menu_state.dart';
 import '../widgets/refreshable_screen.dart';
+import '../widgets/recipe_card.dart';
 import 'recipe_detail_screen.dart';
 
 // --- Helper Components (1:1 with Recipes Screen) ---
@@ -181,6 +182,7 @@ class _MealsScreenState extends State<MealsScreen>
   List<Recipe> _recipes = [];
   bool _isLoading = true;
   String _searchKeyword = '';
+  bool _isSearchExpanded = false;
 
   // Filter State
   final List<String> _selectedTastes = [];
@@ -280,20 +282,10 @@ class _MealsScreenState extends State<MealsScreen>
   Future<void> _loadRecipes() async {
     setState(() => _isLoading = true);
     try {
-      await _todayMenuState.loadTodayMenu();
-      final favResult = await _recipeService.getMyRecipes(favorite: true);
+      // 只获取我的私房菜谱
+      final myRecipesResult = await _recipeService.getMyRecipes();
 
-      final Map<String, Recipe> uniqueMap = {};
-      for (var r in _todayMenuState.menuRecipes) {
-        uniqueMap[r.id] = r;
-      }
-      if (favResult != null) {
-        for (var r in favResult.list) {
-          uniqueMap[r.id] = r;
-        }
-      }
-
-      var list = uniqueMap.values.toList();
+      var list = myRecipesResult?.list ?? [];
 
       if (_searchKeyword.isNotEmpty) {
         list = list.where((r) => r.name.contains(_searchKeyword)).toList();
@@ -321,6 +313,17 @@ class _MealsScreenState extends State<MealsScreen>
       debugPrint('Error loading meal recipes: $e');
     }
     if (mounted) setState(() => _isLoading = false);
+  }
+
+  void _toggleSearch() {
+    setState(() {
+      _isSearchExpanded = !_isSearchExpanded;
+      if (!_isSearchExpanded && _searchKeyword.isNotEmpty) {
+        _searchController.clear();
+        _searchKeyword = '';
+        _loadRecipes();
+      }
+    });
   }
 
   void _showFilterModal() {
@@ -389,64 +392,17 @@ class _MealsScreenState extends State<MealsScreen>
       backgroundColor: _oatmeal,
       body: CustomScrollView(
         slivers: [
-          SliverAppBar(
-            pinned: true,
-            floating: true,
-            expandedHeight: 120,
-            backgroundColor: _oatmeal,
-            surfaceTintColor: Colors.transparent,
-            title: const Text(
-              "家庭点餐",
-              style: TextStyle(
-                fontWeight: FontWeight.w800,
-                color: _textPrimary,
+          // 紧凑标题栏
+          SliverToBoxAdapter(
+            child: Container(
+              color: _oatmeal,
+              padding: EdgeInsets.fromLTRB(
+                16,
+                MediaQuery.of(context).padding.top + 12,
+                16,
+                12,
               ),
-            ),
-            actions: [
-              IconButton(
-                icon: const Icon(Icons.tune_rounded, color: _textPrimary),
-                onPressed: _showFilterModal,
-              ),
-              const SizedBox(width: 8),
-            ],
-            bottom: PreferredSize(
-              preferredSize: const Size.fromHeight(60),
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-                child: GlassContainer(
-                  borderRadius: 24,
-                  opacity: 0.6,
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.search, color: _textSecondary, size: 20),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: TextField(
-                          controller: _searchController,
-                          decoration: const InputDecoration(
-                            hintText: "今天想吃点什么？",
-                            hintStyle: TextStyle(
-                              color: _textSecondary,
-                              fontSize: 14,
-                            ),
-                            border: InputBorder.none,
-                            isDense: true,
-                          ),
-                          style: const TextStyle(
-                            fontSize: 14,
-                            color: _textPrimary,
-                          ),
-                          onSubmitted: (val) {
-                            _searchKeyword = val;
-                            _loadRecipes();
-                          },
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
+              child: _buildCompactHeader(),
             ),
           ),
 
@@ -465,144 +421,174 @@ class _MealsScreenState extends State<MealsScreen>
                     mainAxisSpacing: 16,
                     crossAxisSpacing: 16,
                     childCount: _recipes.length,
-                    itemBuilder: (context, index) =>
-                        _buildMealCard(_recipes[index]),
+                    itemBuilder: (context, index) {
+                      final recipe = _recipes[index];
+                      final isAdded = _todayMenuState.isSelected(recipe.id);
+                      return RecipeCard(
+                        recipe: recipe,
+                        isAdded: isAdded,
+                        onTap: () async {
+                          await Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => RecipeDetailScreen(
+                                recipeId: recipe.id,
+                                isFromMyRecipes: true,
+                              ),
+                            ),
+                          );
+                        },
+                        onAdd: () {
+                          HapticFeedback.lightImpact();
+                          _todayMenuState.toggleSelected(recipe);
+                        },
+                      );
+                    },
                   ),
           ),
         ],
       ),
-      floatingActionButton: _todayMenuState.selectedCount > 0
-          ? FloatingActionButton.extended(
-              onPressed: _showOrderSheet,
-              backgroundColor: _sageGreen,
-              elevation: 4,
-              label: Row(
-                children: [
-                  const Icon(
-                    Icons.shopping_basket_rounded,
-                    color: Colors.white,
-                    size: 20,
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    "${_todayMenuState.selectedCount} 道菜品",
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ],
-              ),
-            )
-          : null,
     );
   }
 
-  Widget _buildMealCard(Recipe recipe) {
-    final isAdded = _todayMenuState.isSelected(recipe.id);
+  // --- Compact Header ---
+  Widget _buildCompactHeader() {
+    return Row(
+      children: [
+        // 已选菜品按钮（始终显示）
+        if (!_isSearchExpanded)
+          _buildSelectedMealsButton(),
 
-    return BouncyCard(
-      isSelected: isAdded,
-      activeShadowColor: _sageGreen,
-      onTap: () async {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) =>
-                RecipeDetailScreen(recipeId: recipe.id, isFromMyRecipes: true),
-          ),
-        );
-      },
+        const Spacer(),
+
+        // 搜索按钮（可展开）
+        _buildSearchButton(),
+
+        const SizedBox(width: 8),
+
+        // 筛选按钮
+        if (!_isSearchExpanded)
+          _buildFilterButton(),
+      ],
+    );
+  }
+
+  Widget _buildSelectedMealsButton() {
+    return GestureDetector(
+      onTap: _showOrderSheet,
       child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
         decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(20),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            ClipRRect(
-              borderRadius: const BorderRadius.vertical(
-                top: Radius.circular(20),
-              ),
-              child: AspectRatio(
-                aspectRatio: 1.1,
-                child: Stack(
-                  fit: StackFit.expand,
-                  children: [
-                    Image.asset(
-                      (recipe.image != null &&
-                              recipe.image!.isNotEmpty &&
-                              recipe.image!.startsWith('assets/'))
-                          ? recipe.image!
-                          : 'assets/chinese-potato-strips.jpg',
-                      fit: BoxFit.cover,
-                    ),
-                    Positioned(
-                      top: 8,
-                      right: 8,
-                      child: StatusChip(
-                        label: recipe.difficulty,
-                        color: recipe.difficulty == "简单"
-                            ? _sageGreen
-                            : _persimmon,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+          color: _sageGreen,
+          borderRadius: BorderRadius.circular(24),
+          boxShadow: [
+            BoxShadow(
+              color: _sageGreen.withValues(alpha: 0.3),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
             ),
-            Padding(
-              padding: const EdgeInsets.all(12),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    recipe.name,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 15,
-                      color: _textPrimary,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        "${recipe.time} ",
-                        style: const TextStyle(
-                          fontSize: 12,
-                          color: _textSecondary,
-                        ),
-                      ),
-                      GestureDetector(
-                        onTap: () {
-                          HapticFeedback.lightImpact();
-                          _todayMenuState.toggleSelected(recipe);
-                        },
-                        child: AnimatedContainer(
-                          duration: const Duration(milliseconds: 200),
-                          padding: const EdgeInsets.all(6),
-                          decoration: BoxDecoration(
-                            color: isAdded
-                                ? _sageGreen
-                                : _sageGreen.withValues(alpha: 0.1),
-                            shape: BoxShape.circle,
-                          ),
-                          child: Icon(
-                            isAdded ? Icons.check : Icons.add,
-                            size: 18,
-                            color: isAdded ? Colors.white : _sageGreen,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
+          ],
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(
+              Icons.shopping_basket_rounded,
+              color: Colors.white,
+              size: 18,
+            ),
+            const SizedBox(width: 8),
+            Text(
+              "已选 ${_todayMenuState.selectedCount} 道",
+              style: const TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+                fontSize: 14,
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSearchButton() {
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeInOut,
+      width: _isSearchExpanded ? MediaQuery.of(context).size.width - 80 : 40,
+      height: 40,
+      child: GlassContainer(
+        borderRadius: 20,
+        opacity: 0.6,
+        padding: EdgeInsets.zero,
+        child: _isSearchExpanded
+            ? Row(
+                children: [
+                  GestureDetector(
+                    onTap: _toggleSearch,
+                    child: const Padding(
+                      padding: EdgeInsets.all(8.0),
+                      child: Icon(
+                        Icons.arrow_back,
+                        color: _textSecondary,
+                        size: 20,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: TextField(
+                      controller: _searchController,
+                      autofocus: true,
+                      decoration: const InputDecoration(
+                        hintText: "今天想吃点什么？",
+                        hintStyle: TextStyle(
+                          color: _textSecondary,
+                          fontSize: 14,
+                        ),
+                        border: InputBorder.none,
+                        isDense: true,
+                        contentPadding: EdgeInsets.zero,
+                      ),
+                      style: const TextStyle(
+                        fontSize: 14,
+                        color: _textPrimary,
+                      ),
+                      onSubmitted: (val) {
+                        _searchKeyword = val;
+                        _loadRecipes();
+                      },
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                ],
+              )
+            : GestureDetector(
+                onTap: _toggleSearch,
+                child: const Center(
+                  child: Icon(
+                    Icons.search,
+                    color: _textSecondary,
+                    size: 20,
+                  ),
+                ),
+              ),
+      ),
+    );
+  }
+
+  Widget _buildFilterButton() {
+    return GestureDetector(
+      onTap: _showFilterModal,
+      child: GlassContainer(
+        borderRadius: 20,
+        opacity: 0.6,
+        padding: const EdgeInsets.all(8),
+        child: const Icon(
+          Icons.tune_rounded,
+          color: _textPrimary,
+          size: 20,
         ),
       ),
     );

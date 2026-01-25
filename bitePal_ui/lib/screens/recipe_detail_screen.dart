@@ -7,6 +7,7 @@ import '../services/recipe_service.dart';
 import '../services/category_service.dart';
 import '../services/user_tag_service.dart';
 import '../services/ingredient_service.dart';
+import '../services/today_menu_state.dart';
 
 // --- Theme Colors ---
 const Color _oatmeal = Color(0xFFF5F5F0);
@@ -240,6 +241,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen>
   final CategoryService _categoryService = CategoryService();
   final UserTagService _userTagService = UserTagService();
   final IngredientService _ingredientService = IngredientService();
+  final TodayMenuState _todayMenuState = TodayMenuState();
 
   // State
   Recipe? _recipe;
@@ -405,6 +407,132 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen>
   }
 
   // --- Actions ---
+
+  /// 尝试做做 - 将菜谱加入今日点餐列表
+  Future<void> _tryThisRecipe() async {
+    if (_recipe == null) return;
+
+    _todayMenuState.addToSelected(_recipe!);
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('已加入今日点餐列表'),
+          duration: const Duration(seconds: 2),
+          action: SnackBarAction(
+            label: '查看',
+            onPressed: () {
+              // 可以导航到今日菜单页面
+            },
+          ),
+        ),
+      );
+    }
+  }
+
+  /// 显示更多选项菜单
+  void _showMoreOptions() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.only(
+            topLeft: Radius.circular(20),
+            topRight: Radius.circular(20),
+          ),
+        ),
+        child: SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const SizedBox(height: 12),
+              Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.grey.withValues(alpha: 0.3),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const SizedBox(height: 20),
+              _buildMoreOptionItem(
+                icon: Icons.share_rounded,
+                title: '分享至网络',
+                onTap: () {
+                  Navigator.pop(context);
+                  _shareToNetwork();
+                },
+              ),
+              if (!widget.isFromMyRecipes) ...[
+                const Divider(height: 1),
+                _buildMoreOptionItem(
+                  icon: Icons.edit_note_rounded,
+                  title: '申请编辑菜谱',
+                  onTap: () {
+                    Navigator.pop(context);
+                    _requestEditPermission();
+                  },
+                ),
+              ],
+              const SizedBox(height: 12),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// 构建更多选项菜单项
+  Widget _buildMoreOptionItem({
+    required IconData icon,
+    required String title,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+        child: Row(
+          children: [
+            Icon(icon, color: _textPrimary, size: 24),
+            const SizedBox(width: 16),
+            Text(
+              title,
+              style: const TextStyle(
+                fontSize: 16,
+                color: _textPrimary,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// 分享至网络
+  void _shareToNetwork() {
+    // TODO: 实现分享至网络功能
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('分享功能开发中...'),
+        duration: Duration(seconds: 2),
+      ),
+    );
+  }
+
+  /// 申请编辑菜谱权限
+  void _requestEditPermission() {
+    // TODO: 实现申请编辑权限功能
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('已提交编辑申请'),
+        duration: Duration(seconds: 2),
+      ),
+    );
+  }
 
   void _addIngredient() {
     _rotateController.forward(from: 0.0);
@@ -683,14 +811,57 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen>
                   Builder(
                     builder: (context) {
                       final imagePath = _recipe?.image;
-                      final isValidAsset =
-                          imagePath != null &&
-                          imagePath.isNotEmpty &&
-                          imagePath.startsWith('assets/');
+
+                      // 判断图片类型
+                      if (imagePath != null && imagePath.isNotEmpty) {
+                        if (imagePath.startsWith('http://') ||
+                            imagePath.startsWith('https://')) {
+                          // 网络图片
+                          return Image.network(
+                            imagePath,
+                            fit: BoxFit.cover,
+                            errorBuilder: (context, error, stackTrace) {
+                              // 网络图片加载失败，显示默认图片
+                              return Image.asset(
+                                'assets/chinese-potato-strips.jpg',
+                                fit: BoxFit.cover,
+                              );
+                            },
+                            loadingBuilder: (context, child, loadingProgress) {
+                              if (loadingProgress == null) return child;
+                              return Container(
+                                color: _oatmeal,
+                                child: Center(
+                                  child: CircularProgressIndicator(
+                                    value: loadingProgress.expectedTotalBytes != null
+                                        ? loadingProgress.cumulativeBytesLoaded /
+                                            loadingProgress.expectedTotalBytes!
+                                        : null,
+                                    color: _sageGreen,
+                                  ),
+                                ),
+                              );
+                            },
+                          );
+                        } else if (imagePath.startsWith('assets/')) {
+                          // 本地资源图片
+                          return Image.asset(
+                            imagePath,
+                            fit: BoxFit.cover,
+                            errorBuilder: (context, error, stackTrace) {
+                              // 本地图片加载失败，显示默认图片
+                              return Image.asset(
+                                'assets/chinese-potato-strips.jpg',
+                                fit: BoxFit.cover,
+                              );
+                            },
+                          );
+                        }
+                      }
+
+                      // 默认图片
                       return Image.asset(
-                        isValidAsset
-                            ? imagePath
-                            : 'assets/chinese-potato-strips.jpg',
+                        'assets/chinese-potato-strips.jpg',
                         fit: BoxFit.cover,
                       );
                     },
@@ -719,6 +890,23 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen>
                         onTap: () => Navigator.pop(context),
                         child: const Icon(
                           Icons.arrow_back,
+                          color: Colors.white,
+                          size: 20,
+                        ),
+                      ),
+                    ),
+                  ),
+                  // 右上角更多选项按钮
+                  Positioned(
+                    top: MediaQuery.of(context).padding.top + 10,
+                    right: 16,
+                    child: GlassContainer(
+                      borderRadius: 50,
+                      padding: const EdgeInsets.all(8),
+                      child: GestureDetector(
+                        onTap: _showMoreOptions,
+                        child: const Icon(
+                          Icons.more_vert,
                           color: Colors.white,
                           size: 20,
                         ),
@@ -1311,7 +1499,14 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen>
                     if (_isEditing) {
                       _saveRecipe();
                     } else {
-                      setState(() => _isEditing = true);
+                      // 根据来源显示不同功能
+                      if (widget.isFromMyRecipes) {
+                        // 我的私房：编辑菜谱
+                        setState(() => _isEditing = true);
+                      } else {
+                        // 探索发现：尝试做做
+                        _tryThisRecipe();
+                      }
                     }
                   },
                   style: ElevatedButton.styleFrom(
@@ -1324,7 +1519,9 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen>
                     elevation: 0,
                   ),
                   child: Text(
-                    _isEditing ? "保存菜谱" : "编辑菜谱",
+                    _isEditing
+                        ? "保存菜谱"
+                        : (widget.isFromMyRecipes ? "编辑菜谱" : "尝试做做"),
                     style: const TextStyle(
                       fontSize: 15,
                       fontWeight: FontWeight.w600,

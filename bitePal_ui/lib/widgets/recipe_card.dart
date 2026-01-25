@@ -126,6 +126,48 @@ class RecipeCard extends StatelessWidget {
                       ),
                     ),
                   ),
+                // 添加按钮（角标样式，右上角）
+                if (onAdd != null)
+                  Positioned(
+                    top: 8,
+                    right: onFavorite != null ? 52 : 8,
+                    child: Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        onTap: () {
+                          onAdd?.call();
+                        },
+                        borderRadius: BorderRadius.circular(20),
+                        child: Container(
+                          width: 36,
+                          height: 36,
+                          decoration: BoxDecoration(
+                            color: isAdded
+                                ? colorScheme.primary
+                                : Colors.white.withValues(alpha: 0.95),
+                            shape: BoxShape.circle,
+                            boxShadow: [
+                              BoxShadow(
+                                color: (isAdded
+                                        ? colorScheme.primary
+                                        : Colors.black)
+                                    .withValues(alpha: 0.15),
+                                blurRadius: 8,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          child: Icon(
+                            isAdded ? Icons.check : Icons.add,
+                            color: isAdded
+                                ? Colors.white
+                                : colorScheme.primary,
+                            size: 20,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
               ],
             ),
             // 信息区域
@@ -189,45 +231,6 @@ class RecipeCard extends StatelessWidget {
                           ],
                         ),
                       ),
-                      // 添加按钮（移到右侧）
-                      if (onAdd != null) ...[
-                        const SizedBox(width: 6),
-                        Material(
-                          color: Colors.transparent,
-                          child: InkWell(
-                            onTap: () {
-                              onAdd?.call();
-                            },
-                            borderRadius: BorderRadius.circular(20),
-                            child: Container(
-                              width: 28,
-                              height: 28,
-                              decoration: BoxDecoration(
-                                color: isAdded
-                                    ? colorScheme.primary
-                                    : colorScheme.error,
-                                shape: BoxShape.circle,
-                                boxShadow: [
-                                  BoxShadow(
-                                    color:
-                                        (isAdded
-                                                ? colorScheme.primary
-                                                : colorScheme.error)
-                                            .withValues(alpha: 0.3),
-                                    blurRadius: 6,
-                                    offset: const Offset(0, 2),
-                                  ),
-                                ],
-                              ),
-                              child: Icon(
-                                isAdded ? Icons.check : Icons.add,
-                                color: Colors.white,
-                                size: 16,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
                     ],
                   ),
                 ],
