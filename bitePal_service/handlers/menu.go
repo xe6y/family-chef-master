@@ -167,4 +167,3 @@ func (h *MenuHandler) RemoveRecipeFromMenu(c *gin.Context) {
 
 	c.JSON(http.StatusOK, models.NewSuccessResponseWithMessage("移除成功", nil))
 }
-

@@ -543,7 +543,9 @@ class _RecipesScreenState extends State<RecipesScreen>
                               ),
                             ),
                           );
-                          if (result == true) _loadRecipes();
+                          if (result == true) {
+                            _loadRecipes();
+                          }
                         },
                       );
                     },
@@ -724,7 +726,9 @@ class _RecipesScreenState extends State<RecipesScreen>
             builder: (context) => const RecipeDetailScreen(isCreateMode: true),
           ),
         );
-        if (result == true) _loadRecipes();
+        if (result == true) {
+          _loadRecipes();
+        }
       },
       child: Container(
         padding: const EdgeInsets.all(8),

@@ -35,6 +35,7 @@ func SetupRouter() *gin.Engine {
 		uploadHandler := handlers.NewUploadHandler()
 		familyHandler := handlers.NewFamilyHandler()
 		userTagHandler := handlers.NewUserTagHandler()
+		menuCacheHandler := handlers.NewMenuCacheHandler()
 
 		// ==================== 认证接口（无需Token） ====================
 		auth := api.Group("/auth")
@@ -182,6 +183,17 @@ func SetupRouter() *gin.Engine {
 		userTags.Use(middleware.AuthMiddleware())
 		{
 			userTags.GET("", userTagHandler.GetUserTags) // 获取用户常用标签
+		}
+
+		// 菜单缓存相关（多人协同编辑）
+		menuCache := api.Group("/menu-cache")
+		menuCache.Use(middleware.AuthMiddleware())
+		{
+			menuCache.POST("", menuCacheHandler.AddToCache)                                    // 添加到缓存
+			menuCache.GET("/:familyId/:date", menuCacheHandler.GetCacheByFamily)               // 获取家庭缓存
+			menuCache.DELETE("/:familyId/:date/:recipeId", menuCacheHandler.RemoveFromCache)   // 移除缓存
+			menuCache.PUT("/:cacheId/toggle", menuCacheHandler.ToggleChecked)                  // 切换勾选状态
+			menuCache.DELETE("/:familyId/:date", menuCacheHandler.ClearFamilyCache)            // 清空缓存
 		}
 	}
 

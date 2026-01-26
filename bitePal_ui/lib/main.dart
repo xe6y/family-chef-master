@@ -11,6 +11,7 @@ import 'screens/login_screen.dart';
 import 'screens/splash_screen.dart';
 import 'widgets/bottom_nav.dart';
 import 'design/theme/app_theme.dart';
+import 'utils/navigation_helper.dart';
 
 /// 自定义滚动行为，支持 Web 平台鼠标拖拽滚动
 class CustomScrollBehavior extends MaterialScrollBehavior {
@@ -154,6 +155,10 @@ class _MainScreenState extends State<MainScreen> {
   @override
   void initState() {
     super.initState();
+
+    // 注册 tab 切换回调
+    NavigationHelper().setOnSwitchTab(_switchToTab);
+
     _screens = [
       HomeScreen(key: _screenKeys[0]),
       RecipesScreen(key: _screenKeys[1]),
@@ -161,6 +166,15 @@ class _MainScreenState extends State<MainScreen> {
       IngredientsScreen(key: _screenKeys[3]),
       ShoppingScreen(key: _screenKeys[4]),
     ];
+  }
+
+  /// 切换到指定的 tab
+  void _switchToTab(int index) {
+    setState(() => _currentIndex = index);
+    // 刷新目标页面
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _refreshPage(index);
+    });
   }
 
   /// 刷新指定索引的页面

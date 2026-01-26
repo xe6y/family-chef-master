@@ -106,8 +106,13 @@ class RecipeService {
   /// 获取菜谱详情
   /// recipeId: 菜谱ID
   /// 返回: 菜谱详情
-  Future<Recipe?> getRecipeDetail(String recipeId) async {
-    final response = await _client.get('${ApiConfig.recipes}/$recipeId');
+  Future<Recipe?> getRecipeDetail(String recipeId, {String? type}) async {
+    final response = await _client.get(
+      '${ApiConfig.recipes}/$recipeId',
+      queryParams: {
+        if (type != null) 'type': type,
+      },
+    );
 
     if (response.isSuccess && response.data != null) {
       return Recipe.fromJson(response.data);

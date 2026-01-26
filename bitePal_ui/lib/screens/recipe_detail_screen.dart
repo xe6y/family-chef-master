@@ -12,6 +12,7 @@ import '../services/ingredient_service.dart';
 import '../services/today_menu_state.dart';
 import '../services/http_client.dart';
 import '../config/api_config.dart';
+import '../utils/navigation_helper.dart';
 
 // --- Theme Colors ---
 const Color _oatmeal = Color(0xFFF5F5F0);
@@ -282,6 +283,10 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen>
       duration: const Duration(milliseconds: 300),
     );
 
+    // 初始化 controllers，避免空指针
+    _nameController = TextEditingController();
+    _timeController = TextEditingController();
+
     _loadData();
   }
 
@@ -333,7 +338,12 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen>
     if (widget.recipeId == null) return;
 
     try {
-      final recipe = await _recipeService.getRecipeDetail(widget.recipeId!);
+      // 根据来源决定查询类型：my_recipes 或 public_recipes
+      final type = widget.isFromMyRecipes ? 'my' : 'public';
+      final recipe = await _recipeService.getRecipeDetail(
+        widget.recipeId!,
+        type: type,
+      );
       if (recipe != null) {
         setState(() {
           _recipe = recipe;
@@ -422,7 +432,9 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen>
   Future<void> _tryThisRecipe() async {
     if (_recipe == null) return;
 
-    _todayMenuState.addToSelected(_recipe!);
+    // 根据来源确定 source 参数
+    final source = widget.isFromMyRecipes ? 'my' : 'online';
+    _todayMenuState.addToSelected(_recipe!, source: source);
 
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -432,7 +444,10 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen>
           action: SnackBarAction(
             label: '查看',
             onPressed: () {
-              // 可以导航到今日菜单页面
+              // 关闭当前页面
+              Navigator.of(context).pop();
+              // 切换到点餐 tab (index 2)
+              NavigationHelper().switchToTab(2);
             },
           ),
         ),
@@ -486,6 +501,18 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen>
                   },
                 ),
               ],
+              if (widget.isFromMyRecipes) ...[
+                Divider(height: 1, thickness: 0.5, color: Colors.grey.withValues(alpha: 0.1)),
+                _buildMoreOptionItem(
+                  icon: Icons.delete_outline_rounded,
+                  title: '删除菜谱',
+                  onTap: () {
+                    Navigator.pop(context);
+                    _showDeleteConfirmDialog();
+                  },
+                  isDestructive: true,
+                ),
+              ],
               const SizedBox(height: 12),
             ],
           ),
@@ -499,6 +526,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen>
     required IconData icon,
     required String title,
     required VoidCallback onTap,
+    bool isDestructive = false,
   }) {
     return InkWell(
       onTap: onTap,
@@ -506,13 +534,17 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen>
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
         child: Row(
           children: [
-            Icon(icon, color: _textPrimary, size: 24),
+            Icon(
+              icon,
+              color: isDestructive ? Colors.red : _textPrimary,
+              size: 24,
+            ),
             const SizedBox(width: 16),
             Text(
               title,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 16,
-                color: _textPrimary,
+                color: isDestructive ? Colors.red : _textPrimary,
                 fontWeight: FontWeight.w500,
               ),
             ),
@@ -542,6 +574,74 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen>
         duration: Duration(seconds: 2),
       ),
     );
+  }
+
+  /// 显示删除确认对话框
+  void _showDeleteConfirmDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('删除菜谱'),
+        content: const Text('确定要删除这个菜谱吗？删除后无法恢复。'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('取消'),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              _deleteRecipe();
+            },
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('删除'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// 删除菜谱
+  Future<void> _deleteRecipe() async {
+    if (widget.recipeId == null) return;
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => Center(child: CircularProgressIndicator(color: _sageGreen)),
+    );
+
+    try {
+      final success = await _recipeService.deleteRecipe(widget.recipeId!);
+
+      if (mounted) {
+        Navigator.pop(context); // 关闭加载弹窗
+
+        if (success) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('删除成功'),
+              duration: Duration(seconds: 1),
+            ),
+          );
+          Navigator.pop(context, true); // 返回并刷新列表
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('删除失败，请重试'),
+              duration: Duration(seconds: 1),
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('发生错误: $e')),
+        );
+      }
+    }
   }
 
   /// 选择图片
@@ -666,14 +766,22 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen>
       steps: _steps.where((s) => s.trim().isNotEmpty).toList(), // 过滤空步骤
 
       favorite: false,
+
+      isPublic: false, // 保存到我的私房（my_recipes 表）
     );
 
     try {
       Recipe? result;
 
-      if (widget.isCreateMode) {
+      // 判断保存逻辑：
+      // 1. 创建模式：调用创建接口
+      // 2. 从探索发现加入私房：调用创建接口（复制到 my_recipes）
+      // 3. 编辑我的私房菜谱：调用更新接口
+      if (widget.isCreateMode || !widget.isFromMyRecipes) {
+        // 创建新菜谱或从公共菜谱加入私房
         result = await _recipeService.createRecipe(recipeData);
       } else if (widget.recipeId != null) {
+        // 更新已有的私房菜谱
         result = await _recipeService.updateRecipe(
           widget.recipeId!,
           recipeData,
@@ -684,10 +792,16 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen>
         Navigator.pop(context); // 关闭加载弹窗
 
         if (result != null) {
+          // 根据操作类型显示不同的提示信息
+          String message = '保存成功';
+          if (!widget.isFromMyRecipes && !widget.isCreateMode) {
+            message = '已加入我的私房';
+          }
+
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('保存成功'),
-              duration: Duration(seconds: 1),
+            SnackBar(
+              content: Text(message),
+              duration: const Duration(seconds: 1),
             ),
           );
 
@@ -974,9 +1088,85 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen>
                       ),
                     ),
                   ),
-                  // 编辑模式下：点击整个图片区域上传
+                  // 左上角返回按钮
+                  Positioned(
+                    top: MediaQuery.of(context).padding.top + 10,
+                    left: 16,
+                    child: GlassContainer(
+                      borderRadius: 50,
+                      padding: const EdgeInsets.all(8),
+                      child: GestureDetector(
+                        onTap: () => Navigator.pop(context),
+                        child: const Icon(
+                          Icons.arrow_back,
+                          color: Colors.white,
+                          size: 20,
+                        ),
+                      ),
+                    ),
+                  ),
+                  // 右上角更多选项按钮（非编辑模式显示）
+                  if (!_isEditing)
+                    Positioned(
+                      top: MediaQuery.of(context).padding.top + 10,
+                      right: 16,
+                      child: GlassContainer(
+                        borderRadius: 50,
+                        padding: const EdgeInsets.all(8),
+                        child: GestureDetector(
+                          onTap: _showMoreOptions,
+                          child: const Icon(
+                            Icons.more_vert,
+                            color: Colors.white,
+                            size: 20,
+                          ),
+                        ),
+                      ),
+                    ),
+                  // 底部名称容器
+                  Positioned(
+                    bottom: 16,
+                    left: 16,
+                    right: 16,
+                    child: GlassContainer(
+                        opacity: 0.6,
+                        blur: 16,
+                        borderRadius: 12,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 8,
+                        ),
+                        child: _isEditing
+                            ? TextField(
+                                controller: _nameController,
+                                style: const TextStyle(
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.w600,
+                                  color: _textPrimary,
+                                  height: 1.2,
+                                ),
+                              decoration: const InputDecoration(
+                                hintText: "输入菜谱名称...",
+                                hintStyle: TextStyle(color: _textSecondary),
+                                border: InputBorder.none,
+                                isDense: true,
+                              ),
+                            )
+                          : Text(
+                              _nameController.text,
+                              style: const TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.w600,
+                                color: _textPrimary,
+                                height: 1.2,
+                              ),
+                            ),
+                    ),
+                  ),
+                  // 编辑模式下：点击图片区域上传（放在最后，但排除名称输入框区域）
                   if (_isEditing)
                     Positioned.fill(
+                      bottom: 80, // 排除底部名称输入框区域（16 + 高度约50 + 余量）
                       child: GestureDetector(
                         onTap: _isUploadingImage ? null : _pickImage,
                         child: Container(
@@ -1013,79 +1203,6 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen>
                         ),
                       ),
                     ),
-                  Positioned(
-                    top: MediaQuery.of(context).padding.top + 10,
-                    left: 16,
-                    child: GlassContainer(
-                      borderRadius: 50,
-                      padding: const EdgeInsets.all(8),
-                      child: GestureDetector(
-                        onTap: () => Navigator.pop(context),
-                        child: const Icon(
-                          Icons.arrow_back,
-                          color: Colors.white,
-                          size: 20,
-                        ),
-                      ),
-                    ),
-                  ),
-                  // 右上角更多选项按钮（仅在非编辑模式显示）
-                  if (!_isEditing)
-                    Positioned(
-                      top: MediaQuery.of(context).padding.top + 10,
-                      right: 16,
-                      child: GlassContainer(
-                        borderRadius: 50,
-                        padding: const EdgeInsets.all(8),
-                        child: GestureDetector(
-                          onTap: _showMoreOptions,
-                          child: const Icon(
-                            Icons.more_vert,
-                            color: Colors.white,
-                            size: 20,
-                          ),
-                        ),
-                      ),
-                    ),
-                  Positioned(
-                    bottom: 16,
-                    left: 16,
-                    right: 16,
-                    child: GlassContainer(
-                      opacity: 0.6,
-                      blur: 16,
-                      borderRadius: 12,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 8,
-                      ),
-                      child: _isEditing
-                          ? TextField(
-                              controller: _nameController,
-                              style: const TextStyle(
-                                fontSize: 20,
-                                fontWeight: FontWeight.w600,
-                                color: _textPrimary,
-                                height: 1.2,
-                              ),
-                              decoration: const InputDecoration(
-                                hintText: "输入菜谱名称...",
-                                hintStyle: TextStyle(color: _textSecondary),
-                                border: InputBorder.none,
-                                isDense: true,
-                              ),
-                            )
-                          : Text(
-                              _nameController.text,
-                              style: const TextStyle(
-                                fontSize: 20,
-                                fontWeight: FontWeight.w600,
-                                color: _textPrimary,
-                                height: 1.2,
-                              ),
-                            ),
-                    ),
-                  ),
                 ],
               ),
             ),
@@ -1601,8 +1718,9 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen>
         child: SafeArea(
           child: Row(
             children: [
+              // 左侧按钮：返回/取消
               Expanded(
-                flex: 4,
+                flex: 3,
                 child: OutlinedButton(
                   onPressed: () {
                     if (_isEditing && !widget.isCreateMode) {
@@ -1625,9 +1743,35 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen>
                   ),
                 ),
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: 8),
+              // 中间按钮：加入我的私房（仅探索发现非编辑模式显示）
+              if (!widget.isFromMyRecipes && !_isEditing) ...[
+                Expanded(
+                  flex: 4,
+                  child: OutlinedButton(
+                    onPressed: () {
+                      HapticFeedback.lightImpact();
+                      setState(() => _isEditing = true);
+                    },
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      side: BorderSide(color: _sageGreen),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      foregroundColor: _sageGreen,
+                    ),
+                    child: const Text(
+                      "加入私房",
+                      style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+              ],
+              // 右侧按钮：主要操作
               Expanded(
-                flex: 6,
+                flex: 4,
                 child: ElevatedButton(
                   onPressed: () {
                     HapticFeedback.lightImpact();
