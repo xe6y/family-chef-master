@@ -224,16 +224,19 @@ class _IngredientsScreenState extends State<IngredientsScreen>
 
   // State
   String _activeStorage = "";
+  String _selectedCategoryId = ""; // 当前选中的分类
   List<StorageLocation> _storages = [];
   List<IngredientGroup> _groups = [];
   bool _isLoading = true;
   String _searchKeyword = '';
+  bool _isSearchExpanded = false;
 
   // Theme Colors
   static const Color _sageGreen = Color(0xFFB2AC88);
   static const Color _oatmeal = Color(0xFFF5F5F0);
   static const Color _persimmon = Color(0xFFE58A73);
   static const Color _textPrimary = Color(0xFF4A4F50);
+  static const Color _textSecondary = Color(0xFF8C8F90);
 
   @override
   void initState() {
@@ -300,10 +303,26 @@ class _IngredientsScreenState extends State<IngredientsScreen>
       } else {
         _groups = groups;
       }
+
+      // 自动选择第一个分类
+      if (_groups.isNotEmpty && _selectedCategoryId.isEmpty) {
+        _selectedCategoryId = _groups.first.category.id;
+      }
     } catch (e) {
       debugPrint('加载食材失败: $e');
     }
     if (mounted) setState(() => _isLoading = false);
+  }
+
+  void _toggleSearch() {
+    setState(() {
+      _isSearchExpanded = !_isSearchExpanded;
+      if (!_isSearchExpanded && _searchKeyword.isNotEmpty) {
+        _searchController.clear();
+        _searchKeyword = '';
+        _loadIngredients();
+      }
+    });
   }
 
   void _handleAddIngredient() {
@@ -449,156 +468,300 @@ class _IngredientsScreenState extends State<IngredientsScreen>
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: _oatmeal,
-      body: CustomScrollView(
-        slivers: [
-          // 1. Immersive Header
-          SliverAppBar(
-            pinned: true,
-            floating: true,
-            expandedHeight: 120,
-            backgroundColor: _oatmeal,
-            surfaceTintColor: Colors.transparent,
-            title: const Text(
-              "食材模块",
-              style: TextStyle(
-                fontWeight: FontWeight.w800,
-                color: _textPrimary,
-              ),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => const IngredientCategoryScreen(),
-                  ),
-                ),
-                child: const Text("分类管理", style: TextStyle(color: _sageGreen)),
-              ),
-              const SizedBox(width: 8),
-            ],
-            bottom: PreferredSize(
-              preferredSize: const Size.fromHeight(60),
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-                child: GlassContainer(
-                  borderRadius: 24,
-                  opacity: 0.6,
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: Row(
-                    children: [
-                      const Icon(
-                        Icons.search,
-                        color: Color(0xFF8C8F90),
-                        size: 20,
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: TextField(
-                          controller: _searchController,
-                          decoration: const InputDecoration(
-                            hintText: "搜索我的食材...",
-                            border: InputBorder.none,
-                            isDense: true,
-                          ),
-                          style: const TextStyle(fontSize: 14),
-                          onSubmitted: (v) {
-                            _searchKeyword = v;
-                            _loadIngredients();
-                          },
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
+      body: Column(
+        children: [
+          // 顶部标题栏和操作按钮
+          _buildTopBar(),
+
+          // 存储位置导航
+          _buildStorageNavigation(),
+
+          // 主内容区域：左侧分类 + 右侧食材
+          Expanded(
+            child: _isLoading
+                ? const Center(
+                    child: CircularProgressIndicator(color: _sageGreen),
+                  )
+                : _groups.isEmpty
+                    ? _buildEmptyState()
+                    : _buildTwoColumnLayout(),
           ),
-
-          // 2. Storage Navigation
-          SliverPersistentHeader(
-            pinned: true,
-            delegate: _StorageHeaderDelegate(
-              storages: _storages,
-              activeId: _activeStorage,
-              onChanged: (id) {
-                setState(() => _activeStorage = id);
-                _loadIngredients();
-              },
-            ),
-          ),
-
-          // 3. Grid of Ingredients
-          if (_isLoading)
-            const SliverFillRemaining(
-              child: Center(
-                child: CircularProgressIndicator(color: _sageGreen),
-              ),
-            )
-          else if (_groups.isEmpty)
-            SliverFillRemaining(child: _buildEmptyState())
-          else
-            ..._buildAllGroups(),
-
-          const SliverToBoxAdapter(child: SizedBox(height: 100)),
         ],
-      ),
-      floatingActionButton: FloatingActionButton(
-        heroTag: "ingredients_fab", // Unique tag to prevent Hero conflict
-        onPressed: _handleAddIngredient,
-        backgroundColor: _sageGreen,
-        child: const Icon(Icons.add, color: Colors.white),
       ),
     );
   }
 
-  List<Widget> _buildAllGroups() {
-    final List<Widget> slivers = [];
-    for (var group in _groups) {
-      slivers.add(
-        SliverToBoxAdapter(
-          key: ValueKey('header_${group.category.id}'),
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 20, 16, 12),
-            child: Row(
-              children: [
-                Text(group.category.icon, style: const TextStyle(fontSize: 18)),
-                const SizedBox(width: 8),
-                Text(
-                  group.category.name,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16,
-                    color: _textPrimary,
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  "${group.count}",
-                  style: const TextStyle(color: Colors.grey, fontSize: 12),
-                ),
-              ],
+  // 顶部标题栏和操作按钮
+  Widget _buildTopBar() {
+    return Container(
+      color: _oatmeal,
+      padding: EdgeInsets.fromLTRB(
+        16,
+        MediaQuery.of(context).padding.top + 12,
+        16,
+        12,
+      ),
+      child: Row(
+        children: [
+          const Text(
+            "食材模块",
+            style: TextStyle(
+              fontWeight: FontWeight.w800,
+              fontSize: 24,
+              color: _textPrimary,
             ),
           ),
-        ),
-      );
+          const Spacer(),
+          // 搜索按钮
+          _buildSearchButton(),
+          const SizedBox(width: 8),
+          // 添加按钮
+          if (!_isSearchExpanded) _buildAddButton(),
+          const SizedBox(width: 8),
+          // 分类管理按钮
+          if (!_isSearchExpanded) _buildCategoryButton(),
+        ],
+      ),
+    );
+  }
 
-      slivers.add(
-        SliverPadding(
-          key: ValueKey('grid_${group.category.id}'),
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          sliver: SliverMasonryGrid.count(
-            crossAxisCount: 2,
-            mainAxisSpacing: 12,
-            crossAxisSpacing: 12,
-            childCount: group.ingredients.length,
-            itemBuilder: (context, idx) =>
-                _buildIngredientCard(group.ingredients[idx]),
-          ),
+  Widget _buildSearchButton() {
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeInOut,
+      width: _isSearchExpanded ? MediaQuery.of(context).size.width - 80 : 40,
+      height: 40,
+      child: GlassContainer(
+        borderRadius: 20,
+        opacity: 0.6,
+        padding: EdgeInsets.zero,
+        child: _isSearchExpanded
+            ? Row(
+                children: [
+                  GestureDetector(
+                    onTap: _toggleSearch,
+                    child: const Padding(
+                      padding: EdgeInsets.all(8.0),
+                      child: Icon(
+                        Icons.arrow_back,
+                        color: _textSecondary,
+                        size: 20,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: TextField(
+                      controller: _searchController,
+                      autofocus: true,
+                      decoration: const InputDecoration(
+                        hintText: "搜索食材...",
+                        hintStyle: TextStyle(
+                          color: _textSecondary,
+                          fontSize: 14,
+                        ),
+                        border: InputBorder.none,
+                        isDense: true,
+                        contentPadding: EdgeInsets.zero,
+                      ),
+                      style: const TextStyle(fontSize: 14, color: _textPrimary),
+                      onSubmitted: (val) {
+                        _searchKeyword = val;
+                        _loadIngredients();
+                      },
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                ],
+              )
+            : GestureDetector(
+                onTap: _toggleSearch,
+                child: const Center(
+                  child: Icon(Icons.search, color: _textSecondary, size: 20),
+                ),
+              ),
+      ),
+    );
+  }
+
+  Widget _buildAddButton() {
+    return GestureDetector(
+      onTap: _handleAddIngredient,
+      child: GlassContainer(
+        borderRadius: 20,
+        opacity: 0.6,
+        padding: const EdgeInsets.all(8),
+        child: const Icon(Icons.add_rounded, color: _textPrimary, size: 20),
+      ),
+    );
+  }
+
+  Widget _buildCategoryButton() {
+    return GestureDetector(
+      onTap: () => Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => const IngredientCategoryScreen(),
         ),
-      );
-    }
-    return slivers;
+      ),
+      child: GlassContainer(
+        borderRadius: 20,
+        opacity: 0.6,
+        padding: const EdgeInsets.all(8),
+        child: const Icon(Icons.category_rounded, color: _textPrimary, size: 20),
+      ),
+    );
+  }
+
+  // 存储位置导航
+  Widget _buildStorageNavigation() {
+    return Container(
+      color: _oatmeal,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          children: _storages.map((s) {
+            final isActive = _activeStorage == s.id;
+            return Padding(
+              padding: const EdgeInsets.only(right: 12),
+              child: GestureDetector(
+                onTap: () {
+                  setState(() => _activeStorage = s.id);
+                  _loadIngredients();
+                },
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 10,
+                  ),
+                  decoration: BoxDecoration(
+                    color: isActive ? _sageGreen : Colors.white,
+                    borderRadius: BorderRadius.circular(24),
+                    boxShadow: [
+                      if (isActive)
+                        BoxShadow(
+                          color: _sageGreen.withValues(alpha: 0.3),
+                          blurRadius: 8,
+                          offset: const Offset(0, 2),
+                        ),
+                    ],
+                  ),
+                  child: Text(
+                    s.name,
+                    style: TextStyle(
+                      color: isActive ? Colors.white : _textPrimary,
+                      fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
+                      fontSize: 14,
+                    ),
+                  ),
+                ),
+              ),
+            );
+          }).toList(),
+        ),
+      ),
+    );
+  }
+
+  // 两栏布局：左侧分类，右侧食材
+  Widget _buildTwoColumnLayout() {
+    return Row(
+      children: [
+        // 左侧分类列表
+        _buildCategoryList(),
+        // 右侧食材列表
+        Expanded(child: _buildIngredientList()),
+      ],
+    );
+  }
+
+  // 左侧分类列表
+  Widget _buildCategoryList() {
+    return Container(
+      width: 100,
+      color: Colors.white,
+      child: ListView.builder(
+        itemCount: _groups.length,
+        itemBuilder: (context, index) {
+          final group = _groups[index];
+          final isSelected = _selectedCategoryId == group.category.id;
+          return GestureDetector(
+            onTap: () {
+              setState(() {
+                _selectedCategoryId = group.category.id;
+              });
+            },
+            child: Container(
+              padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
+              decoration: BoxDecoration(
+                color: isSelected ? _oatmeal : Colors.white,
+                border: Border(
+                  left: BorderSide(
+                    color: isSelected ? _sageGreen : Colors.transparent,
+                    width: 3,
+                  ),
+                ),
+              ),
+              child: Column(
+                children: [
+                  Text(
+                    group.category.icon,
+                    style: const TextStyle(fontSize: 24),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    group.category.name,
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                      color: isSelected ? _textPrimary : _textSecondary,
+                    ),
+                    textAlign: TextAlign.center,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    "${group.count}",
+                    style: TextStyle(
+                      fontSize: 10,
+                      color: isSelected ? _sageGreen : Colors.grey,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  // 右侧食材列表
+  Widget _buildIngredientList() {
+    final selectedGroup = _groups.firstWhere(
+      (g) => g.category.id == _selectedCategoryId,
+      orElse: () => _groups.first,
+    );
+
+    return Container(
+      color: _oatmeal,
+      child: GridView.builder(
+        padding: const EdgeInsets.all(16),
+        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 2,
+          mainAxisSpacing: 12,
+          crossAxisSpacing: 12,
+          childAspectRatio: 0.75,
+        ),
+        itemCount: selectedGroup.ingredients.length,
+        itemBuilder: (context, index) {
+          return _buildIngredientCard(selectedGroup.ingredients[index]);
+        },
+      ),
+    );
   }
 
   Widget _buildIngredientCard(IngredientItem item) {
@@ -621,6 +784,7 @@ class _IngredientsScreenState extends State<IngredientsScreen>
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
           children: [
             // Icon/Image with robust safety check
             Container(
@@ -652,30 +816,40 @@ class _IngredientsScreenState extends State<IngredientsScreen>
                 ),
               ),
             ),
-            Padding(
-              padding: const EdgeInsets.all(12),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    item.name,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 14,
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.all(10),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Flexible(
+                      child: Text(
+                        item.name,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    item.displayAmount,
-                    style: const TextStyle(color: Colors.grey, fontSize: 12),
-                  ),
-                  const SizedBox(height: 12),
-                  StatusChip(
-                    label: item.expiryText,
-                    color: isUrgent ? _persimmon : _sageGreen,
-                    isBreathing: isUrgent,
-                  ),
-                ],
+                    const SizedBox(height: 2),
+                    Flexible(
+                      child: Text(
+                        item.displayAmount,
+                        style: const TextStyle(color: Colors.grey, fontSize: 12),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    const Spacer(),
+                    StatusChip(
+                      label: item.expiryText,
+                      color: isUrgent ? _persimmon : _sageGreen,
+                      isBreathing: isUrgent,
+                    ),
+                  ],
+                ),
               ),
             ),
           ],
@@ -733,88 +907,4 @@ class _IngredientsScreenState extends State<IngredientsScreen>
       ),
     );
   }
-}
-
-// --- Storage Header Delegate ---
-
-class _StorageHeaderDelegate extends SliverPersistentHeaderDelegate {
-  final List<StorageLocation> storages;
-  final String activeId;
-  final ValueChanged<String> onChanged;
-
-  _StorageHeaderDelegate({
-    required this.storages,
-    required this.activeId,
-    required this.onChanged,
-  });
-
-  @override
-  Widget build(
-    BuildContext context,
-    double shrinkOffset,
-    bool overlapsContent,
-  ) {
-    return SizedBox.expand(
-      // Force expand to full height constraint
-      child: Container(
-        color: const Color(0xFFF5F5F0),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        child: SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: Row(
-            children: storages.map((s) {
-              final isActive = activeId == s.id;
-              return Padding(
-                padding: const EdgeInsets.only(right: 12),
-                child: GestureDetector(
-                  onTap: () => onChanged(s.id),
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 200),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 20,
-                      vertical: 10,
-                    ),
-                    decoration: BoxDecoration(
-                      color: isActive ? const Color(0xFFB2AC88) : Colors.white,
-                      borderRadius: BorderRadius.circular(24),
-                      boxShadow: [
-                        if (isActive)
-                          BoxShadow(
-                            color: const Color(
-                              0xFFB2AC88,
-                            ).withValues(alpha: 0.3),
-                            blurRadius: 8,
-                            offset: const Offset(0, 2),
-                          ),
-                      ],
-                    ),
-                    child: Text(
-                      s.name,
-                      style: TextStyle(
-                        color: isActive
-                            ? Colors.white
-                            : const Color(0xFF4A4F50),
-                        fontWeight: isActive
-                            ? FontWeight.bold
-                            : FontWeight.normal,
-                        fontSize: 14,
-                      ),
-                    ),
-                  ),
-                ),
-              );
-            }).toList(),
-          ),
-        ),
-      ),
-    );
-  }
-
-  @override
-  double get maxExtent => 60;
-  @override
-  double get minExtent => 60;
-  @override
-  bool shouldRebuild(covariant _StorageHeaderDelegate oldDelegate) =>
-      activeId != oldDelegate.activeId || storages != oldDelegate.storages;
 }

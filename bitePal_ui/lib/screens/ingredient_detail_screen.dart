@@ -354,21 +354,28 @@ class _IngredientDetailScreenState extends State<IngredientDetailScreen> {
         children: [
           Icon(icon, size: 20, color: Theme.of(context).colorScheme.primary),
           const SizedBox(width: 12),
-          Text(
-            label,
-            style: TextStyle(
-              color: Theme.of(
-                context,
-              ).colorScheme.onSurface.withValues(alpha: 0.6),
+          Flexible(
+            child: Text(
+              label,
+              style: TextStyle(
+                color: Theme.of(
+                  context,
+                ).colorScheme.onSurface.withValues(alpha: 0.6),
+              ),
+              overflow: TextOverflow.ellipsis,
             ),
           ),
-          const Spacer(),
+          const SizedBox(width: 8),
           if (trailing != null)
             trailing
           else
-            Text(
-              value,
-              style: TextStyle(fontWeight: FontWeight.w500, color: valueColor),
+            Flexible(
+              child: Text(
+                value,
+                style: TextStyle(fontWeight: FontWeight.w500, color: valueColor),
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.end,
+              ),
             ),
         ],
       ),

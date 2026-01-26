@@ -652,6 +652,224 @@ class _FilterBottomSheet extends StatefulWidget {
 }
 
 class _FilterBottomSheetState extends State<_FilterBottomSheet> {
+    return Container(
+      width: 40,
+      height: 4,
+      decoration: BoxDecoration(
+        color: Colors.grey[200],
+        borderRadius: BorderRadius.circular(2),
+      ),
+    );
+  }
+
+  Widget _buildHeader(int count) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        const Text(
+          "已选菜品",
+          style: TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+            color: Color(0xFF4A4F50),
+          ),
+        ),
+        Text(
+          "$count 道",
+          style: const TextStyle(
+            color: Color(0xFFB2AC88),
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildContent(
+    List<RecipeSelection> myRecipes,
+    List<RecipeSelection> onlineRecipes,
+  ) {
+    return Flexible(
+      child: SingleChildScrollView(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (myRecipes.isNotEmpty) ...[
+              _buildSectionTitle("我的私房", myRecipes.length),
+              const SizedBox(height: 12),
+              ...myRecipes.map((selection) => _buildSelectionItem(selection)),
+            ],
+            if (myRecipes.isNotEmpty && onlineRecipes.isNotEmpty)
+              const SizedBox(height: 24),
+            if (onlineRecipes.isNotEmpty) ...[
+              _buildSectionTitle("网络菜谱", onlineRecipes.length),
+              const SizedBox(height: 12),
+              ...onlineRecipes.map((selection) => _buildSelectionItem(selection)),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSectionTitle(String title, int count) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Row(
+        children: [
+          Container(
+            width: 4,
+            height: 16,
+            decoration: BoxDecoration(
+              color: const Color(0xFFB2AC88),
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Text(
+            title,
+            style: const TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: Color(0xFF4A4F50),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Text(
+            "($count)",
+            style: const TextStyle(
+              fontSize: 14,
+              color: Color(0xFF8C8F90),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSelectionItem(RecipeSelection selection) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: selection.isChecked
+              ? const Color(0xFFB2AC88)
+              : Colors.grey[200]!,
+          width: selection.isChecked ? 2 : 1,
+        ),
+      ),
+      child: Row(
+        children: [
+          // 复选框
+          Checkbox(
+            value: selection.isChecked,
+            onChanged: (value) {
+              setState(() {
+                widget.todayMenuState.toggleChecked(selection.recipe.id);
+              });
+            },
+            activeColor: const Color(0xFFB2AC88),
+          ),
+          const SizedBox(width: 12),
+          // 菜谱信息
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  selection.recipe.name,
+                  style: const TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF4A4F50),
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  selection.recipe.description,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: Color(0xFF8C8F90),
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 12),
+          // 堆叠头像
+          StackedAvatars(
+            members: selection.selectedBy,
+            size: 28,
+            maxDisplay: 3,
+            overlap: 10,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildConfirmButton() {
+    final checkedCount = widget.todayMenuState.getCheckedSelections().length;
+    final isDisabled = checkedCount == 0;
+
+    return SizedBox(
+      width: double.infinity,
+      child: ElevatedButton(
+        onPressed: isDisabled ? null : widget.onConfirm,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: const Color(0xFFB2AC88),
+          foregroundColor: Colors.white,
+          disabledBackgroundColor: Colors.grey[300],
+          disabledForegroundColor: Colors.grey[500],
+          padding: const EdgeInsets.symmetric(vertical: 16),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          elevation: 0,
+        ),
+        child: Text(
+          "生成今日菜单 ($checkedCount)",
+          style: const TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// --- Filter Bottom Sheet (1:1 with Recipe Screen) ---
+
+class _FilterBottomSheet extends StatefulWidget {
+  final List<String> selectedTastes;
+  final List<String> selectedDifficulties;
+  final List<String> selectedCuisines;
+  final List<RecipeCategory> tasteCategories;
+  final List<RecipeCategory> difficultyCategories;
+  final List<RecipeCategory> cuisineCategories;
+  final Function(List<String>, List<String>, List<String>) onApply;
+
+  const _FilterBottomSheet({
+    required this.selectedTastes,
+    required this.selectedDifficulties,
+    required this.selectedCuisines,
+    required this.tasteCategories,
+    required this.difficultyCategories,
+    required this.cuisineCategories,
+    required this.onApply,
+  });
+
+  @override
+  State<_FilterBottomSheet> createState() => _FilterBottomSheetState();
+}
+
+class _FilterBottomSheetState extends State<_FilterBottomSheet> {
   late List<String> _tempTastes;
   late List<String> _tempDiffs;
   late List<String> _tempCuisines;
@@ -1007,7 +1225,7 @@ class _OrderListSheetState extends State<_OrderListSheet> {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  "${selection.recipe.difficulty} · ${selection.recipe.time}",
+                  selection.recipe.description,
                   style: const TextStyle(
                     fontSize: 12,
                     color: Color(0xFF8C8F90),

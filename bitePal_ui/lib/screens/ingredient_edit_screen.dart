@@ -321,7 +321,15 @@ class _IngredientEditScreenState extends State<IngredientEditScreen> {
   }
 
   Future<void> _save() async {
-    if (_nameController.text.isEmpty) return;
+    if (_nameController.text.isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('请输入食材名称')),
+        );
+      }
+      return;
+    }
+
     setState(() => _isSaving = true);
     HapticFeedback.mediumImpact();
 
@@ -363,9 +371,22 @@ class _IngredientEditScreenState extends State<IngredientEditScreen> {
               purchaseDate: _formatDate(_purchaseDate),
             );
 
-      if (mounted && res != null) Navigator.pop(context, true);
+      if (mounted) {
+        if (res != null) {
+          Navigator.pop(context, true);
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('保存失败，请重试')),
+          );
+        }
+      }
     } catch (e) {
       debugPrint("Save error: $e");
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('保存失败: $e')),
+        );
+      }
     } finally {
       if (mounted) setState(() => _isSaving = false);
     }
@@ -492,7 +513,11 @@ class _IngredientEditScreenState extends State<IngredientEditScreen> {
                           ),
                         ),
                       ),
-                      const Divider(height: 24),
+                      Divider(
+                        height: 24,
+                        thickness: 0.5,
+                        color: _textSecondary.withValues(alpha: 0.1),
+                      ),
                       _buildFormRow(
                         Icons.shopping_basket_rounded,
                         "数量单位",
@@ -532,7 +557,11 @@ class _IngredientEditScreenState extends State<IngredientEditScreen> {
                         "存储位置",
                         _buildStorageDropdown(),
                       ),
-                      const Divider(height: 24),
+                      Divider(
+                        height: 24,
+                        thickness: 0.5,
+                        color: _textSecondary.withValues(alpha: 0.1),
+                      ),
                       _buildFormRow(
                         Icons.category_rounded,
                         "分类标签",
@@ -558,7 +587,11 @@ class _IngredientEditScreenState extends State<IngredientEditScreen> {
                           ),
                         ),
                       ),
-                      const Divider(height: 24),
+                      Divider(
+                        height: 24,
+                        thickness: 0.5,
+                        color: _textSecondary.withValues(alpha: 0.1),
+                      ),
                       _buildFormRow(
                         Icons.timer_rounded,
                         "保质时长",

@@ -57,7 +57,7 @@ type IngredientItem struct {
 	Quantity     float64        `json:"quantity" gorm:"type:decimal(10,2)"`                             // 数量数值
 	Unit         string         `json:"unit" gorm:"type:varchar(20)"`                                   // 单位（个、斤、克、毫升等）
 	Amount       string         `json:"amount" gorm:"type:varchar(50)"`                                 // 数量描述（兼容旧版本，如：2个）
-	Storage      string         `json:"storage" gorm:"type:varchar(20);index"`                          // 存储位置（room/fridge/freezer）
+	Storage      string         `json:"storage" gorm:"type:varchar(36);index"`                          // 存储位置ID（StorageLocation的ID）
 	CategoryID   string         `json:"categoryId" gorm:"type:varchar(36);not null;index"`              // 食材类型分类ID
 	Thumbnail    string         `json:"thumbnail" gorm:"type:varchar(500)"`                             // 缩略图URL
 	Icon         string         `json:"icon" gorm:"type:varchar(10)"`                                   // 图标（emoji，兼容旧版本）
