@@ -2,13 +2,10 @@ package handlers
 
 import (
 	"bitePal_service/models"
+	"bitePal_service/services"
 	"net/http"
-	"os"
-	"path/filepath"
-	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/google/uuid"
 )
 
 // UploadHandler 文件上传处理器
@@ -23,7 +20,6 @@ func NewUploadHandler() *UploadHandler {
 // 上传配置常量
 const (
 	MaxUploadSize = 10 << 20 // 最大上传大小：10MB
-	UploadDir     = "uploads" // 上传目录
 )
 
 // 允许的图片类型
@@ -36,7 +32,7 @@ var allowedImageTypes = map[string]bool{
 
 // UploadImage 上传图片
 // @Summary 上传图片
-// @Description 上传图片文件
+// @Description 上传图片文件到 MinIO
 // @Tags 文件上传
 // @Accept multipart/form-data
 // @Produce json
@@ -76,33 +72,27 @@ func (h *UploadHandler) UploadImage(c *gin.Context) {
 		return
 	}
 
-	// 确保上传目录存在
-	if err := os.MkdirAll(UploadDir, 0755); err != nil {
+	// 获取 MinIO 服务实例
+	minioService := services.GetMinIOService()
+	if minioService == nil {
 		c.JSON(http.StatusInternalServerError, models.NewErrorResponse(
 			models.CodeServerError,
-			"创建上传目录失败",
+			"文件存储服务未初始化",
 		))
 		return
 	}
 
-	// 生成唯一文件名
-	ext := filepath.Ext(header.Filename)
-	filename := time.Now().Format("20060102") + "_" + uuid.New().String() + ext
-	filePath := filepath.Join(UploadDir, filename)
-
-	// 保存文件
-	if err := c.SaveUploadedFile(header, filePath); err != nil {
+	// 上传文件到 MinIO
+	fileURL, err := minioService.UploadFile(file, header, "images")
+	if err != nil {
 		c.JSON(http.StatusInternalServerError, models.NewErrorResponse(
 			models.CodeServerError,
-			"文件保存失败",
+			"文件上传失败: "+err.Error(),
 		))
 		return
 	}
 
-	// 返回文件URL
-	// 实际生产环境中，应该返回CDN或对象存储的URL
-	fileURL := "/uploads/" + filename
-
+	// 返回文件 URL
 	c.JSON(http.StatusOK, models.NewSuccessResponseWithMessage("上传成功", gin.H{
 		"url": fileURL,
 	}))

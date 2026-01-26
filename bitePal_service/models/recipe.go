@@ -82,12 +82,12 @@ type Recipe struct {
 	Time            string            `json:"time" gorm:"type:varchar(50)"`                        // 制作时间
 	Difficulty      string            `json:"difficulty" gorm:"type:varchar(50)"`                  // 难度（有手就行/家常便饭/餐厅招牌/硬核挑战/专业厨师）
 	DifficultyColor string            `json:"difficultyColor" gorm:"-"`                            // 难度颜色（不存储，从分类表查询）
-	Tags            StringArray       `json:"tags" gorm:"type:json"`                               // 标签数组
-	TagColors       StringArray       `json:"tagColors" gorm:"type:json"`                          // 标签颜色数组
+	Tags            StringArray       `json:"tags" gorm:"type:jsonb"`                              // 标签数组
+	TagColors       StringArray       `json:"tagColors" gorm:"type:jsonb"`                         // 标签颜色数组
 	Favorite        bool              `json:"favorite" gorm:"default:false"`                       // 是否收藏
-	Categories      StringArray       `json:"categories" gorm:"type:json"`                         // 分类数组
-	Ingredients     RecipeIngredients `json:"ingredients" gorm:"type:json"`                        // 食材列表
-	Steps           StringArray       `json:"steps" gorm:"type:json"`                              // 制作步骤
+	Categories      StringArray       `json:"categories" gorm:"type:jsonb"`                        // 分类数组
+	Ingredients     RecipeIngredients `json:"ingredients" gorm:"type:jsonb"`                       // 食材列表
+	Steps           StringArray       `json:"steps" gorm:"type:jsonb"`                             // 制作步骤
 	UserID          string            `json:"userId" gorm:"type:varchar(36);column:user_id;index"` // 创建用户ID
 	IsPublic        bool              `json:"isPublic" gorm:"default:false"`                       // 是否公开
 	CreatedAt       time.Time         `json:"createdAt"`                                           // 创建时间
@@ -134,13 +134,20 @@ func (r *Recipe) ToListItem() *RecipeListItem {
 	}
 }
 
+// RecipeType 菜谱类型常量
+const (
+	RecipeTypeMyRecipe     = "my_recipe"     // 我的私房菜
+	RecipeTypePublicRecipe = "public_recipe" // 公开菜谱
+)
+
 // UserFavorite 用户收藏关联表
 type UserFavorite struct {
-	ID        string         `json:"id" gorm:"type:varchar(36);primaryKey"`                                 // ID
-	UserID    string         `json:"userId" gorm:"type:varchar(36);not null;uniqueIndex:idx_user_recipe"`   // 用户ID
-	RecipeID  string         `json:"recipeId" gorm:"type:varchar(36);not null;uniqueIndex:idx_user_recipe"` // 菜谱ID
-	CreatedAt time.Time      `json:"createdAt"`                                                             // 创建时间
-	DeletedAt gorm.DeletedAt `json:"-" gorm:"index"`                                                        // 软删除时间
+	ID         string         `json:"id" gorm:"type:varchar(36);primaryKey"`                                        // ID
+	UserID     string         `json:"userId" gorm:"type:varchar(36);not null;uniqueIndex:idx_user_recipe_type"`     // 用户ID
+	RecipeID   string         `json:"recipeId" gorm:"type:varchar(36);not null;uniqueIndex:idx_user_recipe_type"`   // 菜谱ID
+	RecipeType string         `json:"recipeType" gorm:"type:varchar(20);not null;uniqueIndex:idx_user_recipe_type"` // 菜谱类型
+	CreatedAt  time.Time      `json:"createdAt"`                                                                    // 创建时间
+	DeletedAt  gorm.DeletedAt `json:"-" gorm:"index"`                                                               // 软删除时间
 }
 
 // BeforeCreate 创建前钩子，自动生成ID

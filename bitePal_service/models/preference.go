@@ -34,7 +34,7 @@ func (m MemberPreferences) Value() (driver.Value, error) {
 type FamilyMember struct {
 	ID          string            `json:"id" gorm:"type:varchar(36);primaryKey"`     // 成员ID
 	Name        string            `json:"name" gorm:"type:varchar(50)"`              // 成员名称
-	Preferences MemberPreferences `json:"preferences" gorm:"type:json"`              // 偏好设置
+	Preferences MemberPreferences `json:"preferences" gorm:"type:jsonb"`             // 偏好设置
 	UserID      string            `json:"userId" gorm:"type:varchar(36);index"`      // 所属用户ID
 	CreatedAt   time.Time         `json:"createdAt"`                                 // 创建时间
 	UpdatedAt   time.Time         `json:"updatedAt"`                                 // 更新时间

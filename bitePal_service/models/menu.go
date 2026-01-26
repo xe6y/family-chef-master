@@ -45,7 +45,7 @@ func (m MenuRecipes) Value() (driver.Value, error) {
 type TodayMenu struct {
 	ID        string         `json:"id" gorm:"type:varchar(36);primaryKey"`                                 // 菜单ID
 	Date      string         `json:"date" gorm:"type:varchar(10);not null;uniqueIndex:idx_user_date"`      // 日期（YYYY-MM-DD）
-	Recipes   MenuRecipes    `json:"recipes" gorm:"type:json"`                                              // 菜谱列表
+	Recipes   MenuRecipes    `json:"recipes" gorm:"type:jsonb"`                                             // 菜谱列表
 	UserID    string         `json:"userId" gorm:"type:varchar(36);not null;uniqueIndex:idx_user_date"`    // 用户ID
 	CreatedAt time.Time      `json:"createdAt"`                                                             // 创建时间
 	UpdatedAt time.Time      `json:"updatedAt"`                                                             // 更新时间

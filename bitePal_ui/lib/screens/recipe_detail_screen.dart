@@ -1,13 +1,17 @@
+import 'dart:io';
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:image_picker/image_picker.dart';
 import '../models/recipe.dart';
 import '../services/recipe_service.dart';
 import '../services/category_service.dart';
 import '../services/user_tag_service.dart';
 import '../services/ingredient_service.dart';
 import '../services/today_menu_state.dart';
+import '../services/http_client.dart';
+import '../config/api_config.dart';
 
 // --- Theme Colors ---
 const Color _oatmeal = Color(0xFFF5F5F0);
@@ -249,6 +253,12 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen>
   bool _isEditing = false;
   late AnimationController _rotateController;
 
+  // 图片上传相关
+  File? _selectedImageFile;
+  String? _uploadedImageUrl;
+  final ImagePicker _imagePicker = ImagePicker();
+  bool _isUploadingImage = false;
+
   // 食材充足状态缓存 (食材名称 -> 充足状态)
   final Map<String, String> _ingredientStatusCache = {};
 
@@ -466,7 +476,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen>
                 },
               ),
               if (!widget.isFromMyRecipes) ...[
-                const Divider(height: 1),
+                Divider(height: 1, thickness: 0.5, color: Colors.grey.withValues(alpha: 0.1)),
                 _buildMoreOptionItem(
                   icon: Icons.edit_note_rounded,
                   title: '申请编辑菜谱',
@@ -532,6 +542,69 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen>
         duration: Duration(seconds: 2),
       ),
     );
+  }
+
+  /// 选择图片
+  Future<void> _pickImage() async {
+    try {
+      final XFile? image = await _imagePicker.pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 1920,
+        maxHeight: 1080,
+        imageQuality: 85,
+      );
+
+      if (image != null) {
+        setState(() {
+          _selectedImageFile = File(image.path);
+        });
+        // 自动上传图片
+        await _uploadImage();
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('选择图片失败: $e')),
+        );
+      }
+    }
+  }
+
+  /// 上传图片到服务器
+  Future<void> _uploadImage() async {
+    if (_selectedImageFile == null) return;
+
+    setState(() => _isUploadingImage = true);
+
+    try {
+      final httpClient = HttpClient();
+      final response = await httpClient.uploadFile(
+        ApiConfig.uploadImage,
+        filePath: _selectedImageFile!.path,
+        fieldName: 'file',
+      );
+
+      if (response.isSuccess && response.data != null) {
+        setState(() {
+          _uploadedImageUrl = response.data['url'];
+          _isUploadingImage = false;
+        });
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('图片上传成功')),
+          );
+        }
+      } else {
+        throw Exception('上传失败');
+      }
+    } catch (e) {
+      setState(() => _isUploadingImage = false);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('图片上传失败: $e')),
+        );
+      }
+    }
   }
 
   void _addIngredient() {
@@ -723,6 +796,34 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen>
     }
   }
 
+  /// 构建"暂无图片"占位符
+  Widget _buildNoImagePlaceholder() {
+    return Container(
+      color: _oatmeal,
+      child: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.image_outlined,
+              size: 64,
+              color: _textSecondary.withValues(alpha: 0.3),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              '暂无图片',
+              style: TextStyle(
+                fontSize: 16,
+                color: _textSecondary.withValues(alpha: 0.5),
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildStepItem(int index) {
     return Column(
       key: ValueKey("step_$index"),
@@ -784,7 +885,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen>
           ),
         ),
         if (index < _steps.length - 1)
-          const Divider(height: 1, indent: 50, color: Color(0xFFFAFAFA)),
+          Divider(height: 1, indent: 50, thickness: 0.5, color: Colors.grey.withValues(alpha: 0.05)),
       ],
     );
   }
@@ -810,76 +911,108 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen>
                 children: [
                   Builder(
                     builder: (context) {
-                      final imagePath = _recipe?.image;
+                      // 优先显示已选择的本地图片
+                      if (_selectedImageFile != null) {
+                        return Image.file(
+                          _selectedImageFile!,
+                          fit: BoxFit.cover,
+                        );
+                      }
 
-                      // 判断图片类型
+                      // 显示已上传的图片
+                      if (_uploadedImageUrl != null && _uploadedImageUrl!.isNotEmpty) {
+                        return Image.network(
+                          _uploadedImageUrl!,
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) {
+                            return _buildNoImagePlaceholder();
+                          },
+                        );
+                      }
+
+                      // 显示菜谱原有的图片
+                      final imagePath = _recipe?.image;
                       if (imagePath != null && imagePath.isNotEmpty) {
                         if (imagePath.startsWith('http://') ||
                             imagePath.startsWith('https://')) {
-                          // 网络图片
                           return Image.network(
                             imagePath,
                             fit: BoxFit.cover,
                             errorBuilder: (context, error, stackTrace) {
-                              // 网络图片加载失败，显示默认图片
-                              return Image.asset(
-                                'assets/chinese-potato-strips.jpg',
-                                fit: BoxFit.cover,
-                              );
-                            },
-                            loadingBuilder: (context, child, loadingProgress) {
-                              if (loadingProgress == null) return child;
-                              return Container(
-                                color: _oatmeal,
-                                child: Center(
-                                  child: CircularProgressIndicator(
-                                    value: loadingProgress.expectedTotalBytes != null
-                                        ? loadingProgress.cumulativeBytesLoaded /
-                                            loadingProgress.expectedTotalBytes!
-                                        : null,
-                                    color: _sageGreen,
-                                  ),
-                                ),
-                              );
+                              return _buildNoImagePlaceholder();
                             },
                           );
                         } else if (imagePath.startsWith('assets/')) {
-                          // 本地资源图片
                           return Image.asset(
                             imagePath,
                             fit: BoxFit.cover,
                             errorBuilder: (context, error, stackTrace) {
-                              // 本地图片加载失败，显示默认图片
-                              return Image.asset(
-                                'assets/chinese-potato-strips.jpg',
-                                fit: BoxFit.cover,
-                              );
+                              return _buildNoImagePlaceholder();
                             },
                           );
                         }
                       }
 
-                      // 默认图片
-                      return Image.asset(
-                        'assets/chinese-potato-strips.jpg',
-                        fit: BoxFit.cover,
-                      );
+                      // 默认显示"暂无图片"
+                      return _buildNoImagePlaceholder();
                     },
                   ),
+                  // 渐变遮罩（不拦截点击事件）
                   Positioned.fill(
-                    child: DecoratedBox(
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.topCenter,
-                          end: Alignment.bottomCenter,
-                          colors: [
-                            Colors.transparent,
-                            Colors.black.withValues(alpha: 0.4),
-                          ],
+                    child: IgnorePointer(
+                      child: DecoratedBox(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                            colors: [
+                              Colors.transparent,
+                              Colors.black.withValues(alpha: 0.4),
+                            ],
+                          ),
                         ),
                       ),
                     ),
                   ),
+                  // 编辑模式下：点击整个图片区域上传
+                  if (_isEditing)
+                    Positioned.fill(
+                      child: GestureDetector(
+                        onTap: _isUploadingImage ? null : _pickImage,
+                        child: Container(
+                          color: Colors.transparent,
+                          child: _isUploadingImage
+                              ? Center(
+                                  child: Container(
+                                    padding: const EdgeInsets.all(20),
+                                    decoration: BoxDecoration(
+                                      color: Colors.black.withValues(alpha: 0.6),
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    child: const Column(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        CircularProgressIndicator(
+                                          valueColor: AlwaysStoppedAnimation<Color>(
+                                            Colors.white,
+                                          ),
+                                        ),
+                                        SizedBox(height: 12),
+                                        Text(
+                                          '上传中...',
+                                          style: TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 14,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                )
+                              : null,
+                        ),
+                      ),
+                    ),
                   Positioned(
                     top: MediaQuery.of(context).padding.top + 10,
                     left: 16,
@@ -896,23 +1029,24 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen>
                       ),
                     ),
                   ),
-                  // 右上角更多选项按钮
-                  Positioned(
-                    top: MediaQuery.of(context).padding.top + 10,
-                    right: 16,
-                    child: GlassContainer(
-                      borderRadius: 50,
-                      padding: const EdgeInsets.all(8),
-                      child: GestureDetector(
-                        onTap: _showMoreOptions,
-                        child: const Icon(
-                          Icons.more_vert,
-                          color: Colors.white,
-                          size: 20,
+                  // 右上角更多选项按钮（仅在非编辑模式显示）
+                  if (!_isEditing)
+                    Positioned(
+                      top: MediaQuery.of(context).padding.top + 10,
+                      right: 16,
+                      child: GlassContainer(
+                        borderRadius: 50,
+                        padding: const EdgeInsets.all(8),
+                        child: GestureDetector(
+                          onTap: _showMoreOptions,
+                          child: const Icon(
+                            Icons.more_vert,
+                            color: Colors.white,
+                            size: 20,
+                          ),
                         ),
                       ),
                     ),
-                  ),
                   Positioned(
                     bottom: 16,
                     left: 16,
@@ -1020,12 +1154,12 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen>
                       ],
                     ),
 
-                    const Padding(
-                      padding: EdgeInsets.symmetric(vertical: 12),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 12),
                       child: Divider(
                         height: 1,
                         thickness: 0.5,
-                        color: Color(0xFFEEEEEE),
+                        color: Colors.grey.withValues(alpha: 0.05),
                       ),
                     ),
 
@@ -1375,10 +1509,11 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen>
                           ),
                         ),
                         if (index < _ingredients.length - 1)
-                          const Divider(
+                          Divider(
                             height: 1,
                             indent: 16,
-                            color: Color(0xFFFAFAFA),
+                            thickness: 0.5,
+                            color: Colors.grey.withValues(alpha: 0.05),
                           ),
                       ],
                     );

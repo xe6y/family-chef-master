@@ -47,7 +47,7 @@ func (s ShoppingItems) Value() (driver.Value, error) {
 type ShoppingList struct {
 	ID          string         `json:"id" gorm:"type:varchar(36);primaryKey"`    // 清单ID
 	Name        string         `json:"name" gorm:"type:varchar(100)"`            // 清单名称
-	Items       ShoppingItems  `json:"items" gorm:"type:json"`                   // 购物项列表
+	Items       ShoppingItems  `json:"items" gorm:"type:jsonb"`                  // 购物项列表
 	TotalPrice  float64        `json:"totalPrice" gorm:"type:decimal(10,2)"`     // 总价
 	UserID      string         `json:"userId" gorm:"type:varchar(36);index"`     // 用户ID
 	CreatedAt   time.Time      `json:"createdAt"`                                // 创建时间

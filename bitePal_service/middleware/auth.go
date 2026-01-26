@@ -95,4 +95,3 @@ func GetClaimsFromContext(c *gin.Context) *Claims {
 	}
 	return claims.(*Claims)
 }
-

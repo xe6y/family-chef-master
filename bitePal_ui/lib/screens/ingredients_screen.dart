@@ -1,6 +1,5 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
-import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 import '../models/ingredient_item.dart';
 import '../models/shopping_item.dart';
 import '../services/ingredient_service.dart';
@@ -483,8 +482,8 @@ class _IngredientsScreenState extends State<IngredientsScreen>
                     child: CircularProgressIndicator(color: _sageGreen),
                   )
                 : _groups.isEmpty
-                    ? _buildEmptyState()
-                    : _buildTwoColumnLayout(),
+                ? _buildEmptyState()
+                : _buildTwoColumnLayout(),
           ),
         ],
       ),
@@ -600,15 +599,17 @@ class _IngredientsScreenState extends State<IngredientsScreen>
     return GestureDetector(
       onTap: () => Navigator.push(
         context,
-        MaterialPageRoute(
-          builder: (_) => const IngredientCategoryScreen(),
-        ),
+        MaterialPageRoute(builder: (_) => const IngredientCategoryScreen()),
       ),
       child: GlassContainer(
         borderRadius: 20,
         opacity: 0.6,
         padding: const EdgeInsets.all(8),
-        child: const Icon(Icons.category_rounded, color: _textPrimary, size: 20),
+        child: const Icon(
+          Icons.category_rounded,
+          color: _textPrimary,
+          size: 20,
+        ),
       ),
     );
   }
@@ -652,7 +653,9 @@ class _IngredientsScreenState extends State<IngredientsScreen>
                     s.name,
                     style: TextStyle(
                       color: isActive ? Colors.white : _textPrimary,
-                      fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
+                      fontWeight: isActive
+                          ? FontWeight.bold
+                          : FontWeight.normal,
                       fontSize: 14,
                     ),
                   ),
@@ -715,7 +718,9 @@ class _IngredientsScreenState extends State<IngredientsScreen>
                     group.category.name,
                     style: TextStyle(
                       fontSize: 12,
-                      fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                      fontWeight: isSelected
+                          ? FontWeight.bold
+                          : FontWeight.normal,
                       color: isSelected ? _textPrimary : _textSecondary,
                     ),
                     textAlign: TextAlign.center,
@@ -837,7 +842,10 @@ class _IngredientsScreenState extends State<IngredientsScreen>
                     Flexible(
                       child: Text(
                         item.displayAmount,
-                        style: const TextStyle(color: Colors.grey, fontSize: 12),
+                        style: const TextStyle(
+                          color: Colors.grey,
+                          fontSize: 12,
+                        ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),

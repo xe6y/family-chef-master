@@ -6,7 +6,7 @@ import (
 
 	. "bitePal_service/models"
 
-	"gorm.io/driver/mysql"
+	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
 )
@@ -25,18 +25,18 @@ func InitDB(cfg *Config) error {
 		Logger: logger.Default.LogMode(logger.Info),
 	}
 
-	// 构建 MariaDB/MySQL DSN (Data Source Name)
-	// 格式: username:password@tcp(host:port)/dbname?charset=utf8mb4&parseTime=True&loc=Local
-	dsn := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?charset=utf8mb4&parseTime=True&loc=Local",
+	// 构建 PostgreSQL DSN (Data Source Name)
+	// 格式: host=localhost user=gorm password=gorm dbname=gorm port=9920 sslmode=disable TimeZone=Asia/Shanghai
+	dsn := fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%s sslmode=disable TimeZone=Asia/Shanghai",
+		cfg.DBHost,
 		cfg.DBUser,
 		cfg.DBPassword,
-		cfg.DBHost,
-		cfg.DBPort,
 		cfg.DBName,
+		cfg.DBPort,
 	)
 
-	// 连接 MariaDB 数据库
-	DB, err = gorm.Open(mysql.Open(dsn), gormConfig)
+	// 连接 PostgreSQL 数据库
+	DB, err = gorm.Open(postgres.Open(dsn), gormConfig)
 	if err != nil {
 		log.Printf("数据库连接失败: %v", err)
 		return err
@@ -60,6 +60,8 @@ func autoMigrate() error {
 	err := DB.AutoMigrate(
 		&User{},
 		&Recipe{},
+		&MyRecipe{},
+		&PublicRecipe{},
 		&UserFavorite{},
 		&RecipeCategory{},
 		&IngredientCategory{},

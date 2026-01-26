@@ -49,7 +49,7 @@ func (o OrderRecipes) Value() (driver.Value, error) {
 // MealOrder 点餐清单模型
 type MealOrder struct {
 	ID        string         `json:"id" gorm:"type:varchar(36);primaryKey"`                        // 点餐ID
-	Recipes   OrderRecipes   `json:"recipes" gorm:"type:json"`                                     // 菜谱列表
+	Recipes   OrderRecipes   `json:"recipes" gorm:"type:jsonb"`                                    // 菜谱列表
 	Status    string         `json:"status" gorm:"type:varchar(20);not null;default:'pending';index"` // 状态
 	UserID    string         `json:"userId" gorm:"type:varchar(36);not null;index"`                // 用户ID
 	CreatedAt time.Time      `json:"createdAt"`                                                    // 创建时间

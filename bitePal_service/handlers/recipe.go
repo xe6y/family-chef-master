@@ -9,7 +9,6 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
-	"github.com/google/uuid"
 )
 
 // RecipeHandler 菜谱处理器
@@ -55,8 +54,8 @@ func (h *RecipeHandler) GetMyRecipes(c *gin.Context) {
 	userID := middleware.GetUserIDFromContext(c)
 	pagination := utils.GetPagination(c)
 
-	// 构建查询
-	query := config.DB.Model(&models.Recipe{}).Where("user_id = ?", userID)
+	// 构建查询 - 查询我的私房菜表
+	query := config.DB.Model(&models.MyRecipe{}).Where("user_id = ?", userID)
 
 	// 关键词搜索
 	if keyword := c.Query("keyword"); keyword != "" {
@@ -85,9 +84,10 @@ func (h *RecipeHandler) GetMyRecipes(c *gin.Context) {
 		}
 	}
 
-	// 收藏筛选
+	// 收藏筛选（通过 user_favorites 表实现）
 	if favorite := c.Query("favorite"); favorite == "true" {
-		query = query.Where("favorite = ?", true)
+		query = query.Joins("INNER JOIN user_favorites ON user_favorites.recipe_id = my_recipes.id").
+			Where("user_favorites.user_id = ? AND user_favorites.recipe_type = ?", userID, models.RecipeTypeMyRecipe)
 	}
 
 	// 获取总数
@@ -95,11 +95,11 @@ func (h *RecipeHandler) GetMyRecipes(c *gin.Context) {
 	query.Count(&total)
 
 	// 获取列表
-	var recipes []models.Recipe
-	query.Offset(pagination.Offset).Limit(pagination.PageSize).Order("created_at DESC").Find(&recipes)
+	var recipes []models.MyRecipe
+	query.Offset(pagination.Offset).Limit(pagination.PageSize).Order("my_recipes.created_at DESC").Find(&recipes)
 
 	// 填充难度颜色
-	h.populateDifficultyColors(&recipes)
+	h.populateMyRecipeDifficultyColors(&recipes)
 
 	// 转换为列表项
 	list := make([]*models.RecipeListItem, len(recipes))
@@ -126,8 +126,8 @@ func (h *RecipeHandler) GetMyRecipes(c *gin.Context) {
 func (h *RecipeHandler) GetPublicRecipes(c *gin.Context) {
 	pagination := utils.GetPagination(c)
 
-	// 构建查询 - 只查询公开的菜谱
-	query := config.DB.Model(&models.Recipe{}).Where("is_public = ?", true)
+	// 构建查询 - 查询公开菜谱表
+	query := config.DB.Model(&models.PublicRecipe{})
 
 	// 关键词搜索
 	if keyword := c.Query("keyword"); keyword != "" {
@@ -161,11 +161,11 @@ func (h *RecipeHandler) GetPublicRecipes(c *gin.Context) {
 	query.Count(&total)
 
 	// 获取列表
-	var recipes []models.Recipe
+	var recipes []models.PublicRecipe
 	query.Offset(pagination.Offset).Limit(pagination.PageSize).Order("created_at DESC").Find(&recipes)
 
 	// 填充难度颜色
-	h.populateDifficultyColors(&recipes)
+	h.populatePublicRecipeDifficultyColors(&recipes)
 
 	// 转换为列表项
 	list := make([]*models.RecipeListItem, len(recipes))
@@ -190,17 +190,29 @@ func (h *RecipeHandler) GetPublicRecipes(c *gin.Context) {
 // @Router /api/recipes/{recipeId} [get]
 func (h *RecipeHandler) GetRecipeDetail(c *gin.Context) {
 	recipeID := c.Param("recipeId")
+	recipeType := c.Query("type") // 获取类型参数：my_recipe 或 public_recipe
 
-	var recipe models.Recipe
-	if result := config.DB.First(&recipe, "id = ?", recipeID); result.Error != nil {
-		c.JSON(http.StatusNotFound, models.NewErrorResponse(
-			models.CodeNotFound,
-			"菜谱不存在",
-		))
-		return
+	if recipeType == "public" {
+		var recipe models.PublicRecipe
+		if result := config.DB.First(&recipe, "id = ?", recipeID); result.Error != nil {
+			c.JSON(http.StatusNotFound, models.NewErrorResponse(
+				models.CodeNotFound,
+				"菜谱不存在",
+			))
+			return
+		}
+		c.JSON(http.StatusOK, models.NewSuccessResponseWithMessage("获取成功", recipe))
+	} else {
+		var recipe models.MyRecipe
+		if result := config.DB.First(&recipe, "id = ?", recipeID); result.Error != nil {
+			c.JSON(http.StatusNotFound, models.NewErrorResponse(
+				models.CodeNotFound,
+				"菜谱不存在",
+			))
+			return
+		}
+		c.JSON(http.StatusOK, models.NewSuccessResponseWithMessage("获取成功", recipe))
 	}
-
-	c.JSON(http.StatusOK, models.NewSuccessResponseWithMessage("获取成功", recipe))
 }
 
 // CreateRecipe 创建菜谱
@@ -226,30 +238,52 @@ func (h *RecipeHandler) CreateRecipe(c *gin.Context) {
 		return
 	}
 
-	recipe := &models.Recipe{
-		Name:        req.Name,
-		Image:       req.Image,
-		Time:        req.Time,
-		Difficulty:  req.Difficulty,
-		Tags:        req.Tags,
-		TagColors:   req.TagColors,
-		Categories:  req.Categories,
-		Ingredients: req.Ingredients,
-		Steps:       req.Steps,
-		IsPublic:    req.IsPublic,
-		UserID:      userID,
-		Favorite:    false,
+	if req.IsPublic {
+		// 创建公开菜谱
+		recipe := &models.PublicRecipe{
+			Name:        req.Name,
+			Image:       req.Image,
+			Time:        req.Time,
+			Difficulty:  req.Difficulty,
+			Tags:        req.Tags,
+			TagColors:   req.TagColors,
+			Categories:  req.Categories,
+			Ingredients: req.Ingredients,
+			Steps:       req.Steps,
+			CreatorID:   userID,
+			Source:      "user_created",
+		}
+		if result := config.DB.Create(recipe); result.Error != nil {
+			c.JSON(http.StatusInternalServerError, models.NewErrorResponse(
+				models.CodeServerError,
+				"菜谱创建失败",
+			))
+			return
+		}
+		c.JSON(http.StatusOK, models.NewSuccessResponseWithMessage("创建成功", recipe))
+	} else {
+		// 创建私房菜
+		recipe := &models.MyRecipe{
+			Name:        req.Name,
+			Image:       req.Image,
+			Time:        req.Time,
+			Difficulty:  req.Difficulty,
+			Tags:        req.Tags,
+			TagColors:   req.TagColors,
+			Categories:  req.Categories,
+			Ingredients: req.Ingredients,
+			Steps:       req.Steps,
+			UserID:      userID,
+		}
+		if result := config.DB.Create(recipe); result.Error != nil {
+			c.JSON(http.StatusInternalServerError, models.NewErrorResponse(
+				models.CodeServerError,
+				"菜谱创建失败",
+			))
+			return
+		}
+		c.JSON(http.StatusOK, models.NewSuccessResponseWithMessage("创建成功", recipe))
 	}
-
-	if result := config.DB.Create(recipe); result.Error != nil {
-		c.JSON(http.StatusInternalServerError, models.NewErrorResponse(
-			models.CodeServerError,
-			"菜谱创建失败",
-		))
-		return
-	}
-
-	c.JSON(http.StatusOK, models.NewSuccessResponseWithMessage("创建成功", recipe))
 }
 
 // UpdateRecipe 更新菜谱
@@ -268,21 +302,21 @@ func (h *RecipeHandler) CreateRecipe(c *gin.Context) {
 func (h *RecipeHandler) UpdateRecipe(c *gin.Context) {
 	userID := middleware.GetUserIDFromContext(c)
 	recipeID := c.Param("recipeId")
+	recipeType := c.Query("type") // 获取类型参数
 
-	var recipe models.Recipe
-	if result := config.DB.First(&recipe, "id = ?", recipeID); result.Error != nil {
-		c.JSON(http.StatusNotFound, models.NewErrorResponse(
-			models.CodeNotFound,
-			"菜谱不存在",
+	if recipeType == "public" {
+		c.JSON(http.StatusForbidden, models.NewErrorResponse(
+			models.CodeForbidden,
+			"公开菜谱不支持修改",
 		))
 		return
 	}
 
-	// 检查权限
-	if recipe.UserID != userID {
-		c.JSON(http.StatusForbidden, models.NewErrorResponse(
-			models.CodeForbidden,
-			"无权限修改此菜谱",
+	var recipe models.MyRecipe
+	if result := config.DB.First(&recipe, "id = ? AND user_id = ?", recipeID, userID); result.Error != nil {
+		c.JSON(http.StatusNotFound, models.NewErrorResponse(
+			models.CodeNotFound,
+			"菜谱不存在或无权限修改",
 		))
 		return
 	}
@@ -307,7 +341,6 @@ func (h *RecipeHandler) UpdateRecipe(c *gin.Context) {
 		"categories":  models.StringArray(req.Categories),
 		"ingredients": models.RecipeIngredients(req.Ingredients),
 		"steps":       models.StringArray(req.Steps),
-		"is_public":   req.IsPublic,
 	}
 
 	if result := config.DB.Model(&recipe).Updates(updates); result.Error != nil {
@@ -339,21 +372,21 @@ func (h *RecipeHandler) UpdateRecipe(c *gin.Context) {
 func (h *RecipeHandler) DeleteRecipe(c *gin.Context) {
 	userID := middleware.GetUserIDFromContext(c)
 	recipeID := c.Param("recipeId")
+	recipeType := c.Query("type") // 获取类型参数
 
-	var recipe models.Recipe
-	if result := config.DB.First(&recipe, "id = ?", recipeID); result.Error != nil {
-		c.JSON(http.StatusNotFound, models.NewErrorResponse(
-			models.CodeNotFound,
-			"菜谱不存在",
+	if recipeType == "public" {
+		c.JSON(http.StatusForbidden, models.NewErrorResponse(
+			models.CodeForbidden,
+			"公开菜谱不支持删除",
 		))
 		return
 	}
 
-	// 检查权限
-	if recipe.UserID != userID {
-		c.JSON(http.StatusForbidden, models.NewErrorResponse(
-			models.CodeForbidden,
-			"无权限删除此菜谱",
+	var recipe models.MyRecipe
+	if result := config.DB.First(&recipe, "id = ? AND user_id = ?", recipeID, userID); result.Error != nil {
+		c.JSON(http.StatusNotFound, models.NewErrorResponse(
+			models.CodeNotFound,
+			"菜谱不存在或无权限删除",
 		))
 		return
 	}
@@ -389,6 +422,7 @@ type FavoriteRequest struct {
 func (h *RecipeHandler) ToggleFavorite(c *gin.Context) {
 	userID := middleware.GetUserIDFromContext(c)
 	recipeID := c.Param("recipeId")
+	recipeType := c.Query("type") // 获取类型参数
 
 	var req FavoriteRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -399,31 +433,23 @@ func (h *RecipeHandler) ToggleFavorite(c *gin.Context) {
 		return
 	}
 
-	var recipe models.Recipe
-	if result := config.DB.First(&recipe, "id = ?", recipeID); result.Error != nil {
-		c.JSON(http.StatusNotFound, models.NewErrorResponse(
-			models.CodeNotFound,
-			"菜谱不存在",
-		))
-		return
+	// 确定菜谱类型
+	if recipeType == "" {
+		recipeType = models.RecipeTypeMyRecipe // 默认为私房菜
 	}
 
-	// 如果是用户自己的菜谱，直接更新favorite字段
-	if recipe.UserID == userID {
-		config.DB.Model(&recipe).Update("favorite", req.Favorite)
-	} else {
-		// 如果是网络菜谱，操作收藏关联表
-		if req.Favorite {
-			// 添加收藏
-			favorite := &models.UserFavorite{
-				UserID:   userID,
-				RecipeID: recipeID,
-			}
-			config.DB.Create(favorite)
-		} else {
-			// 取消收藏
-			config.DB.Where("user_id = ? AND recipe_id = ?", userID, recipeID).Delete(&models.UserFavorite{})
+	// 操作收藏关联表
+	if req.Favorite {
+		// 添加收藏
+		favorite := &models.UserFavorite{
+			UserID:     userID,
+			RecipeID:   recipeID,
+			RecipeType: recipeType,
 		}
+		config.DB.Create(favorite)
+	} else {
+		// 取消收藏
+		config.DB.Where("user_id = ? AND recipe_id = ? AND recipe_type = ?", userID, recipeID, recipeType).Delete(&models.UserFavorite{})
 	}
 
 	c.JSON(http.StatusOK, models.NewSuccessResponseWithMessage("操作成功", gin.H{
@@ -446,7 +472,7 @@ func (h *RecipeHandler) AddToMyRecipes(c *gin.Context) {
 	userID := middleware.GetUserIDFromContext(c)
 	recipeID := c.Param("recipeId")
 
-	var recipe models.Recipe
+	var recipe models.PublicRecipe
 	if result := config.DB.First(&recipe, "id = ?", recipeID); result.Error != nil {
 		c.JSON(http.StatusNotFound, models.NewErrorResponse(
 			models.CodeNotFound,
@@ -455,9 +481,8 @@ func (h *RecipeHandler) AddToMyRecipes(c *gin.Context) {
 		return
 	}
 
-	// 复制菜谱到用户的菜谱
-	newRecipe := &models.Recipe{
-		ID:          uuid.New().String(),
+	// 从公开菜谱复制到私房菜
+	newRecipe := &models.MyRecipe{
 		Name:        recipe.Name,
 		Image:       recipe.Image,
 		Time:        recipe.Time,
@@ -468,8 +493,6 @@ func (h *RecipeHandler) AddToMyRecipes(c *gin.Context) {
 		Ingredients: recipe.Ingredients,
 		Steps:       recipe.Steps,
 		UserID:      userID,
-		IsPublic:    false, // 复制的菜谱默认为私有
-		Favorite:    false,
 	}
 
 	if result := config.DB.Create(newRecipe); result.Error != nil {
@@ -483,7 +506,7 @@ func (h *RecipeHandler) AddToMyRecipes(c *gin.Context) {
 	c.JSON(http.StatusOK, models.NewSuccessResponseWithMessage("添加成功", newRecipe))
 }
 
-// populateDifficultyColors 填充菜谱列表的难度颜色
+// populateDifficultyColors 填充菜谱列表的难度颜色（旧版本，保留兼容性）
 // recipes: 菜谱列表指针
 func (h *RecipeHandler) populateDifficultyColors(recipes *[]models.Recipe) {
 	if recipes == nil || len(*recipes) == 0 {
@@ -508,3 +531,45 @@ func (h *RecipeHandler) populateDifficultyColors(recipes *[]models.Recipe) {
 	}
 }
 
+// populateMyRecipeDifficultyColors 填充私房菜列表的难度颜色
+func (h *RecipeHandler) populateMyRecipeDifficultyColors(recipes *[]models.MyRecipe) {
+	if recipes == nil || len(*recipes) == 0 {
+		return
+	}
+
+	var categories []models.RecipeCategory
+	config.DB.Where("type = ? AND is_active = ?", models.CategoryTypeDifficulty, true).Find(&categories)
+
+	difficultyColorMap := make(map[string]string)
+	for _, cat := range categories {
+		difficultyColorMap[cat.Name] = cat.Color
+	}
+
+	for i := range *recipes {
+		if color, ok := difficultyColorMap[(*recipes)[i].Difficulty]; ok {
+			(*recipes)[i].DifficultyColor = color
+		}
+	}
+}
+
+
+// populatePublicRecipeDifficultyColors 填充公开菜谱列表的难度颜色
+func (h *RecipeHandler) populatePublicRecipeDifficultyColors(recipes *[]models.PublicRecipe) {
+	if recipes == nil || len(*recipes) == 0 {
+		return
+	}
+
+	var categories []models.RecipeCategory
+	config.DB.Where("type = ? AND is_active = ?", models.CategoryTypeDifficulty, true).Find(&categories)
+
+	difficultyColorMap := make(map[string]string)
+	for _, cat := range categories {
+		difficultyColorMap[cat.Name] = cat.Color
+	}
+
+	for i := range *recipes {
+		if color, ok := difficultyColorMap[(*recipes)[i].Difficulty]; ok {
+			(*recipes)[i].DifficultyColor = color
+		}
+	}
+}

@@ -11,11 +11,18 @@ const (
 	DefaultJWTExpiry  = 168              // 默认Token有效期（小时），7天
 
 	// 数据库配置默认值
-	DefaultDBHost     = "127.0.0.1" // 默认数据库主机
-	DefaultDBPort     = "3306"      // 默认数据库端口
-	DefaultDBName     = "zuoban"    // 默认数据库名
-	DefaultDBUser     = "zuoban"    // 默认数据库用户名
-	DefaultDBPassword = "develop"   // 默认数据库密码
+	DefaultDBHost     = "127.0.0.1"   // 默认数据库主机
+	DefaultDBPort     = "5432"        // 默认数据库端口（PostgreSQL）
+	DefaultDBName     = "zuoban"      // 默认数据库名
+	DefaultDBUser     = "zuoban"      // 默认数据库用户名
+	DefaultDBPassword = "luohan@0913" // 默认数据库密码
+
+	// MinIO 配置默认值
+	DefaultMinIOEndpoint        = "localhost:9000"                           // 默认 MinIO 服务地址
+	DefaultMinIOAccessKeyID     = "HZsgrWpbzukFCtWLCVDd"                     // 默认访问密钥 ID
+	DefaultMinIOSecretAccessKey = "Siq70i4I73UU4czF6xkqOjFjvh3EXnuwxcRjpqnS" // 默认访问密钥
+	DefaultMinIOBucketName      = "zuoban"                                   // 默认存储桶名称
+	DefaultMinIOUseSSL          = false                                      // 默认不使用 SSL
 )
 
 // Config 应用配置结构
@@ -30,6 +37,13 @@ type Config struct {
 	DBName     string // 数据库名
 	DBUser     string // 数据库用户名
 	DBPassword string // 数据库密码
+
+	// MinIO 配置
+	MinIOEndpoint        string // MinIO 服务地址
+	MinIOAccessKeyID     string // 访问密钥 ID
+	MinIOSecretAccessKey string // 访问密钥
+	MinIOBucketName      string // 存储桶名称
+	MinIOUseSSL          bool   // 是否使用 SSL
 }
 
 // LoadConfig 加载配置
@@ -46,6 +60,13 @@ func LoadConfig() *Config {
 		DBName:     getEnvOrDefault("DB_NAME", DefaultDBName),
 		DBUser:     getEnvOrDefault("DB_USER", DefaultDBUser),
 		DBPassword: getEnvOrDefault("DB_PASSWORD", DefaultDBPassword),
+
+		// MinIO 配置
+		MinIOEndpoint:        getEnvOrDefault("MINIO_ENDPOINT", DefaultMinIOEndpoint),
+		MinIOAccessKeyID:     getEnvOrDefault("MINIO_ACCESS_KEY_ID", DefaultMinIOAccessKeyID),
+		MinIOSecretAccessKey: getEnvOrDefault("MINIO_SECRET_ACCESS_KEY", DefaultMinIOSecretAccessKey),
+		MinIOBucketName:      getEnvOrDefault("MINIO_BUCKET_NAME", DefaultMinIOBucketName),
+		MinIOUseSSL:          getEnvOrDefault("MINIO_USE_SSL", "false") == "true",
 	}
 }
 
@@ -67,4 +88,3 @@ var AppConfig *Config
 func InitConfig() {
 	AppConfig = LoadConfig()
 }
-
