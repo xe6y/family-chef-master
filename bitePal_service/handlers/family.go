@@ -7,6 +7,7 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 )
 
 // FamilyHandler 家庭管理处理器
@@ -129,12 +130,21 @@ func (h *FamilyHandler) CreateFamily(c *gin.Context) {
 	var user models.User
 	config.DB.First(&user, "id = ?", userID)
 
+	// 使用事务确保数据一致性
+	tx := config.DB.Begin()
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+		}
+	}()
+
 	// 创建家庭
 	family := &models.Family{
 		Name:    req.Name,
 		OwnerID: userID,
 	}
-	if result := config.DB.Create(family); result.Error != nil {
+	if err := tx.Create(family).Error; err != nil {
+		tx.Rollback()
 		c.JSON(http.StatusInternalServerError, models.NewErrorResponse(
 			models.CodeServerError,
 			"创建家庭失败",
@@ -149,7 +159,33 @@ func (h *FamilyHandler) CreateFamily(c *gin.Context) {
 		Nickname: user.Nickname,
 		Role:     models.FamilyRoleOwner,
 	}
-	config.DB.Create(memberInfo)
+	if err := tx.Create(memberInfo).Error; err != nil {
+		tx.Rollback()
+		c.JSON(http.StatusInternalServerError, models.NewErrorResponse(
+			models.CodeServerError,
+			"创建家庭成员失败",
+		))
+		return
+	}
+
+	// 更新用户的 FamilyID
+	if err := tx.Model(&user).Update("family_id", family.ID).Error; err != nil {
+		tx.Rollback()
+		c.JSON(http.StatusInternalServerError, models.NewErrorResponse(
+			models.CodeServerError,
+			"更新用户家庭信息失败",
+		))
+		return
+	}
+
+	// 提交事务
+	if err := tx.Commit().Error; err != nil {
+		c.JSON(http.StatusInternalServerError, models.NewErrorResponse(
+			models.CodeServerError,
+			"提交事务失败",
+		))
+		return
+	}
 
 	// 返回家庭信息
 	response := &models.FamilyResponse{
@@ -223,6 +259,14 @@ func (h *FamilyHandler) JoinFamily(c *gin.Context) {
 		nickname = user.Nickname
 	}
 
+	// 使用事务确保数据一致性
+	tx := config.DB.Begin()
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+		}
+	}()
+
 	// 添加为家庭成员
 	memberInfo := &models.FamilyMemberInfo{
 		FamilyID: family.ID,
@@ -230,7 +274,33 @@ func (h *FamilyHandler) JoinFamily(c *gin.Context) {
 		Nickname: nickname,
 		Role:     models.FamilyRoleMember,
 	}
-	config.DB.Create(memberInfo)
+	if err := tx.Create(memberInfo).Error; err != nil {
+		tx.Rollback()
+		c.JSON(http.StatusInternalServerError, models.NewErrorResponse(
+			models.CodeServerError,
+			"加入家庭失败",
+		))
+		return
+	}
+
+	// 更新用户的 FamilyID
+	if err := tx.Model(&user).Update("family_id", family.ID).Error; err != nil {
+		tx.Rollback()
+		c.JSON(http.StatusInternalServerError, models.NewErrorResponse(
+			models.CodeServerError,
+			"更新用户家庭信息失败",
+		))
+		return
+	}
+
+	// 提交事务
+	if err := tx.Commit().Error; err != nil {
+		c.JSON(http.StatusInternalServerError, models.NewErrorResponse(
+			models.CodeServerError,
+			"提交事务失败",
+		))
+		return
+	}
 
 	// 获取所有成员
 	var members []models.FamilyMemberInfo
@@ -298,12 +368,56 @@ func (h *FamilyHandler) LeaveFamily(c *gin.Context) {
 			))
 			return
 		}
-		// 删除家庭
-		config.DB.Delete(&family)
 	}
 
+	// 使用事务确保数据一致性
+	tx := config.DB.Begin()
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+		}
+	}()
+
 	// 删除成员记录
-	config.DB.Delete(&memberInfo)
+	if err := tx.Delete(&memberInfo).Error; err != nil {
+		tx.Rollback()
+		c.JSON(http.StatusInternalServerError, models.NewErrorResponse(
+			models.CodeServerError,
+			"退出家庭失败",
+		))
+		return
+	}
+
+	// 清空用户的 FamilyID
+	if err := tx.Model(&models.User{}).Where("id = ?", userID).Update("family_id", "").Error; err != nil {
+		tx.Rollback()
+		c.JSON(http.StatusInternalServerError, models.NewErrorResponse(
+			models.CodeServerError,
+			"更新用户信息失败",
+		))
+		return
+	}
+
+	// 如果是创建者且没有其他成员，删除家庭
+	if family.OwnerID == userID {
+		if err := tx.Delete(&family).Error; err != nil {
+			tx.Rollback()
+			c.JSON(http.StatusInternalServerError, models.NewErrorResponse(
+				models.CodeServerError,
+				"删除家庭失败",
+			))
+			return
+		}
+	}
+
+	// 提交事务
+	if err := tx.Commit().Error; err != nil {
+		c.JSON(http.StatusInternalServerError, models.NewErrorResponse(
+			models.CodeServerError,
+			"提交事务失败",
+		))
+		return
+	}
 
 	c.JSON(http.StatusOK, models.NewSuccessResponseWithMessage("退出成功", nil))
 }
@@ -362,8 +476,42 @@ func (h *FamilyHandler) RemoveMember(c *gin.Context) {
 		return
 	}
 
+	// 使用事务确保数据一致性
+	tx := config.DB.Begin()
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+		}
+	}()
+
 	// 删除成员
-	config.DB.Delete(&targetMember)
+	if err := tx.Delete(&targetMember).Error; err != nil {
+		tx.Rollback()
+		c.JSON(http.StatusInternalServerError, models.NewErrorResponse(
+			models.CodeServerError,
+			"移除成员失败",
+		))
+		return
+	}
+
+	// 清空被移除成员的 FamilyID
+	if err := tx.Model(&models.User{}).Where("id = ?", targetMember.UserID).Update("family_id", "").Error; err != nil {
+		tx.Rollback()
+		c.JSON(http.StatusInternalServerError, models.NewErrorResponse(
+			models.CodeServerError,
+			"更新用户信息失败",
+		))
+		return
+	}
+
+	// 提交事务
+	if err := tx.Commit().Error; err != nil {
+		c.JSON(http.StatusInternalServerError, models.NewErrorResponse(
+			models.CodeServerError,
+			"提交事务失败",
+		))
+		return
+	}
 
 	c.JSON(http.StatusOK, models.NewSuccessResponseWithMessage("移除成功", nil))
 }
@@ -468,8 +616,8 @@ func (h *FamilyHandler) RefreshInviteCode(c *gin.Context) {
 		return
 	}
 
-	// 生成新邀请码
-	newCode := family.ID[:6] // 简单实现，实际应该用随机生成
+	// 生成新邀请码（使用 UUID 的前 8 位）
+	newCode := uuid.New().String()[:8]
 	config.DB.Model(&family).Update("invite_code", newCode)
 
 	c.JSON(http.StatusOK, models.NewSuccessResponseWithMessage("刷新成功", gin.H{

@@ -1,11 +1,9 @@
 import 'package:flutter/foundation.dart';
 import '../models/recipe.dart';
 import '../models/recipe_selection.dart';
-import '../models/today_menu.dart';
 import '../models/user.dart';
-import 'menu_service.dart';
+import 'meal_service.dart';
 import 'recipe_service.dart';
-import 'family_service.dart';
 
 /// 全局状态管理器
 /// 使用单例模式管理已点菜品状态，支持多页面同步
@@ -19,17 +17,11 @@ class TodayMenuState extends ChangeNotifier {
   /// 私有构造函数
   TodayMenuState._internal();
 
-  /// 菜单服务
-  final MenuService _menuService = MenuService();
+  /// 点餐服务
+  final MealService _mealService = MealService();
 
   /// 菜谱服务
   final RecipeService _recipeService = RecipeService();
-
-  /// 家庭服务
-  final FamilyService _familyService = FamilyService();
-
-  /// 今日菜单数据（从服务器获取，展示用）
-  TodayMenu? _todayMenu;
 
   /// 今日菜单中的菜谱数据（展示用）
   final List<Recipe> _menuRecipes = [];
@@ -45,9 +37,6 @@ class TodayMenuState extends ChangeNotifier {
 
   /// 是否正在加载
   bool _isLoading = false;
-
-  /// 获取今日菜单
-  TodayMenu? get todayMenu => _todayMenu;
 
   /// 获取已点菜品列表（旧版本，保持兼容）
   List<Recipe> get selectedMeals => List.unmodifiable(_selectedMeals);
@@ -90,7 +79,7 @@ class TodayMenuState extends ChangeNotifier {
   }
 
   /// 加载今日菜单（展示用）
-  /// 从服务器获取今日菜单数据
+  /// 从服务器获取今日订单数据
   Future<void> loadTodayMenu() async {
     if (_isLoading) return;
 
@@ -98,15 +87,22 @@ class TodayMenuState extends ChangeNotifier {
     notifyListeners();
 
     try {
-      _todayMenu = await _menuService.getTodayMenu();
+      // 获取今日订单（今日菜单 = 今日订单）
+      final orders = await _mealService.getMealOrders(
+        page: 1,
+        pageSize: 1,
+      );
+
       _menuRecipes.clear();
 
-      if (_todayMenu != null && _todayMenu!.recipes.isNotEmpty) {
-        for (final menuRecipe in _todayMenu!.recipes) {
-          // 获取完整菜谱数据
+      if (orders != null && orders.list.isNotEmpty) {
+        final todayOrder = orders.list.first;
+
+        // 从订单中获取菜谱列表
+        for (final orderRecipe in todayOrder.recipes) {
           try {
             final recipe = await _recipeService.getRecipeDetail(
-              menuRecipe.recipeId,
+              orderRecipe.recipeId,
             );
             if (recipe != null) {
               _menuRecipes.add(recipe);

@@ -119,5 +119,26 @@ class MealService {
 
     return null;
   }
+
+  /// 获取订单统计信息
+  /// recipeIds: 菜谱ID列表（逗号分隔，可选）
+  /// 返回: 订单统计信息
+  Future<Map<String, dynamic>?> getOrderSummary({String? recipeIds}) async {
+    final queryParams = <String, dynamic>{};
+    if (recipeIds != null && recipeIds.isNotEmpty) {
+      queryParams['recipeIds'] = recipeIds;
+    }
+
+    final response = await _client.get(
+      '${ApiConfig.meals}/summary',
+      queryParams: queryParams,
+    );
+
+    if (response.isSuccess && response.data != null) {
+      return response.data as Map<String, dynamic>;
+    }
+
+    return null;
+  }
 }
 

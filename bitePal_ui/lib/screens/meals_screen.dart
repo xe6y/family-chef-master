@@ -14,6 +14,7 @@ import '../widgets/refreshable_screen.dart';
 import '../widgets/recipe_card.dart';
 import '../widgets/stacked_avatars.dart';
 import 'recipe_detail_screen.dart';
+import 'order_summary_screen.dart';
 
 // --- Helper Components (1:1 with Recipes Screen) ---
 
@@ -358,19 +359,25 @@ class _MealsScreenState extends State<MealsScreen>
     final selected = _todayMenuState.selectedMeals;
     if (selected.isEmpty) return;
 
-    final orderRecipes = selected
-        .map((r) => OrderRecipe(recipeId: r.id, recipeName: r.name))
-        .toList();
-    final order = await _mealService.createMealOrder(orderRecipes);
+    // 跳转到订单统计页面
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => OrderSummaryScreen(
+          selectedRecipes: selected,
+        ),
+      ),
+    );
 
-    if (order != null && mounted) {
+    // 如果确认创建订单，刷新页面
+    if (result == true && mounted) {
       _todayMenuState.clearSelected();
       await _todayMenuState.refreshTodayMenu();
       if (!mounted) return;
       HapticFeedback.mediumImpact();
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('点餐成功！祝您用餐愉快 🍽️')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('点餐成功！祝您用餐愉快 🍽️')),
+      );
       if (Navigator.canPop(context)) Navigator.pop(context);
     }
   }

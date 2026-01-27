@@ -16,6 +16,7 @@ type User struct {
 	Avatar    string         `json:"avatar" gorm:"type:varchar(500)"`                           // 头像URL
 	UserID    string         `json:"userId" gorm:"type:varchar(50);uniqueIndex"`                // 用户唯一标识（展示用）
 	Phone     string         `json:"phone" gorm:"type:varchar(20);uniqueIndex"`                 // 手机号（唯一）
+	FamilyID  string         `json:"familyId" gorm:"type:varchar(36);index"`                        // 所属家庭ID
 	CreatedAt time.Time      `json:"createdAt"`                                                 // 创建时间
 	UpdatedAt time.Time      `json:"updatedAt"`                                                 // 更新时间
 	DeletedAt gorm.DeletedAt `json:"-" gorm:"index"`                                            // 软删除时间

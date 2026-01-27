@@ -51,14 +51,10 @@ class ApiConfig {
   /// 随机推荐菜品
   static const String randomRecipe = '/recipes/random';
 
-  // ==================== 今日菜单接口 ====================
-  /// 今日菜单
-  static const String todayMenu = '/today-menu';
-
-  /// 今日菜单菜谱操作
-  static const String todayMenuRecipes = '/today-menu/recipes';
-
   // ==================== 点餐接口 ====================
+  /// 点餐基础路径
+  static const String meals = '/meals';
+
   /// 点餐菜品列表
   static const String mealRecipes = '/meals/recipes';
 

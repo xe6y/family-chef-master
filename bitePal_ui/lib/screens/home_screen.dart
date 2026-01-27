@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models/recipe.dart';
 import '../models/ingredient_item.dart';
-import '../models/today_menu.dart';
-import '../services/menu_service.dart';
+import '../services/meal_service.dart';
 import '../services/ingredient_service.dart';
 import '../services/recipe_service.dart';
 import '../widgets/random_meal_dialog.dart';
@@ -22,8 +21,8 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen>
     with SingleTickerProviderStateMixin {
-  /// 菜单服务
-  final MenuService _menuService = MenuService();
+  /// 点餐服务
+  final MealService _mealService = MealService();
 
   /// 食材服务
   final IngredientService _ingredientService = IngredientService();
@@ -71,21 +70,24 @@ class _HomeScreenState extends State<HomeScreen>
     setState(() => _isLoading = true);
 
     try {
-      final results = await Future.wait([
-        _menuService.getTodayMenu(),
-        _ingredientService.getExpiringIngredients(days: 3),
-      ]);
+      // 并行加载今日订单和即将过期食材
+      final ordersFuture = _mealService.getMealOrders(page: 1, pageSize: 1);
+      final ingredientsFuture = _ingredientService.getExpiringIngredients(days: 3);
 
-      _expiringIngredients = results[1] as List<IngredientItem>;
+      final orders = await ordersFuture;
+      _expiringIngredients = await ingredientsFuture;
 
-      final todayMenu = results[0] as TodayMenu?;
-      if (todayMenu != null && todayMenu.recipes.isNotEmpty) {
+      // 从订单中获取今日菜谱
+      if (orders != null && orders.list.isNotEmpty) {
+        final todayOrder = orders.list.first;
         final recipeDetails = await Future.wait(
-          todayMenu.recipes.map(
+          todayOrder.recipes.map(
             (r) => _recipeService.getRecipeDetail(r.recipeId),
           ),
         );
         _todayRecipes = recipeDetails.whereType<Recipe>().toList();
+      } else {
+        _todayRecipes = [];
       }
 
       _updateMoodByTime();

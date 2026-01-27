@@ -25,7 +25,6 @@ func SetupRouter() *gin.Engine {
 		authHandler := handlers.NewAuthHandler()
 		recipeHandler := handlers.NewRecipeHandler()
 		categoryHandler := handlers.NewCategoryHandler()
-		menuHandler := handlers.NewMenuHandler()
 		mealHandler := handlers.NewMealHandler()
 		ingredientHandler := handlers.NewIngredientHandler()
 		shoppingHandler := handlers.NewShoppingHandler()
@@ -49,11 +48,11 @@ func SetupRouter() *gin.Engine {
 		user := api.Group("/user")
 		user.Use(middleware.AuthMiddleware())
 		{
-			user.GET("/info", authHandler.GetUserInfo)          // 获取用户信息
-			user.PUT("/info", authHandler.UpdateUserInfo)       // 更新用户信息
-			user.GET("/stats", statsHandler.GetUserStats)       // 获取用户统计数据
-			user.GET("/preferences", preferenceHandler.GetPreferences)       // 获取家庭成员偏好
-			user.PUT("/preferences", preferenceHandler.UpdatePreferences)    // 更新家庭成员偏好
+			user.GET("/info", authHandler.GetUserInfo)                                  // 获取用户信息
+			user.PUT("/info", authHandler.UpdateUserInfo)                               // 更新用户信息
+			user.GET("/stats", statsHandler.GetUserStats)                               // 获取用户统计数据
+			user.GET("/preferences", preferenceHandler.GetPreferences)                  // 获取家庭成员偏好
+			user.PUT("/preferences", preferenceHandler.UpdatePreferences)               // 更新家庭成员偏好
 			user.DELETE("/preferences/:memberId", preferenceHandler.DeleteFamilyMember) // 删除家庭成员
 		}
 
@@ -61,44 +60,36 @@ func SetupRouter() *gin.Engine {
 		recipes := api.Group("/recipes")
 		recipes.Use(middleware.AuthMiddleware())
 		{
-			recipes.GET("/my", recipeHandler.GetMyRecipes)                  // 获取我的菜谱列表
-			recipes.GET("/public", recipeHandler.GetPublicRecipes)          // 获取网络菜谱列表
-			recipes.GET("/:recipeId", recipeHandler.GetRecipeDetail)        // 获取菜谱详情
-			recipes.POST("", recipeHandler.CreateRecipe)                    // 创建菜谱
-			recipes.PUT("/:recipeId", recipeHandler.UpdateRecipe)           // 更新菜谱
-			recipes.DELETE("/:recipeId", recipeHandler.DeleteRecipe)        // 删除菜谱
-			recipes.POST("/:recipeId/favorite", recipeHandler.ToggleFavorite) // 收藏/取消收藏
+			recipes.GET("/my", recipeHandler.GetMyRecipes)                     // 获取我的菜谱列表
+			recipes.GET("/public", recipeHandler.GetPublicRecipes)             // 获取网络菜谱列表
+			recipes.GET("/:recipeId", recipeHandler.GetRecipeDetail)           // 获取菜谱详情
+			recipes.POST("", recipeHandler.CreateRecipe)                       // 创建菜谱
+			recipes.PUT("/:recipeId", recipeHandler.UpdateRecipe)              // 更新菜谱
+			recipes.DELETE("/:recipeId", recipeHandler.DeleteRecipe)           // 删除菜谱
+			recipes.POST("/:recipeId/favorite", recipeHandler.ToggleFavorite)  // 收藏/取消收藏
 			recipes.POST("/:recipeId/add-to-my", recipeHandler.AddToMyRecipes) // 加入我的菜单
-			recipes.POST("/random", randomHandler.RandomRecipe)             // 随机推荐菜品
+			recipes.POST("/random", randomHandler.RandomRecipe)                // 随机推荐菜品
 		}
 
 		// 菜谱分类相关
 		categories := api.Group("/categories")
 		categories.Use(middleware.AuthMiddleware())
 		{
-			categories.GET("", categoryHandler.GetRecipeCategories)              // 获取分类列表
-			categories.GET("/:type", categoryHandler.GetRecipeCategoriesByType)  // 按类型获取分类
-			categories.POST("", categoryHandler.CreateRecipeCategory)            // 创建分类
-			categories.PUT("/:categoryId", categoryHandler.UpdateRecipeCategory) // 更新分类
+			categories.GET("", categoryHandler.GetRecipeCategories)                 // 获取分类列表
+			categories.GET("/:type", categoryHandler.GetRecipeCategoriesByType)     // 按类型获取分类
+			categories.POST("", categoryHandler.CreateRecipeCategory)               // 创建分类
+			categories.PUT("/:categoryId", categoryHandler.UpdateRecipeCategory)    // 更新分类
 			categories.DELETE("/:categoryId", categoryHandler.DeleteRecipeCategory) // 删除分类
-		}
-
-		// 今日菜单相关
-		todayMenu := api.Group("/today-menu")
-		todayMenu.Use(middleware.AuthMiddleware())
-		{
-			todayMenu.GET("", menuHandler.GetTodayMenu)                        // 获取今日菜单
-			todayMenu.POST("/recipes", menuHandler.AddRecipeToMenu)            // 添加菜谱到菜单
-			todayMenu.DELETE("/recipes/:recipeId", menuHandler.RemoveRecipeFromMenu) // 从菜单移除菜谱
 		}
 
 		// 家庭点餐相关
 		meals := api.Group("/meals")
 		meals.Use(middleware.AuthMiddleware())
 		{
-			meals.GET("/recipes", mealHandler.GetMealRecipes)                  // 获取点餐菜品列表
-			meals.POST("/orders", mealHandler.CreateMealOrder)                 // 创建点餐清单
-			meals.GET("/orders", mealHandler.GetMealOrders)                    // 获取点餐历史
+			meals.GET("/recipes", mealHandler.GetMealRecipes)                    // 获取点餐菜品列表
+			meals.GET("/summary", mealHandler.GetOrderSummary)                   // 获取订单统计
+			meals.POST("/orders", mealHandler.CreateMealOrder)                   // 创建点餐清单
+			meals.GET("/orders", mealHandler.GetMealOrders)                      // 获取点餐历史
 			meals.POST("/orders/:orderId/confirm", mealHandler.ConfirmMealOrder) // 确认点餐
 		}
 
@@ -107,51 +98,51 @@ func SetupRouter() *gin.Engine {
 		ingredientCategories := api.Group("/ingredient-categories")
 		ingredientCategories.Use(middleware.AuthMiddleware())
 		{
-			ingredientCategories.GET("", ingredientCategoryHandler.GetCategories)              // 获取分类列表
+			ingredientCategories.GET("", ingredientCategoryHandler.GetCategories)                 // 获取分类列表
 			ingredientCategories.GET("/:categoryId", ingredientCategoryHandler.GetCategoryDetail) // 获取分类详情
-			ingredientCategories.POST("", ingredientCategoryHandler.CreateCategory)            // 创建分类
-			ingredientCategories.PUT("/:categoryId", ingredientCategoryHandler.UpdateCategory) // 更新分类
+			ingredientCategories.POST("", ingredientCategoryHandler.CreateCategory)               // 创建分类
+			ingredientCategories.PUT("/:categoryId", ingredientCategoryHandler.UpdateCategory)    // 更新分类
 			ingredientCategories.DELETE("/:categoryId", ingredientCategoryHandler.DeleteCategory) // 删除分类
 		}
-		
+
 		// 存储位置相关 (新增)
 		storageLocationHandler := handlers.NewStorageLocationHandler()
 		storageLocations := api.Group("/storage-locations")
 		storageLocations.Use(middleware.AuthMiddleware())
 		{
-			storageLocations.GET("", storageLocationHandler.GetStorageLocations)           // 获取列表
-			storageLocations.POST("", storageLocationHandler.CreateStorageLocation)        // 创建
-			storageLocations.PUT("/:locationId", storageLocationHandler.UpdateStorageLocation) // 更新
+			storageLocations.GET("", storageLocationHandler.GetStorageLocations)                  // 获取列表
+			storageLocations.POST("", storageLocationHandler.CreateStorageLocation)               // 创建
+			storageLocations.PUT("/:locationId", storageLocationHandler.UpdateStorageLocation)    // 更新
 			storageLocations.DELETE("/:locationId", storageLocationHandler.DeleteStorageLocation) // 删除
-			storageLocations.POST("/reorder", storageLocationHandler.ReorderStorageLocations) // 排序
+			storageLocations.POST("/reorder", storageLocationHandler.ReorderStorageLocations)     // 排序
 		}
 
 		// 食材库存相关
 		ingredients := api.Group("/ingredients")
 		ingredients.Use(middleware.AuthMiddleware())
 		{
-			ingredients.GET("", ingredientHandler.GetIngredients)                     // 获取食材列表
-			ingredients.GET("/grouped", ingredientHandler.GetIngredientsGrouped)      // 获取分组食材列表
-			ingredients.GET("/expiring", ingredientHandler.GetExpiringIngredients)    // 获取即将过期食材
-			ingredients.GET("/batches", ingredientHandler.GetIngredientBatches)       // 获取同名食材批次
-			ingredients.GET("/:ingredientId", ingredientHandler.GetIngredientDetail)  // 获取食材详情
-			ingredients.POST("", ingredientHandler.CreateIngredient)                  // 添加食材
-			ingredients.PUT("/:ingredientId", ingredientHandler.UpdateIngredient)     // 更新食材
-			ingredients.DELETE("/:ingredientId", ingredientHandler.DeleteIngredient)  // 删除食材
+			ingredients.GET("", ingredientHandler.GetIngredients)                    // 获取食材列表
+			ingredients.GET("/grouped", ingredientHandler.GetIngredientsGrouped)     // 获取分组食材列表
+			ingredients.GET("/expiring", ingredientHandler.GetExpiringIngredients)   // 获取即将过期食材
+			ingredients.GET("/batches", ingredientHandler.GetIngredientBatches)      // 获取同名食材批次
+			ingredients.GET("/:ingredientId", ingredientHandler.GetIngredientDetail) // 获取食材详情
+			ingredients.POST("", ingredientHandler.CreateIngredient)                 // 添加食材
+			ingredients.PUT("/:ingredientId", ingredientHandler.UpdateIngredient)    // 更新食材
+			ingredients.DELETE("/:ingredientId", ingredientHandler.DeleteIngredient) // 删除食材
 		}
 
 		// 购物清单相关
 		shoppingLists := api.Group("/shopping-lists")
 		shoppingLists.Use(middleware.AuthMiddleware())
 		{
-			shoppingLists.GET("", shoppingHandler.GetShoppingLists)                 // 获取购物清单列表
-			shoppingLists.GET("/current", shoppingHandler.GetCurrentShoppingList)   // 获取当前购物清单
-			shoppingLists.GET("/history", shoppingHandler.GetShoppingHistory)       // 获取购物订单历史
-			shoppingLists.GET("/history/items", shoppingHandler.GetShoppingHistoryItems) // 获取购物订单历史商品项 (新增)
-			shoppingLists.GET("/:listId", shoppingHandler.GetShoppingListDetail)    // 获取购物清单详情
-			shoppingLists.POST("", shoppingHandler.CreateShoppingList)              // 创建购物清单
-			shoppingLists.PUT("/:listId", shoppingHandler.UpdateShoppingList)       // 更新购物清单
-			shoppingLists.POST("/:listId/items", shoppingHandler.AddShoppingItem)   // 添加购物项
+			shoppingLists.GET("", shoppingHandler.GetShoppingLists)                            // 获取购物清单列表
+			shoppingLists.GET("/current", shoppingHandler.GetCurrentShoppingList)              // 获取当前购物清单
+			shoppingLists.GET("/history", shoppingHandler.GetShoppingHistory)                  // 获取购物订单历史
+			shoppingLists.GET("/history/items", shoppingHandler.GetShoppingHistoryItems)       // 获取购物订单历史商品项 (新增)
+			shoppingLists.GET("/:listId", shoppingHandler.GetShoppingListDetail)               // 获取购物清单详情
+			shoppingLists.POST("", shoppingHandler.CreateShoppingList)                         // 创建购物清单
+			shoppingLists.PUT("/:listId", shoppingHandler.UpdateShoppingList)                  // 更新购物清单
+			shoppingLists.POST("/:listId/items", shoppingHandler.AddShoppingItem)              // 添加购物项
 			shoppingLists.PUT("/:listId/items/:itemId", shoppingHandler.UpdateShoppingItem)    // 更新购物项
 			shoppingLists.DELETE("/:listId/items/:itemId", shoppingHandler.DeleteShoppingItem) // 删除购物项
 			shoppingLists.POST("/:listId/complete", shoppingHandler.CompleteShoppingList)      // 完成购物清单
@@ -169,12 +160,12 @@ func SetupRouter() *gin.Engine {
 		family := api.Group("/family")
 		family.Use(middleware.AuthMiddleware())
 		{
-			family.GET("", familyHandler.GetMyFamily)                     // 获取我的家庭
-			family.POST("", familyHandler.CreateFamily)                   // 创建家庭
-			family.POST("/join", familyHandler.JoinFamily)                // 加入家庭
-			family.POST("/leave", familyHandler.LeaveFamily)              // 退出家庭
-			family.POST("/invite-code", familyHandler.RefreshInviteCode)  // 刷新邀请码
-			family.PUT("/members/:memberId", familyHandler.UpdateMember)  // 更新成员信息
+			family.GET("", familyHandler.GetMyFamily)                       // 获取我的家庭
+			family.POST("", familyHandler.CreateFamily)                     // 创建家庭
+			family.POST("/join", familyHandler.JoinFamily)                  // 加入家庭
+			family.POST("/leave", familyHandler.LeaveFamily)                // 退出家庭
+			family.POST("/invite-code", familyHandler.RefreshInviteCode)    // 刷新邀请码
+			family.PUT("/members/:memberId", familyHandler.UpdateMember)    // 更新成员信息
 			family.DELETE("/members/:memberId", familyHandler.RemoveMember) // 移除成员
 		}
 
@@ -189,14 +180,13 @@ func SetupRouter() *gin.Engine {
 		menuCache := api.Group("/menu-cache")
 		menuCache.Use(middleware.AuthMiddleware())
 		{
-			menuCache.POST("", menuCacheHandler.AddToCache)                                    // 添加到缓存
-			menuCache.GET("/:familyId/:date", menuCacheHandler.GetCacheByFamily)               // 获取家庭缓存
-			menuCache.DELETE("/:familyId/:date/:recipeId", menuCacheHandler.RemoveFromCache)   // 移除缓存
-			menuCache.PUT("/:cacheId/toggle", menuCacheHandler.ToggleChecked)                  // 切换勾选状态
-			menuCache.DELETE("/:familyId/:date", menuCacheHandler.ClearFamilyCache)            // 清空缓存
+			menuCache.POST("", menuCacheHandler.AddToCache)                                  // 添加到缓存
+			menuCache.GET("/:familyId/:date", menuCacheHandler.GetCacheByFamily)             // 获取家庭缓存
+			menuCache.DELETE("/:familyId/:date/:recipeId", menuCacheHandler.RemoveFromCache) // 移除缓存
+			menuCache.PUT("/:cacheId/toggle", menuCacheHandler.ToggleChecked)                // 切换勾选状态
+			menuCache.DELETE("/:familyId/:date", menuCacheHandler.ClearFamilyCache)          // 清空缓存
 		}
 	}
 
 	return router
 }
-

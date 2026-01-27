@@ -22,7 +22,7 @@ func InitDB(cfg *Config) error {
 
 	// 配置GORM日志
 	gormConfig := &gorm.Config{
-		Logger: logger.Default.LogMode(logger.Info),
+		Logger: logger.Default.LogMode(logger.Warn),
 	}
 
 	// 构建 PostgreSQL DSN (Data Source Name)
@@ -67,7 +67,6 @@ func autoMigrate() error {
 		&IngredientCategory{},
 		&IngredientItem{},
 		&ShoppingList{},
-		&TodayMenu{},
 		&MealOrder{},
 		&UserStats{},
 		&FamilyMember{},
@@ -75,6 +74,7 @@ func autoMigrate() error {
 		&FamilyMemberInfo{},
 		&StorageLocation{},
 		&UserTag{},
+		&MenuCache{},
 	)
 	if err != nil {
 		return err

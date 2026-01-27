@@ -7,6 +7,7 @@ import (
 	"bitePal_service/utils"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
 )
@@ -89,7 +90,7 @@ func (h *MealHandler) GetMealRecipes(c *gin.Context) {
 
 // CreateMealOrder 创建点餐清单
 // @Summary 创建点餐清单
-// @Description 创建新的点餐清单
+// @Description 从缓存创建点餐订单
 // @Tags 家庭点餐
 // @Accept json
 // @Produce json
@@ -100,6 +101,24 @@ func (h *MealHandler) GetMealRecipes(c *gin.Context) {
 // @Router /api/meals/orders [post]
 func (h *MealHandler) CreateMealOrder(c *gin.Context) {
 	userID := middleware.GetUserIDFromContext(c)
+
+	// 获取用户的家庭ID
+	var user models.User
+	if err := config.DB.Select("family_id").Where("id = ?", userID).First(&user).Error; err != nil {
+		c.JSON(http.StatusBadRequest, models.NewErrorResponse(
+			models.CodeBadRequest,
+			"用户信息不存在",
+		))
+		return
+	}
+
+	if user.FamilyID == "" {
+		c.JSON(http.StatusBadRequest, models.NewErrorResponse(
+			models.CodeBadRequest,
+			"用户未加入家庭，请先创建或加入家庭",
+		))
+		return
+	}
 
 	var req CreateOrderRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -118,10 +137,12 @@ func (h *MealHandler) CreateMealOrder(c *gin.Context) {
 		return
 	}
 
+	// 创建点餐订单
 	order := &models.MealOrder{
-		Recipes: req.Recipes,
-		Status:  models.OrderStatusPending,
-		UserID:  userID,
+		Recipes:  req.Recipes,
+		Status:   models.OrderStatusPending,
+		UserID:   userID,
+		FamilyID: user.FamilyID,
 	}
 
 	if result := config.DB.Create(order); result.Error != nil {
@@ -179,7 +200,7 @@ func (h *MealHandler) ConfirmMealOrder(c *gin.Context) {
 
 // GetMealOrders 获取点餐历史
 // @Summary 获取点餐历史
-// @Description 获取用户的点餐历史记录
+// @Description 获取家庭的点餐历史记录
 // @Tags 家庭点餐
 // @Accept json
 // @Produce json
@@ -193,8 +214,25 @@ func (h *MealHandler) GetMealOrders(c *gin.Context) {
 	userID := middleware.GetUserIDFromContext(c)
 	pagination := utils.GetPagination(c)
 
-	// 构建查询
-	query := config.DB.Model(&models.MealOrder{}).Where("user_id = ?", userID)
+	// 获取用户的家庭ID
+	var user models.User
+	if err := config.DB.Select("family_id").Where("id = ?", userID).First(&user).Error; err != nil {
+		c.JSON(http.StatusBadRequest, models.NewErrorResponse(
+			models.CodeBadRequest,
+			"用户信息不存在",
+		))
+		return
+	}
+
+	if user.FamilyID == "" {
+		// 用户未加入家庭，返回空列表
+		c.JSON(http.StatusOK, models.NewSuccessResponseWithMessage("获取成功",
+			models.NewPagedResponse([]models.MealOrder{}, 0, pagination.Page, pagination.PageSize)))
+		return
+	}
+
+	// 构建查询 - 查询家庭的订单
+	query := config.DB.Model(&models.MealOrder{}).Where("family_id = ?", user.FamilyID)
 
 	// 状态筛选
 	if status := c.Query("status"); status != "" {
@@ -214,3 +252,108 @@ func (h *MealHandler) GetMealOrders(c *gin.Context) {
 		models.NewPagedResponse(orders, total, pagination.Page, pagination.PageSize)))
 }
 
+// GetOrderSummary 获取订单统计信息
+// @Summary 获取订单统计信息
+// @Description 根据家庭ID查询今日已生成的菜单，并统计所需食材
+// @Tags 家庭点餐
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param recipeIds query string false "已选菜谱ID列表（逗号分隔，用于统计食材）"
+// @Success 200 {object} models.Response
+// @Router /api/meals/summary [get]
+func (h *MealHandler) GetOrderSummary(c *gin.Context) {
+	userID := middleware.GetUserIDFromContext(c)
+
+	// 获取用户的家庭ID
+	var user models.User
+	if err := config.DB.Select("family_id").Where("id = ?", userID).First(&user).Error; err != nil {
+		c.JSON(http.StatusBadRequest, models.NewErrorResponse(
+			models.CodeBadRequest,
+			"用户信息不存在",
+		))
+		return
+	}
+
+	if user.FamilyID == "" {
+		c.JSON(http.StatusBadRequest, models.NewErrorResponse(
+			models.CodeBadRequest,
+			"用户未加入家庭",
+		))
+		return
+	}
+
+	// 查询今日已生成的菜单（基于家庭ID）
+	today := time.Now().Format("2006-01-02")
+	var todayOrders []models.MealOrder
+	config.DB.Where("family_id = ? AND DATE(created_at) = ?", user.FamilyID, today).
+		Order("created_at DESC").
+		Find(&todayOrders)
+
+	// 提取今日菜单中的菜谱ID
+	var todayRecipeIds []string
+	for _, order := range todayOrders {
+		for _, recipe := range order.Recipes {
+			todayRecipeIds = append(todayRecipeIds, recipe.RecipeID)
+		}
+	}
+
+	// 查询今日菜单的菜谱详情
+	var todayRecipes []models.Recipe
+	if len(todayRecipeIds) > 0 {
+		config.DB.Where("id IN ?", todayRecipeIds).Find(&todayRecipes)
+	}
+
+	// 处理已选菜谱（如果提供了recipeIds参数）
+	var selectedRecipes []models.Recipe
+	var ingredients []models.RecipeIngredient
+	recipeIdsStr := c.Query("recipeIds")
+
+	if recipeIdsStr != "" {
+		recipeIds := strings.Split(recipeIdsStr, ",")
+
+		// 查询已选菜谱详情
+		if err := config.DB.Where("id IN ?", recipeIds).Find(&selectedRecipes).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, models.NewErrorResponse(
+				models.CodeServerError,
+				"查询菜谱失败",
+			))
+			return
+		}
+
+		// 统计已选菜品的食材
+		ingredientMap := make(map[string]*models.RecipeIngredient)
+		for _, recipe := range selectedRecipes {
+			for _, ingredient := range recipe.Ingredients {
+				key := ingredient.Name
+				if existing, ok := ingredientMap[key]; ok {
+					// 已存在，合并数量
+					existing.Amount = existing.Amount + " + " + ingredient.Amount
+				} else {
+					ingredientMap[key] = &models.RecipeIngredient{
+						Name:      ingredient.Name,
+						Amount:    ingredient.Amount,
+						Available: ingredient.Available,
+					}
+				}
+			}
+		}
+
+		// 转换为列表
+		ingredients = make([]models.RecipeIngredient, 0, len(ingredientMap))
+		for _, ingredient := range ingredientMap {
+			ingredients = append(ingredients, *ingredient)
+		}
+	}
+
+	// 构建响应
+	summary := map[string]interface{}{
+		"selectedRecipes": selectedRecipes,       // 已选菜品
+		"todayRecipes":    todayRecipes,          // 今日已生成的菜单
+		"ingredients":     ingredients,           // 所需食材
+		"totalCount":      len(selectedRecipes),  // 已选菜品数量
+		"hasTodayMenu":    len(todayRecipes) > 0, // 是否已有今日菜单
+	}
+
+	c.JSON(http.StatusOK, models.NewSuccessResponseWithMessage("获取成功", summary))
+}
