@@ -561,18 +561,29 @@ class _RecipesScreenState extends State<RecipesScreen>
     return AnimatedContainer(
       duration: const Duration(milliseconds: 300),
       curve: Curves.easeInOut,
+      height: 44,
       child: Row(
         children: [
           // 标签切换按钮（替代菜谱库标题）
           if (!_isSearchExpanded)
             _buildTabSwitchButton(),
 
-          const Spacer(),
+          if (!_isSearchExpanded) const SizedBox(width: 8),
 
           // 搜索区域（可展开）
-          _buildSearchArea(),
+          Flexible(
+            fit: FlexFit.loose,
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                return Align(
+                  alignment: Alignment.centerRight,
+                  child: _buildSearchArea(constraints.maxWidth),
+                );
+              },
+            ),
+          ),
 
-          const SizedBox(width: 8),
+          if (!_isSearchExpanded) const SizedBox(width: 8),
 
           // 筛选按钮
           if (!_isSearchExpanded)
@@ -648,11 +659,11 @@ class _RecipesScreenState extends State<RecipesScreen>
     );
   }
 
-  Widget _buildSearchArea() {
+  Widget _buildSearchArea(double maxWidth) {
     return AnimatedContainer(
       duration: const Duration(milliseconds: 300),
       curve: Curves.easeInOut,
-      width: _isSearchExpanded ? MediaQuery.of(context).size.width - 80 : 40,
+      width: _isSearchExpanded ? maxWidth : maxWidth.clamp(0.0, 40.0),
       height: 40,
       child: GlassContainer(
         borderRadius: 20,

@@ -50,6 +50,7 @@ type ShoppingList struct {
 	Items       ShoppingItems  `json:"items" gorm:"type:jsonb"`                  // 购物项列表
 	TotalPrice  float64        `json:"totalPrice" gorm:"type:decimal(10,2)"`     // 总价
 	UserID      string         `json:"userId" gorm:"type:varchar(36);index"`     // 用户ID
+	FamilyID    string         `json:"familyId" gorm:"type:varchar(36);index"`   // 家庭ID（用于家庭成员共享购物清单）
 	CreatedAt   time.Time      `json:"createdAt"`                                // 创建时间
 	UpdatedAt   time.Time      `json:"updatedAt"`                                // 更新时间
 	CompletedAt *time.Time     `json:"completedAt" gorm:"index"`                 // 完成时间

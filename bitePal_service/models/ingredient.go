@@ -37,6 +37,7 @@ type IngredientCategory struct {
 	SortOrder int            `json:"sortOrder" gorm:"default:0;index"`                                         // 排序顺序
 	IsSystem  bool           `json:"isSystem" gorm:"default:false;index"`                                      // 是否为系统预设分类
 	UserID    string         `json:"userId" gorm:"type:varchar(36);uniqueIndex:idx_user_category_name"`        // 用户ID（系统分类为空）
+	FamilyID  string         `json:"familyId" gorm:"type:varchar(36);index"`                                   // 家庭ID（用于家庭成员共享分类）
 	CreatedAt time.Time      `json:"createdAt"`                                                                // 创建时间
 	UpdatedAt time.Time      `json:"updatedAt"`                                                                // 更新时间
 	DeletedAt gorm.DeletedAt `json:"-" gorm:"index"`                                                           // 软删除时间
@@ -66,6 +67,7 @@ type IngredientItem struct {
 	ExpiryDate   time.Time      `json:"expiryDate" gorm:"index:idx_user_expiry"`                        // 过期日期
 	PurchaseDate time.Time      `json:"purchaseDate"`                                                   // 购买日期
 	UserID       string         `json:"userId" gorm:"type:varchar(36);not null;index:idx_user_expiry"` // 用户ID
+	FamilyID     string         `json:"familyId" gorm:"type:varchar(36);index"`                         // 家庭ID（用于家庭成员共享食材）
 	CreatedAt    time.Time      `json:"createdAt"`                                                      // 创建时间
 	UpdatedAt    time.Time      `json:"updatedAt"`                                                      // 更新时间
 	DeletedAt    gorm.DeletedAt `json:"-" gorm:"index"`                                                 // 软删除时间

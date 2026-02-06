@@ -1,8 +1,12 @@
 import 'dart:ui';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:image_picker/image_picker.dart';
 import '../models/user.dart';
 import '../services/auth_service.dart';
+import '../services/http_client.dart';
+import '../config/api_config.dart';
 import 'login_screen.dart';
 import 'order_history_screen.dart';
 import 'family_members_screen.dart';
@@ -138,9 +142,12 @@ class ProfileScreen extends StatefulWidget {
 
 class _ProfileScreenState extends State<ProfileScreen> {
   final AuthService _authService = AuthService();
+  final HttpClient _httpClient = HttpClient();
+  final ImagePicker _imagePicker = ImagePicker();
   User? _user;
   UserStats? _stats;
   bool _isLoading = true;
+  bool _isUploadingAvatar = false;
 
   @override
   void initState() {
@@ -202,6 +209,130 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
           (route) => false,
         );
+      }
+    }
+  }
+
+  /// 显示头像选项对话框
+  void _showAvatarOptions() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(height: 16),
+            Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.grey[300],
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(height: 16),
+            ListTile(
+              leading: const Icon(Icons.photo_camera, color: _sageGreen),
+              title: const Text('拍照'),
+              onTap: () {
+                Navigator.pop(context);
+                _pickImage(ImageSource.camera);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo_library, color: _sageGreen),
+              title: const Text('从相册选择'),
+              onTap: () {
+                Navigator.pop(context);
+                _pickImage(ImageSource.gallery);
+              },
+            ),
+            const SizedBox(height: 16),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// 选择图片
+  Future<void> _pickImage(ImageSource source) async {
+    try {
+      final XFile? image = await _imagePicker.pickImage(
+        source: source,
+        maxWidth: 800,
+        maxHeight: 800,
+        imageQuality: 85,
+      );
+
+      if (image != null) {
+        await _uploadAvatar(File(image.path));
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('选择图片失败：$e')),
+        );
+      }
+    }
+  }
+
+  /// 上传头像
+  Future<void> _uploadAvatar(File imageFile) async {
+    setState(() {
+      _isUploadingAvatar = true;
+    });
+
+    try {
+      // 1. 上传图片到服务器
+      final uploadResponse = await _httpClient.uploadFile(
+        ApiConfig.uploadImage,
+        filePath: imageFile.path,
+        fieldName: 'file',
+      );
+
+      if (!uploadResponse.isSuccess || uploadResponse.data == null) {
+        throw Exception(uploadResponse.message.isEmpty
+            ? '上传图片失败'
+            : uploadResponse.message);
+      }
+
+      // 2. 获取图片URL
+      final imageUrl = uploadResponse.data['url'] as String?;
+      if (imageUrl == null || imageUrl.isEmpty) {
+        throw Exception('获取图片URL失败');
+      }
+
+      // 3. 更新用户头像
+      final updatedUser = await _authService.updateUserInfo(avatar: imageUrl);
+
+      if (updatedUser != null) {
+        setState(() {
+          _user = updatedUser;
+        });
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('头像更新成功！')),
+          );
+        }
+      } else {
+        throw Exception('更新用户信息失败');
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('上传失败：$e')),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isUploadingAvatar = false;
+        });
       }
     }
   }
@@ -424,24 +555,77 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Widget _buildAvatar() {
-    return Container(
-      width: 80,
-      height: 80,
-      decoration: BoxDecoration(
-        color: Colors.white,
-        shape: BoxShape.circle,
-        boxShadow: [
-          BoxShadow(
-            color: _sageGreen.withValues(alpha: 0.2),
-            blurRadius: 20,
-            offset: const Offset(0, 8),
+    return GestureDetector(
+      onTap: _isUploadingAvatar ? null : _showAvatarOptions,
+      child: Stack(
+        children: [
+          Container(
+            width: 80,
+            height: 80,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(
+                  color: _sageGreen.withValues(alpha: 0.2),
+                  blurRadius: 20,
+                  offset: const Offset(0, 8),
+                ),
+              ],
+              border: Border.all(color: Colors.white, width: 3),
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(40),
+              child: _user?.avatar != null && _user!.avatar!.isNotEmpty
+                  ? Image.network(
+                      _user!.avatar!,
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) {
+                        return Image.asset(
+                          'assets/cartoon-avatar.png',
+                          fit: BoxFit.cover,
+                        );
+                      },
+                    )
+                  : Image.asset('assets/cartoon-avatar.png', fit: BoxFit.cover),
+            ),
           ),
+          // 上传中的遮罩层
+          if (_isUploadingAvatar)
+            Container(
+              width: 80,
+              height: 80,
+              decoration: BoxDecoration(
+                color: Colors.black.withValues(alpha: 0.5),
+                shape: BoxShape.circle,
+              ),
+              child: const Center(
+                child: CircularProgressIndicator(
+                  color: Colors.white,
+                  strokeWidth: 2,
+                ),
+              ),
+            ),
+          // 相机图标
+          if (!_isUploadingAvatar)
+            Positioned(
+              right: 0,
+              bottom: 0,
+              child: Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: _sageGreen,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: Colors.white, width: 2),
+                ),
+                child: const Icon(
+                  Icons.camera_alt,
+                  size: 14,
+                  color: Colors.white,
+                ),
+              ),
+            ),
         ],
-        border: Border.all(color: Colors.white, width: 3),
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(40),
-        child: Image.asset('assets/cartoon-avatar.png', fit: BoxFit.cover),
       ),
     );
   }

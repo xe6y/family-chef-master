@@ -141,14 +141,24 @@ class ShoppingScreen extends RefreshableScreen {
 class _ShoppingScreenState extends State<ShoppingScreen>
     with RefreshableScreenState<ShoppingScreen> {
   final ShoppingService _shoppingService = ShoppingService();
+  final TextEditingController _searchController = TextEditingController();
   ShoppingList? _currentList;
+  List<ShoppingItem> _allItems = [];
   List<ShoppingItem> _items = [];
   bool _isLoading = true;
+  bool _isSearchExpanded = false;
+  String _searchKeyword = '';
 
   @override
   void initState() {
     super.initState();
     _loadShoppingList();
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
   }
 
   @override
@@ -162,12 +172,32 @@ class _ShoppingScreenState extends State<ShoppingScreen>
       final list = await _shoppingService.getCurrentShoppingList();
       if (list != null) {
         _currentList = list;
-        _items = list.items.where((item) => !item.checked).toList();
+        _allItems = list.items.where((item) => !item.checked).toList();
+        _items = _filterItems(_allItems);
       }
     } catch (e) {
       debugPrint('加载失败: $e');
     }
     if (mounted) setState(() => _isLoading = false);
+  }
+
+  List<ShoppingItem> _filterItems(List<ShoppingItem> source) {
+    final keyword = _searchKeyword.trim().toLowerCase();
+    if (keyword.isEmpty) return List<ShoppingItem>.from(source);
+    return source
+        .where((item) => item.name.toLowerCase().contains(keyword))
+        .toList();
+  }
+
+  void _toggleSearch() {
+    setState(() {
+      _isSearchExpanded = !_isSearchExpanded;
+      if (!_isSearchExpanded && _searchKeyword.isNotEmpty) {
+        _searchController.clear();
+        _searchKeyword = '';
+        _items = _filterItems(_allItems);
+      }
+    });
   }
 
   Future<void> _markAsPurchased(ShoppingItem item) async {
@@ -183,7 +213,8 @@ class _ShoppingScreenState extends State<ShoppingScreen>
       actualAmount: actualAmount,
     );
     setState(() {
-      _items.removeWhere((i) => i.id == item.id);
+      _allItems.removeWhere((i) => i.id == item.id);
+      _items = _filterItems(_allItems);
     });
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
@@ -224,55 +255,25 @@ class _ShoppingScreenState extends State<ShoppingScreen>
           SliverAppBar(
             pinned: true,
             floating: true,
-            expandedHeight: 120,
+            toolbarHeight: 68,
             backgroundColor: _oatmeal,
             surfaceTintColor: Colors.transparent,
-            title: const Text(
-              "购物清单",
-              style: TextStyle(
-                fontWeight: FontWeight.w800,
-                color: _textPrimary,
-              ),
-            ),
-            actions: [
-              IconButton(
-                icon: const Icon(Icons.history_rounded, color: _textPrimary),
-                onPressed: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => const ShoppingHistoryScreen(),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 8),
-            ],
-            bottom: PreferredSize(
-              preferredSize: const Size.fromHeight(60),
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-                child: GlassContainer(
-                  borderRadius: 24,
-                  opacity: 0.6,
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.search, color: _textSecondary, size: 20),
-                      const SizedBox(width: 8),
-                      const Expanded(
-                        child: TextField(
-                          decoration: InputDecoration(
-                            hintText: "搜索清单项目...",
-                            border: InputBorder.none,
-                            isDense: true,
-                          ),
-                          style: TextStyle(fontSize: 14),
+            titleSpacing: 16,
+            title: _buildAppBarTitle(),
+            actions: _isSearchExpanded
+                ? []
+                : [
+                    _buildActionButton(
+                      icon: Icons.history_rounded,
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const ShoppingHistoryScreen(),
                         ),
                       ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
+                    ),
+                    const SizedBox(width: 8),
+                  ],
           ),
 
           // 2. Shopping List
@@ -297,6 +298,145 @@ class _ShoppingScreenState extends State<ShoppingScreen>
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
       floatingActionButton: _buildModernFAB(),
+    );
+  }
+
+  Widget _buildAppBarTitle() {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        const titleStyle = TextStyle(
+          fontWeight: FontWeight.w800,
+          color: _textPrimary,
+        );
+        final maxWidth = constraints.maxWidth;
+        final searchWidth = _isSearchExpanded ? maxWidth : 40.0;
+        const gap = 8.0;
+        if (_isSearchExpanded) {
+          return SizedBox(
+            height: 40,
+            child: Align(
+              alignment: Alignment.centerRight,
+              child: _buildSearchButton(searchWidth),
+            ),
+          );
+        }
+        return SizedBox(
+          height: 40,
+          child: Stack(
+            children: [
+              Align(
+                alignment: Alignment.centerLeft,
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 300),
+                  curve: Curves.easeInOut,
+                  padding: const EdgeInsets.only(right: 40 + gap),
+                  child: const Text(
+                    "购物清单",
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: titleStyle,
+                  ),
+                ),
+              ),
+              Align(
+                alignment: Alignment.centerRight,
+                child: _buildSearchButton(searchWidth),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildSearchButton(double maxWidth) {
+    final collapsedWidth = maxWidth.clamp(0.0, 40.0);
+    final targetWidth = _isSearchExpanded ? maxWidth : collapsedWidth;
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeInOut,
+      width: targetWidth,
+      height: 40,
+      child: GlassContainer(
+        borderRadius: 20,
+        opacity: 0.6,
+        padding: EdgeInsets.zero,
+        child: _isSearchExpanded
+            ? Row(
+                children: [
+                  GestureDetector(
+                    onTap: _toggleSearch,
+                    child: const Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                      child: Icon(
+                        Icons.arrow_back,
+                        color: _textSecondary,
+                        size: 20,
+                      ),
+                    ),
+                  ),
+                  Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.only(left: 4),
+                      child: TextField(
+                        controller: _searchController,
+                        autofocus: true,
+                        decoration: const InputDecoration(
+                          hintText: "搜索清单项目...",
+                          hintStyle: TextStyle(
+                            color: _textSecondary,
+                            fontSize: 14,
+                          ),
+                          border: InputBorder.none,
+                          isDense: true,
+                          contentPadding: EdgeInsets.zero,
+                        ),
+                        style: const TextStyle(fontSize: 14, color: _textPrimary),
+                        onChanged: (val) {
+                          setState(() {
+                            _searchKeyword = val;
+                            _items = _filterItems(_allItems);
+                          });
+                        },
+                        onSubmitted: (val) {
+                          setState(() {
+                            _searchKeyword = val;
+                            _items = _filterItems(_allItems);
+                          });
+                        },
+                      ),
+                    ),
+                  ),
+                ],
+              )
+            : GestureDetector(
+                onTap: _toggleSearch,
+                child: const Center(
+                  child: Icon(Icons.search, color: _textSecondary, size: 20),
+                ),
+              ),
+      ),
+    );
+  }
+
+  Widget _buildActionButton({
+    required IconData icon,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: SizedBox(
+        width: 40,
+        height: 40,
+        child: GlassContainer(
+          borderRadius: 20,
+          opacity: 0.6,
+          padding: EdgeInsets.zero,
+          child: Center(
+            child: Icon(icon, color: _textSecondary, size: 20),
+          ),
+        ),
+      ),
     );
   }
 

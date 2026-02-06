@@ -156,7 +156,7 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
                   ],
                 ),
               );
-            }).toList(),
+            }),
           ],
         ),
       ),
@@ -204,7 +204,7 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
                   ],
                 ),
               );
-            }).toList(),
+            }),
           ],
         ),
       ),
@@ -273,7 +273,7 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
                   ],
                 ),
               );
-            }).toList(),
+            }),
           ],
         ),
       ),

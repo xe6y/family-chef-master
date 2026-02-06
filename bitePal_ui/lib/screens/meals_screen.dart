@@ -5,7 +5,6 @@ import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 import '../models/recipe.dart';
 import '../models/recipe_category.dart';
 import '../models/recipe_selection.dart';
-import '../models/meal_order.dart';
 import '../services/meal_service.dart';
 import '../services/category_service.dart';
 import '../services/recipe_service.dart';
@@ -461,21 +460,24 @@ class _MealsScreenState extends State<MealsScreen>
 
   // --- Compact Header ---
   Widget _buildCompactHeader() {
-    return Row(
-      children: [
-        // 已选菜品按钮（始终显示）
-        if (!_isSearchExpanded) _buildSelectedMealsButton(),
+    return SizedBox(
+      height: 44,
+      child: Row(
+        children: [
+          // 已选菜品按钮（始终显示）
+          if (!_isSearchExpanded) _buildSelectedMealsButton(),
 
-        const Spacer(),
+          const Spacer(),
 
-        // 搜索按钮（可展开）
-        _buildSearchButton(),
+          // 搜索按钮（可展开）
+          _buildSearchButton(),
 
-        const SizedBox(width: 8),
+          const SizedBox(width: 8),
 
-        // 筛选按钮
-        if (!_isSearchExpanded) _buildFilterButton(),
-      ],
+          // 筛选按钮
+          if (!_isSearchExpanded) _buildFilterButton(),
+        ],
+      ),
     );
   }
 

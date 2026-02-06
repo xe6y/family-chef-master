@@ -59,8 +59,23 @@ func (h *ShoppingHandler) GetShoppingLists(c *gin.Context) {
 	userID := middleware.GetUserIDFromContext(c)
 	pagination := utils.GetPagination(c)
 
-	// 构建查询
-	query := config.DB.Model(&models.ShoppingList{}).Where("user_id = ?", userID)
+	// 获取用户的家庭ID
+	var user models.User
+	if err := config.DB.First(&user, "id = ?", userID).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, models.NewErrorResponse(
+			models.CodeServerError,
+			"获取用户信息失败",
+		))
+		return
+	}
+
+	// 构建查询 - 优先使用 family_id，如果没有则使用 user_id
+	query := config.DB.Model(&models.ShoppingList{})
+	if user.FamilyID != "" {
+		query = query.Where("family_id = ?", user.FamilyID)
+	} else {
+		query = query.Where("user_id = ?", userID)
+	}
 
 	// 完成状态筛选
 	if completed := c.Query("completed"); completed == "true" {
@@ -93,10 +108,25 @@ func (h *ShoppingHandler) GetShoppingLists(c *gin.Context) {
 func (h *ShoppingHandler) GetCurrentShoppingList(c *gin.Context) {
 	userID := middleware.GetUserIDFromContext(c)
 
+	// 获取用户的家庭ID
+	var user models.User
+	if err := config.DB.First(&user, "id = ?", userID).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, models.NewErrorResponse(
+			models.CodeServerError,
+			"获取用户信息失败",
+		))
+		return
+	}
+
+	// 查询当前购物清单 - 优先使用 family_id，如果没有则使用 user_id
 	var list models.ShoppingList
-	result := config.DB.Where("user_id = ? AND completed_at IS NULL", userID).
-		Order("created_at DESC").
-		First(&list)
+	query := config.DB.Where("completed_at IS NULL")
+	if user.FamilyID != "" {
+		query = query.Where("family_id = ?", user.FamilyID)
+	} else {
+		query = query.Where("user_id = ?", userID)
+	}
+	result := query.Order("created_at DESC").First(&list)
 
 	if result.Error != nil {
 		// 如果没有当前清单，创建一个新的
@@ -105,6 +135,7 @@ func (h *ShoppingHandler) GetCurrentShoppingList(c *gin.Context) {
 			Items:      models.ShoppingItems{},
 			TotalPrice: 0,
 			UserID:     userID,
+			FamilyID:   user.FamilyID, // 自动填充家庭ID
 		}
 		if err := config.DB.Create(&list).Error; err != nil {
 			c.JSON(http.StatusInternalServerError, models.NewErrorResponse(
@@ -140,6 +171,16 @@ func (h *ShoppingHandler) CreateShoppingList(c *gin.Context) {
 		return
 	}
 
+	// 获取用户的家庭ID
+	var user models.User
+	if err := config.DB.First(&user, "id = ?", userID).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, models.NewErrorResponse(
+			models.CodeServerError,
+			"获取用户信息失败",
+		))
+		return
+	}
+
 	// 为每个购物项生成ID
 	for i := range req.Items {
 		if req.Items[i].ID == "" {
@@ -153,9 +194,10 @@ func (h *ShoppingHandler) CreateShoppingList(c *gin.Context) {
 	}
 
 	list := &models.ShoppingList{
-		Name:   req.Name,
-		Items:  req.Items,
-		UserID: userID,
+		Name:     req.Name,
+		Items:    req.Items,
+		UserID:   userID,
+		FamilyID: user.FamilyID, // 自动填充家庭ID
 	}
 
 	// 计算总价
@@ -188,8 +230,26 @@ func (h *ShoppingHandler) UpdateShoppingList(c *gin.Context) {
 	userID := middleware.GetUserIDFromContext(c)
 	listID := c.Param("listId")
 
+	// 获取用户的家庭ID
+	var user models.User
+	if err := config.DB.First(&user, "id = ?", userID).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, models.NewErrorResponse(
+			models.CodeServerError,
+			"获取用户信息失败",
+		))
+		return
+	}
+
+	// 查询购物清单 - 优先使用 family_id，如果没有则使用 user_id
 	var list models.ShoppingList
-	if result := config.DB.Where("id = ? AND user_id = ?", listID, userID).First(&list); result.Error != nil {
+	query := config.DB.Where("id = ?", listID)
+	if user.FamilyID != "" {
+		query = query.Where("family_id = ?", user.FamilyID)
+	} else {
+		query = query.Where("user_id = ?", userID)
+	}
+
+	if result := query.First(&list); result.Error != nil {
 		c.JSON(http.StatusNotFound, models.NewErrorResponse(
 			models.CodeNotFound,
 			"购物清单不存在",
@@ -256,8 +316,26 @@ func (h *ShoppingHandler) AddShoppingItem(c *gin.Context) {
 	userID := middleware.GetUserIDFromContext(c)
 	listID := c.Param("listId")
 
+	// 获取用户的家庭ID
+	var user models.User
+	if err := config.DB.First(&user, "id = ?", userID).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, models.NewErrorResponse(
+			models.CodeServerError,
+			"获取用户信息失败",
+		))
+		return
+	}
+
+	// 查询购物清单 - 优先使用 family_id，如果没有则使用 user_id
 	var list models.ShoppingList
-	if result := config.DB.Where("id = ? AND user_id = ?", listID, userID).First(&list); result.Error != nil {
+	query := config.DB.Where("id = ?", listID)
+	if user.FamilyID != "" {
+		query = query.Where("family_id = ?", user.FamilyID)
+	} else {
+		query = query.Where("user_id = ?", userID)
+	}
+
+	if result := query.First(&list); result.Error != nil {
 		c.JSON(http.StatusNotFound, models.NewErrorResponse(
 			models.CodeNotFound,
 			"购物清单不存在",
@@ -314,8 +392,26 @@ func (h *ShoppingHandler) UpdateShoppingItem(c *gin.Context) {
 	listID := c.Param("listId")
 	itemID := c.Param("itemId")
 
+	// 获取用户的家庭ID
+	var user models.User
+	if err := config.DB.First(&user, "id = ?", userID).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, models.NewErrorResponse(
+			models.CodeServerError,
+			"获取用户信息失败",
+		))
+		return
+	}
+
+	// 查询购物清单 - 优先使用 family_id，如果没有则使用 user_id
 	var list models.ShoppingList
-	if result := config.DB.Where("id = ? AND user_id = ?", listID, userID).First(&list); result.Error != nil {
+	query := config.DB.Where("id = ?", listID)
+	if user.FamilyID != "" {
+		query = query.Where("family_id = ?", user.FamilyID)
+	} else {
+		query = query.Where("user_id = ?", userID)
+	}
+
+	if result := query.First(&list); result.Error != nil {
 		c.JSON(http.StatusNotFound, models.NewErrorResponse(
 			models.CodeNotFound,
 			"购物清单不存在",
@@ -393,8 +489,26 @@ func (h *ShoppingHandler) DeleteShoppingItem(c *gin.Context) {
 	listID := c.Param("listId")
 	itemID := c.Param("itemId")
 
+	// 获取用户的家庭ID
+	var user models.User
+	if err := config.DB.First(&user, "id = ?", userID).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, models.NewErrorResponse(
+			models.CodeServerError,
+			"获取用户信息失败",
+		))
+		return
+	}
+
+	// 查询购物清单 - 优先使用 family_id，如果没有则使用 user_id
 	var list models.ShoppingList
-	if result := config.DB.Where("id = ? AND user_id = ?", listID, userID).First(&list); result.Error != nil {
+	query := config.DB.Where("id = ?", listID)
+	if user.FamilyID != "" {
+		query = query.Where("family_id = ?", user.FamilyID)
+	} else {
+		query = query.Where("user_id = ?", userID)
+	}
+
+	if result := query.First(&list); result.Error != nil {
 		c.JSON(http.StatusNotFound, models.NewErrorResponse(
 			models.CodeNotFound,
 			"购物清单不存在",
@@ -434,8 +548,26 @@ func (h *ShoppingHandler) CompleteShoppingList(c *gin.Context) {
 	userID := middleware.GetUserIDFromContext(c)
 	listID := c.Param("listId")
 
+	// 获取用户的家庭ID
+	var user models.User
+	if err := config.DB.First(&user, "id = ?", userID).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, models.NewErrorResponse(
+			models.CodeServerError,
+			"获取用户信息失败",
+		))
+		return
+	}
+
+	// 查询购物清单 - 优先使用 family_id，如果没有则使用 user_id
 	var currentList models.ShoppingList
-	if result := config.DB.Where("id = ? AND user_id = ?", listID, userID).First(&currentList); result.Error != nil {
+	query := config.DB.Where("id = ?", listID)
+	if user.FamilyID != "" {
+		query = query.Where("family_id = ?", user.FamilyID)
+	} else {
+		query = query.Where("user_id = ?", userID)
+	}
+
+	if result := query.First(&currentList); result.Error != nil {
 		c.JSON(http.StatusNotFound, models.NewErrorResponse(
 			models.CodeNotFound,
 			"购物清单不存在",
@@ -469,6 +601,7 @@ func (h *ShoppingHandler) CompleteShoppingList(c *gin.Context) {
 		Name:        currentList.Name + " (已完成)",
 		Items:       purchasedItems,
 		UserID:      userID,
+		FamilyID:    user.FamilyID, // 自动填充家庭ID
 		CompletedAt: func() *time.Time { t := time.Now(); return &t }(),
 	}
 	historyList.CalculateTotalPrice()
@@ -526,8 +659,26 @@ func (h *ShoppingHandler) ShareShoppingList(c *gin.Context) {
 	userID := middleware.GetUserIDFromContext(c)
 	listID := c.Param("listId")
 
+	// 获取用户的家庭ID
+	var user models.User
+	if err := config.DB.First(&user, "id = ?", userID).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, models.NewErrorResponse(
+			models.CodeServerError,
+			"获取用户信息失败",
+		))
+		return
+	}
+
+	// 查询购物清单 - 优先使用 family_id，如果没有则使用 user_id
 	var list models.ShoppingList
-	if result := config.DB.Where("id = ? AND user_id = ?", listID, userID).First(&list); result.Error != nil {
+	query := config.DB.Where("id = ?", listID)
+	if user.FamilyID != "" {
+		query = query.Where("family_id = ?", user.FamilyID)
+	} else {
+		query = query.Where("user_id = ?", userID)
+	}
+
+	if result := query.First(&list); result.Error != nil {
 		c.JSON(http.StatusNotFound, models.NewErrorResponse(
 			models.CodeNotFound,
 			"购物清单不存在",
@@ -559,8 +710,26 @@ func (h *ShoppingHandler) GetShoppingListDetail(c *gin.Context) {
 	userID := middleware.GetUserIDFromContext(c)
 	listID := c.Param("listId")
 
+	// 获取用户的家庭ID
+	var user models.User
+	if err := config.DB.First(&user, "id = ?", userID).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, models.NewErrorResponse(
+			models.CodeServerError,
+			"获取用户信息失败",
+		))
+		return
+	}
+
+	// 查询购物清单 - 优先使用 family_id，如果没有则使用 user_id
 	var list models.ShoppingList
-	if result := config.DB.Where("id = ? AND user_id = ?", listID, userID).First(&list); result.Error != nil {
+	query := config.DB.Where("id = ?", listID)
+	if user.FamilyID != "" {
+		query = query.Where("family_id = ?", user.FamilyID)
+	} else {
+		query = query.Where("user_id = ?", userID)
+	}
+
+	if result := query.First(&list); result.Error != nil {
 		c.JSON(http.StatusNotFound, models.NewErrorResponse(
 			models.CodeNotFound,
 			"购物清单不存在",
@@ -588,9 +757,23 @@ func (h *ShoppingHandler) GetShoppingHistory(c *gin.Context) {
 	userID := middleware.GetUserIDFromContext(c)
 	pagination := utils.GetPagination(c)
 
-	// 构建查询 - 只查询已完成的清单
-	query := config.DB.Model(&models.ShoppingList{}).
-		Where("user_id = ? AND completed_at IS NOT NULL", userID)
+	// 获取用户的家庭ID
+	var user models.User
+	if err := config.DB.First(&user, "id = ?", userID).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, models.NewErrorResponse(
+			models.CodeServerError,
+			"获取用户信息失败",
+		))
+		return
+	}
+
+	// 构建查询 - 只查询已完成的清单，优先使用 family_id
+	query := config.DB.Model(&models.ShoppingList{}).Where("completed_at IS NOT NULL")
+	if user.FamilyID != "" {
+		query = query.Where("family_id = ?", user.FamilyID)
+	} else {
+		query = query.Where("user_id = ?", userID)
+	}
 
 	// 日期筛选
 	if startDate := c.Query("startDate"); startDate != "" {
@@ -635,10 +818,24 @@ func (h *ShoppingHandler) GetShoppingHistoryItems(c *gin.Context) {
 	pagination := utils.GetPagination(c)
 	search := c.Query("search")
 
-	// 1. 获取所有已完成的清单
+	// 获取用户的家庭ID
+	var user models.User
+	if err := config.DB.First(&user, "id = ?", userID).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, models.NewErrorResponse(
+			models.CodeServerError,
+			"获取用户信息失败",
+		))
+		return
+	}
+
+	// 1. 获取所有已完成的清单 - 优先使用 family_id
 	var lists []models.ShoppingList
-	query := config.DB.Model(&models.ShoppingList{}).
-		Where("user_id = ? AND completed_at IS NOT NULL", userID)
+	query := config.DB.Model(&models.ShoppingList{}).Where("completed_at IS NOT NULL")
+	if user.FamilyID != "" {
+		query = query.Where("family_id = ?", user.FamilyID)
+	} else {
+		query = query.Where("user_id = ?", userID)
+	}
 	
 	// 这里我们实际上需要获取Items里的内容。由于Items是JSON字段，无法直接在SQL中高效查询/搜索JSON数组内容(取决于DB类型，MySQL 5.7+支持但GORM处理略繁琐)。
 	// 为了简化，我们先获取最近的100个已完成清单，然后在内存中提取和去重。

@@ -36,6 +36,7 @@ type FamilyMember struct {
 	Name        string            `json:"name" gorm:"type:varchar(50)"`              // 成员名称
 	Preferences MemberPreferences `json:"preferences" gorm:"type:jsonb"`             // 偏好设置
 	UserID      string            `json:"userId" gorm:"type:varchar(36);index"`      // 所属用户ID
+	FamilyID    string            `json:"familyId" gorm:"type:varchar(36);index"`    // 家庭ID（用于家庭成员共享偏好）
 	CreatedAt   time.Time         `json:"createdAt"`                                 // 创建时间
 	UpdatedAt   time.Time         `json:"updatedAt"`                                 // 更新时间
 	DeletedAt   gorm.DeletedAt    `json:"-" gorm:"index"`                            // 软删除时间

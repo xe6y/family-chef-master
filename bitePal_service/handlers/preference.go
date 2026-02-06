@@ -42,8 +42,23 @@ type UpdatePreferencesRequest struct {
 func (h *PreferenceHandler) GetPreferences(c *gin.Context) {
 	userID := middleware.GetUserIDFromContext(c)
 
+	// 获取用户的家庭ID
+	var user models.User
+	if err := config.DB.First(&user, "id = ?", userID).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, models.NewErrorResponse(
+			models.CodeServerError,
+			"获取用户信息失败",
+		))
+		return
+	}
+
+	// 查询家庭成员 - 优先使用 family_id，如果没有则使用 user_id
 	var members []models.FamilyMember
-	config.DB.Where("user_id = ?", userID).Find(&members)
+	if user.FamilyID != "" {
+		config.DB.Where("family_id = ?", user.FamilyID).Find(&members)
+	} else {
+		config.DB.Where("user_id = ?", userID).Find(&members)
+	}
 
 	// 转换为响应结构
 	memberResponses := make([]*models.FamilyMemberResponse, len(members))
@@ -78,12 +93,29 @@ func (h *PreferenceHandler) UpdatePreferences(c *gin.Context) {
 		return
 	}
 
+	// 获取用户的家庭ID
+	var user models.User
+	if err := config.DB.First(&user, "id = ?", userID).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, models.NewErrorResponse(
+			models.CodeServerError,
+			"获取用户信息失败",
+		))
+		return
+	}
+
 	// 处理每个家庭成员
 	for _, memberReq := range req.FamilyMembers {
 		if memberReq.ID != "" {
-			// 更新现有成员
+			// 更新现有成员 - 优先使用 family_id
 			var member models.FamilyMember
-			if result := config.DB.Where("id = ? AND user_id = ?", memberReq.ID, userID).First(&member); result.Error == nil {
+			query := config.DB.Where("id = ?", memberReq.ID)
+			if user.FamilyID != "" {
+				query = query.Where("family_id = ?", user.FamilyID)
+			} else {
+				query = query.Where("user_id = ?", userID)
+			}
+
+			if result := query.First(&member); result.Error == nil {
 				config.DB.Model(&member).Updates(map[string]interface{}{
 					"name":        memberReq.Name,
 					"preferences": memberReq.Preferences,
@@ -95,14 +127,19 @@ func (h *PreferenceHandler) UpdatePreferences(c *gin.Context) {
 				Name:        memberReq.Name,
 				Preferences: memberReq.Preferences,
 				UserID:      userID,
+				FamilyID:    user.FamilyID, // 自动填充家庭ID
 			}
 			config.DB.Create(member)
 		}
 	}
 
-	// 获取更新后的列表
+	// 获取更新后的列表 - 优先使用 family_id
 	var members []models.FamilyMember
-	config.DB.Where("user_id = ?", userID).Find(&members)
+	if user.FamilyID != "" {
+		config.DB.Where("family_id = ?", user.FamilyID).Find(&members)
+	} else {
+		config.DB.Where("user_id = ?", userID).Find(&members)
+	}
 
 	memberResponses := make([]*models.FamilyMemberResponse, len(members))
 	for i, member := range members {
@@ -129,8 +166,26 @@ func (h *PreferenceHandler) DeleteFamilyMember(c *gin.Context) {
 	userID := middleware.GetUserIDFromContext(c)
 	memberID := c.Param("memberId")
 
+	// 获取用户的家庭ID
+	var user models.User
+	if err := config.DB.First(&user, "id = ?", userID).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, models.NewErrorResponse(
+			models.CodeServerError,
+			"获取用户信息失败",
+		))
+		return
+	}
+
+	// 查询家庭成员 - 优先使用 family_id
 	var member models.FamilyMember
-	if result := config.DB.Where("id = ? AND user_id = ?", memberID, userID).First(&member); result.Error != nil {
+	query := config.DB.Where("id = ?", memberID)
+	if user.FamilyID != "" {
+		query = query.Where("family_id = ?", user.FamilyID)
+	} else {
+		query = query.Where("user_id = ?", userID)
+	}
+
+	if result := query.First(&member); result.Error != nil {
 		c.JSON(http.StatusNotFound, models.NewErrorResponse(
 			models.CodeNotFound,
 			"家庭成员不存在",

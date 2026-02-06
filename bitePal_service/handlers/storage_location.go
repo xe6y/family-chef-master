@@ -30,10 +30,25 @@ func NewStorageLocationHandler() *StorageLocationHandler {
 func (h *StorageLocationHandler) GetStorageLocations(c *gin.Context) {
 	userID := middleware.GetUserIDFromContext(c)
 
+	// 获取用户的家庭ID
+	var user models.User
+	if err := config.DB.First(&user, "id = ?", userID).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, models.NewErrorResponse(
+			models.CodeServerError,
+			"获取用户信息失败",
+		))
+		return
+	}
+
+	// 查询存储位置 - 优先使用 family_id，如果没有则使用 user_id
 	var locations []models.StorageLocation
-	config.DB.Where("user_id = ?", userID).
-		Order("sort_order ASC").
-		Find(&locations)
+	query := config.DB
+	if user.FamilyID != "" {
+		query = query.Where("family_id = ?", user.FamilyID)
+	} else {
+		query = query.Where("user_id = ?", userID)
+	}
+	query.Order("sort_order ASC").Find(&locations)
 
 	// 如果用户没有数据，初始化默认数据
 	if len(locations) == 0 {
@@ -79,6 +94,7 @@ func (h *StorageLocationHandler) GetStorageLocations(c *gin.Context) {
 				SortOrder: loc.SortOrder,
 				IsSystem:  false,
 				UserID:    userID,
+				FamilyID:  user.FamilyID, // 自动填充家庭ID
 			}
 			// ID 会自动生成 UUID
 			
@@ -134,11 +150,22 @@ func (h *StorageLocationHandler) CreateStorageLocation(c *gin.Context) {
 		return
 	}
 
+	// 获取用户的家庭ID
+	var user models.User
+	if err := config.DB.First(&user, "id = ?", userID).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, models.NewErrorResponse(
+			models.CodeServerError,
+			"获取用户信息失败",
+		))
+		return
+	}
+
 	location := &models.StorageLocation{
 		Name:      req.Name,
 		SortOrder: req.SortOrder,
 		IsSystem:  false,
 		UserID:    userID,
+		FamilyID:  user.FamilyID, // 自动填充家庭ID
 	}
 
 	if result := config.DB.Create(location); result.Error != nil {
@@ -167,8 +194,26 @@ func (h *StorageLocationHandler) UpdateStorageLocation(c *gin.Context) {
 	userID := middleware.GetUserIDFromContext(c)
 	locationID := c.Param("locationId")
 
+	// 获取用户的家庭ID
+	var user models.User
+	if err := config.DB.First(&user, "id = ?", userID).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, models.NewErrorResponse(
+			models.CodeServerError,
+			"获取用户信息失败",
+		))
+		return
+	}
+
+	// 查询存储位置 - 优先使用 family_id，如果没有则使用 user_id
 	var location models.StorageLocation
-	if result := config.DB.Where("id = ? AND user_id = ?", locationID, userID).First(&location); result.Error != nil {
+	query := config.DB.Where("id = ?", locationID)
+	if user.FamilyID != "" {
+		query = query.Where("family_id = ?", user.FamilyID)
+	} else {
+		query = query.Where("user_id = ?", userID)
+	}
+
+	if result := query.First(&location); result.Error != nil {
 		c.JSON(http.StatusNotFound, models.NewErrorResponse(
 			models.CodeNotFound,
 			"位置不存在或无权修改",
@@ -217,8 +262,26 @@ func (h *StorageLocationHandler) DeleteStorageLocation(c *gin.Context) {
 	userID := middleware.GetUserIDFromContext(c)
 	locationID := c.Param("locationId")
 
+	// 获取用户的家庭ID
+	var user models.User
+	if err := config.DB.First(&user, "id = ?", userID).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, models.NewErrorResponse(
+			models.CodeServerError,
+			"获取用户信息失败",
+		))
+		return
+	}
+
+	// 查询存储位置 - 优先使用 family_id，如果没有则使用 user_id
 	var location models.StorageLocation
-	if result := config.DB.Where("id = ? AND user_id = ?", locationID, userID).First(&location); result.Error != nil {
+	query := config.DB.Where("id = ?", locationID)
+	if user.FamilyID != "" {
+		query = query.Where("family_id = ?", user.FamilyID)
+	} else {
+		query = query.Where("user_id = ?", userID)
+	}
+
+	if result := query.First(&location); result.Error != nil {
 		c.JSON(http.StatusNotFound, models.NewErrorResponse(
 			models.CodeNotFound,
 			"位置不存在或无权删除",

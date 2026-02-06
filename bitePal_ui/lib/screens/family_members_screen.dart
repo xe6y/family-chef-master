@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../services/family_service.dart';
+import 'family_preferences_screen.dart';
 
 // --- Theme Constants ---
 const Color _oatmeal = Color(0xFFF5F5F0);
@@ -98,7 +99,7 @@ class _FamilyMembersScreenState extends State<FamilyMembersScreen> {
           const Text("创建一个或输入邀请码加入吧", style: TextStyle(color: _textSecondary)),
           const SizedBox(height: 32),
           ElevatedButton(
-            onPressed: () {},
+            onPressed: _showCreateFamilyDialog,
             style: ElevatedButton.styleFrom(
               backgroundColor: _sageGreen,
               foregroundColor: Colors.white,
@@ -111,6 +112,14 @@ class _FamilyMembersScreenState extends State<FamilyMembersScreen> {
             child: const Text(
               "创建我的家庭",
               style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+          ),
+          const SizedBox(height: 16),
+          TextButton(
+            onPressed: _showJoinFamilyDialog,
+            child: const Text(
+              "输入邀请码加入家庭",
+              style: TextStyle(color: _sageGreen, fontWeight: FontWeight.w600),
             ),
           ),
         ],
@@ -220,10 +229,30 @@ class _FamilyMembersScreenState extends State<FamilyMembersScreen> {
                   color: _textPrimary,
                 ),
               ),
-              TextButton.icon(
-                onPressed: () {},
-                icon: const Icon(Icons.person_add_alt_rounded, size: 18),
-                label: const Text("邀请"),
+              Row(
+                children: [
+                  TextButton.icon(
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const FamilyPreferencesScreen(),
+                        ),
+                      );
+                    },
+                    icon: const Icon(Icons.restaurant_menu, size: 18),
+                    label: const Text("偏好设置"),
+                    style: TextButton.styleFrom(
+                      foregroundColor: _sageGreen,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  TextButton.icon(
+                    onPressed: () {},
+                    icon: const Icon(Icons.person_add_alt_rounded, size: 18),
+                    label: const Text("邀请"),
+                  ),
+                ],
               ),
             ],
           ),
@@ -235,7 +264,7 @@ class _FamilyMembersScreenState extends State<FamilyMembersScreen> {
           const SizedBox(height: 40),
           Center(
             child: TextButton(
-              onPressed: () {},
+              onPressed: _showLeaveFamilyDialog,
               style: TextButton.styleFrom(foregroundColor: _persimmon),
               child: const Text(
                 "退出家庭",
@@ -314,5 +343,172 @@ class _FamilyMembersScreenState extends State<FamilyMembersScreen> {
         ],
       ),
     );
+  }
+
+  /// 显示创建家庭对话框
+  void _showCreateFamilyDialog() {
+    final nameController = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('创建家庭'),
+        content: TextField(
+          controller: nameController,
+          decoration: const InputDecoration(
+            labelText: '家庭名称',
+            hintText: '例如：张家大院',
+            border: OutlineInputBorder(),
+          ),
+          autofocus: true,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('取消'),
+          ),
+          TextButton(
+            onPressed: () async {
+              final name = nameController.text.trim();
+              if (name.isEmpty) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('请输入家庭名称')),
+                );
+                return;
+              }
+
+              Navigator.pop(context);
+              await _createFamily(name);
+            },
+            child: const Text('创建'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// 显示加入家庭对话框
+  void _showJoinFamilyDialog() {
+    final codeController = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('加入家庭'),
+        content: TextField(
+          controller: codeController,
+          decoration: const InputDecoration(
+            labelText: '邀请码',
+            hintText: '请输入6位邀请码',
+            border: OutlineInputBorder(),
+          ),
+          autofocus: true,
+          maxLength: 6,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('取消'),
+          ),
+          TextButton(
+            onPressed: () async {
+              final code = codeController.text.trim();
+              if (code.isEmpty) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('请输入邀请码')),
+                );
+                return;
+              }
+
+              Navigator.pop(context);
+              await _joinFamily(code);
+            },
+            child: const Text('加入'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// 显示退出家庭确认对话框
+  void _showLeaveFamilyDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('退出家庭'),
+        content: const Text('确定要退出当前家庭吗？退出后将无法查看家庭信息。'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('取消'),
+          ),
+          TextButton(
+            onPressed: () async {
+              Navigator.pop(context);
+              await _leaveFamily();
+            },
+            style: TextButton.styleFrom(foregroundColor: _persimmon),
+            child: const Text('退出'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// 创建家庭
+  Future<void> _createFamily(String name) async {
+    try {
+      await _familyService.createFamily(name);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('创建成功！')),
+        );
+        _loadFamily();
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('创建失败：$e')),
+        );
+      }
+    }
+  }
+
+  /// 加入家庭
+  Future<void> _joinFamily(String inviteCode) async {
+    try {
+      await _familyService.joinFamily(inviteCode);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('加入成功！')),
+        );
+        _loadFamily();
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('加入失败：$e')),
+        );
+      }
+    }
+  }
+
+  /// 退出家庭
+  Future<void> _leaveFamily() async {
+    try {
+      await _familyService.leaveFamily();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('已退出家庭')),
+        );
+        _loadFamily();
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('退出失败：$e')),
+        );
+      }
+    }
   }
 }

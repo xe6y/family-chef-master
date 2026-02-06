@@ -1088,23 +1088,24 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen>
                       ),
                     ),
                   ),
-                  // 左上角返回按钮
-                  Positioned(
-                    top: MediaQuery.of(context).padding.top + 10,
-                    left: 16,
-                    child: GlassContainer(
-                      borderRadius: 50,
-                      padding: const EdgeInsets.all(8),
-                      child: GestureDetector(
-                        onTap: () => Navigator.pop(context),
-                        child: const Icon(
-                          Icons.arrow_back,
-                          color: Colors.white,
-                          size: 20,
+                  // 左上角返回按钮（仅在非编辑模式显示）
+                  if (!_isEditing)
+                    Positioned(
+                      top: MediaQuery.of(context).padding.top + 10,
+                      left: 16,
+                      child: GlassContainer(
+                        borderRadius: 50,
+                        padding: const EdgeInsets.all(8),
+                        child: GestureDetector(
+                          onTap: () => Navigator.pop(context),
+                          child: const Icon(
+                            Icons.arrow_back,
+                            color: Colors.white,
+                            size: 20,
+                          ),
                         ),
                       ),
                     ),
-                  ),
                   // 右上角更多选项按钮（非编辑模式显示）
                   if (!_isEditing)
                     Positioned(
@@ -1744,14 +1745,20 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen>
                 ),
               ),
               const SizedBox(width: 8),
-              // 中间按钮：加入我的私房（仅探索发现非编辑模式显示）
-              if (!widget.isFromMyRecipes && !_isEditing) ...[
+              // 中间按钮：加入我的私房（仅探索发现非编辑模式显示）或加入菜单（我的私房非编辑模式显示）
+              if (!_isEditing) ...[
                 Expanded(
                   flex: 4,
                   child: OutlinedButton(
                     onPressed: () {
                       HapticFeedback.lightImpact();
-                      setState(() => _isEditing = true);
+                      if (widget.isFromMyRecipes) {
+                        // 我的私房：加入菜单
+                        _tryThisRecipe();
+                      } else {
+                        // 探索发现：加入私房
+                        setState(() => _isEditing = true);
+                      }
                     },
                     style: OutlinedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 14),
@@ -1761,9 +1768,9 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen>
                       ),
                       foregroundColor: _sageGreen,
                     ),
-                    child: const Text(
-                      "加入私房",
-                      style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+                    child: Text(
+                      widget.isFromMyRecipes ? "加入菜单" : "加入私房",
+                      style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
                     ),
                   ),
                 ),

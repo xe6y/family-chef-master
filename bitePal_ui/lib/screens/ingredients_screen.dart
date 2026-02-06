@@ -472,9 +472,6 @@ class _IngredientsScreenState extends State<IngredientsScreen>
           // 顶部标题栏和操作按钮
           _buildTopBar(),
 
-          // 存储位置导航
-          _buildStorageNavigation(),
-
           // 主内容区域：左侧分类 + 右侧食材
           Expanded(
             child: _isLoading
@@ -500,35 +497,47 @@ class _IngredientsScreenState extends State<IngredientsScreen>
         16,
         12,
       ),
-      child: Row(
-        children: [
-          const Text(
-            "食材模块",
-            style: TextStyle(
-              fontWeight: FontWeight.w800,
-              fontSize: 24,
-              color: _textPrimary,
+      child: SizedBox(
+        height: 44,
+        child: Row(
+          children: [
+            _buildStorageDropdown(),
+            const SizedBox(width: 8),
+            // 搜索按钮（可伸缩）
+            Flexible(
+              fit: FlexFit.loose,
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  return Align(
+                    alignment: Alignment.centerRight,
+                    child: _buildSearchButton(constraints.maxWidth),
+                  );
+                },
+              ),
             ),
-          ),
-          const Spacer(),
-          // 搜索按钮
-          _buildSearchButton(),
-          const SizedBox(width: 8),
-          // 添加按钮
-          if (!_isSearchExpanded) _buildAddButton(),
-          const SizedBox(width: 8),
-          // 分类管理按钮
-          if (!_isSearchExpanded) _buildCategoryButton(),
-        ],
+            // 添加按钮
+            if (!_isSearchExpanded) ...[
+              const SizedBox(width: 8),
+              _buildAddButton(),
+            ],
+            // 分类管理按钮
+            if (!_isSearchExpanded) ...[
+              const SizedBox(width: 8),
+              _buildCategoryButton(),
+            ],
+          ],
+        ),
       ),
     );
   }
 
-  Widget _buildSearchButton() {
+  Widget _buildSearchButton(double maxWidth) {
+    final collapsedWidth = maxWidth.clamp(0.0, 40.0);
+    final targetWidth = _isSearchExpanded ? maxWidth : collapsedWidth;
     return AnimatedContainer(
       duration: const Duration(milliseconds: 300),
       curve: Curves.easeInOut,
-      width: _isSearchExpanded ? MediaQuery.of(context).size.width - 80 : 40,
+      width: targetWidth,
       height: 40,
       child: GlassContainer(
         borderRadius: 20,
@@ -540,7 +549,7 @@ class _IngredientsScreenState extends State<IngredientsScreen>
                   GestureDetector(
                     onTap: _toggleSearch,
                     child: const Padding(
-                      padding: EdgeInsets.all(8.0),
+                      padding: EdgeInsets.symmetric(horizontal: 8.0, vertical: 8.0),
                       child: Icon(
                         Icons.arrow_back,
                         color: _textSecondary,
@@ -548,29 +557,30 @@ class _IngredientsScreenState extends State<IngredientsScreen>
                       ),
                     ),
                   ),
-                  const SizedBox(width: 8),
                   Expanded(
-                    child: TextField(
-                      controller: _searchController,
-                      autofocus: true,
-                      decoration: const InputDecoration(
-                        hintText: "搜索食材...",
-                        hintStyle: TextStyle(
-                          color: _textSecondary,
-                          fontSize: 14,
+                    child: Padding(
+                      padding: const EdgeInsets.only(left: 4),
+                      child: TextField(
+                        controller: _searchController,
+                        autofocus: true,
+                        decoration: const InputDecoration(
+                          hintText: "搜索食材...",
+                          hintStyle: TextStyle(
+                            color: _textSecondary,
+                            fontSize: 14,
+                          ),
+                          border: InputBorder.none,
+                          isDense: true,
+                          contentPadding: EdgeInsets.zero,
                         ),
-                        border: InputBorder.none,
-                        isDense: true,
-                        contentPadding: EdgeInsets.zero,
+                        style: const TextStyle(fontSize: 14, color: _textPrimary),
+                        onSubmitted: (val) {
+                          _searchKeyword = val;
+                          _loadIngredients();
+                        },
                       ),
-                      style: const TextStyle(fontSize: 14, color: _textPrimary),
-                      onSubmitted: (val) {
-                        _searchKeyword = val;
-                        _loadIngredients();
-                      },
                     ),
                   ),
-                  const SizedBox(width: 8),
                 ],
               )
             : GestureDetector(
@@ -614,55 +624,97 @@ class _IngredientsScreenState extends State<IngredientsScreen>
     );
   }
 
-  // 存储位置导航
-  Widget _buildStorageNavigation() {
-    return Container(
-      color: _oatmeal,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: Row(
-          children: _storages.map((s) {
-            final isActive = _activeStorage == s.id;
-            return Padding(
-              padding: const EdgeInsets.only(right: 12),
-              child: GestureDetector(
-                onTap: () {
-                  setState(() => _activeStorage = s.id);
-                  _loadIngredients();
-                },
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 200),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 20,
-                    vertical: 10,
-                  ),
-                  decoration: BoxDecoration(
-                    color: isActive ? _sageGreen : Colors.white,
-                    borderRadius: BorderRadius.circular(24),
-                    boxShadow: [
-                      if (isActive)
-                        BoxShadow(
-                          color: _sageGreen.withValues(alpha: 0.3),
-                          blurRadius: 8,
-                          offset: const Offset(0, 2),
-                        ),
-                    ],
-                  ),
-                  child: Text(
-                    s.name,
-                    style: TextStyle(
-                      color: isActive ? Colors.white : _textPrimary,
-                      fontWeight: isActive
-                          ? FontWeight.bold
-                          : FontWeight.normal,
-                      fontSize: 14,
-                    ),
+  Widget _buildStorageDropdown() {
+    if (_storages.isEmpty) {
+      return GlassContainer(
+        borderRadius: 20,
+        opacity: 0.6,
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        child: const Text(
+          "加载中",
+          style: TextStyle(fontSize: 14, color: _textSecondary),
+        ),
+      );
+    }
+
+    final active = _storages.firstWhere(
+      (s) => s.id == _activeStorage,
+      orElse: () => _storages.first,
+    );
+
+    return PopupMenuButton<String>(
+      padding: EdgeInsets.zero,
+      offset: const Offset(0, 42),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+      color: Colors.white,
+      onSelected: (v) async {
+        if (v == _activeStorage) return;
+        setState(() => _activeStorage = v);
+        _selectedCategoryId = '';
+        await _loadIngredients();
+      },
+      itemBuilder: (context) => _storages.map((s) {
+        final isActive = s.id == _activeStorage;
+        return PopupMenuItem<String>(
+          value: s.id,
+          child: Row(
+            children: [
+              Icon(
+                isActive ? Icons.check_rounded : Icons.circle_outlined,
+                size: 16,
+                color: isActive ? _sageGreen : _textSecondary,
+              ),
+              const SizedBox(width: 8),
+              SizedBox(
+                width: 160,
+                child: Text(
+                  s.name,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: isActive ? FontWeight.w600 : FontWeight.normal,
+                    color: _textPrimary,
                   ),
                 ),
               ),
-            );
-          }).toList(),
+            ],
+          ),
+        );
+      }).toList(),
+      child: GlassContainer(
+        borderRadius: 18,
+        opacity: 0.6,
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 160, minHeight: 20),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(
+                Icons.kitchen_rounded,
+                size: 16,
+                color: _textSecondary,
+              ),
+              const SizedBox(width: 6),
+              Flexible(
+                child: Text(
+                  active.name,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: _textPrimary,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 4),
+              const Icon(
+                Icons.keyboard_arrow_down_rounded,
+                size: 18,
+                color: _textSecondary,
+              ),
+            ],
+          ),
         ),
       ),
     );

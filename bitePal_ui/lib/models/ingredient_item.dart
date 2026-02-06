@@ -18,6 +18,9 @@ class IngredientCategory {
   /// 是否为系统预设分类
   final bool isSystem;
 
+  /// 家庭ID
+  final String? familyId;
+
   IngredientCategory({
     required this.id,
     required this.name,
@@ -25,6 +28,7 @@ class IngredientCategory {
     required this.color,
     this.sortOrder = 0,
     this.isSystem = false,
+    this.familyId,
   });
 
   /// 从JSON创建IngredientCategory实例
@@ -38,6 +42,7 @@ class IngredientCategory {
       color: json['color'] ?? '#9E9E9E',
       sortOrder: json['sortOrder'] ?? 0,
       isSystem: json['isSystem'] ?? false,
+      familyId: json['familyId'],
     );
   }
 
@@ -51,6 +56,7 @@ class IngredientCategory {
       'color': color,
       'sortOrder': sortOrder,
       'isSystem': isSystem,
+      'familyId': familyId,
     };
   }
 }
@@ -111,6 +117,9 @@ class IngredientItem {
   /// 分类详情
   final IngredientCategory? category;
 
+  /// 家庭ID
+  final String? familyId;
+
   IngredientItem({
     required this.id,
     required this.name,
@@ -130,6 +139,7 @@ class IngredientItem {
     required this.expiryText,
     this.urgent = false,
     this.category,
+    this.familyId,
   });
 
   /// 从JSON创建IngredientItem实例
@@ -157,6 +167,7 @@ class IngredientItem {
       category: json['category'] != null
           ? IngredientCategory.fromJson(json['category'])
           : null,
+      familyId: json['familyId'],
     );
   }
 
@@ -176,6 +187,7 @@ class IngredientItem {
       'note': note,
       'expiryDate': expiryDate,
       'purchaseDate': purchaseDate,
+      'familyId': familyId,
     };
   }
 

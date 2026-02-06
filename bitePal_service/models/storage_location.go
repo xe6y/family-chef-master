@@ -14,6 +14,7 @@ type StorageLocation struct {
 	SortOrder int            `json:"sortOrder" gorm:"default:0;index"`                                         // 排序顺序
 	IsSystem  bool           `json:"isSystem" gorm:"default:false;index"`                                      // 是否为系统预设
 	UserID    string         `json:"userId" gorm:"type:varchar(36);uniqueIndex:idx_user_storage_name"`         // 用户ID（系统预设为空）
+	FamilyID  string         `json:"familyId" gorm:"type:varchar(36);index"`                                   // 家庭ID（用于家庭成员共享位置）
 	CreatedAt time.Time      `json:"createdAt"`                                                                // 创建时间
 	UpdatedAt time.Time      `json:"updatedAt"`                                                                // 更新时间
 	DeletedAt gorm.DeletedAt `json:"-" gorm:"index"`                                                           // 软删除时间

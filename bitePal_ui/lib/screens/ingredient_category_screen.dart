@@ -3,6 +3,13 @@ import '../models/ingredient_item.dart';
 import '../services/ingredient_service.dart';
 import '../services/storage_location_service.dart';
 
+// --- Theme Colors ---
+const Color _oatmeal = Color(0xFFF5F5F0);
+const Color _sageGreen = Color(0xFFB2AC88);
+const Color _persimmon = Color(0xFFE58A73);
+const Color _textPrimary = Color(0xFF4A4F50);
+const Color _textSecondary = Color(0xFF8C8F90);
+
 /// 分类管理页面
 class IngredientCategoryScreen extends StatefulWidget {
   const IngredientCategoryScreen({super.key});
@@ -29,10 +36,34 @@ class _IngredientCategoryScreenState extends State<IngredientCategoryScreen> wit
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: _oatmeal,
       appBar: AppBar(
-        title: const Text('分类管理'),
+        backgroundColor: _oatmeal,
+        elevation: 0,
+        centerTitle: true,
+        title: const Text(
+          '分类管理',
+          style: TextStyle(
+            fontWeight: FontWeight.w800,
+            fontSize: 18,
+            color: _textPrimary,
+          ),
+        ),
+        leading: IconButton(
+          icon: const Icon(
+            Icons.arrow_back_ios_new_rounded,
+            color: _textPrimary,
+            size: 20,
+          ),
+          onPressed: () => Navigator.pop(context),
+        ),
         bottom: TabBar(
           controller: _tabController,
+          labelColor: _sageGreen,
+          unselectedLabelColor: _textSecondary,
+          indicatorColor: _sageGreen.withValues(alpha: 0.3),
+          indicatorWeight: 2,
+          dividerColor: Colors.transparent,
           tabs: const [
             Tab(text: '食材分类'),
             Tab(text: '位置分类'),
@@ -128,13 +159,29 @@ class _IngredientCategoryTabState extends State<IngredientCategoryTab> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('确认删除'),
-        content: Text('确定要删除分类"${category.name}"吗？'),
+        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text(
+          '确认删除',
+          style: TextStyle(fontWeight: FontWeight.bold, color: _textPrimary),
+        ),
+        content: Text(
+          '确定要删除分类"${category.name}"吗？',
+          style: const TextStyle(color: _textSecondary),
+        ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('取消')),
           TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('取消', style: TextStyle(color: _textSecondary)),
+          ),
+          ElevatedButton(
             onPressed: () => Navigator.pop(context, true),
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: _persimmon,
+              foregroundColor: Colors.white,
+              elevation: 0,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
             child: const Text('删除'),
           ),
         ],
@@ -169,9 +216,11 @@ class _IngredientCategoryTabState extends State<IngredientCategoryTab> {
     final userCategories = _categories.where((c) => !c.isSystem).toList();
 
     return Scaffold(
+      backgroundColor: _oatmeal,
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? const Center(child: CircularProgressIndicator(color: _sageGreen))
           : RefreshIndicator(
+              color: _sageGreen,
               onRefresh: _loadCategories,
               child: ListView(
                 padding: const EdgeInsets.all(16),
@@ -201,7 +250,10 @@ class _IngredientCategoryTabState extends State<IngredientCategoryTab> {
       floatingActionButton: FloatingActionButton(
         onPressed: _addCategory,
         heroTag: 'add_category',
-        child: const Icon(Icons.add),
+        backgroundColor: _sageGreen,
+        foregroundColor: Colors.white,
+        elevation: 4,
+        child: const Icon(Icons.add_rounded),
       ),
     );
   }
@@ -209,16 +261,41 @@ class _IngredientCategoryTabState extends State<IngredientCategoryTab> {
   Widget _buildSectionHeader(String title, int count, bool isExpanded, VoidCallback onTap) {
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(8),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 8),
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 4),
         child: Row(
           children: [
-            Icon(isExpanded ? Icons.expand_more : Icons.chevron_right, size: 24),
+            Icon(
+              isExpanded ? Icons.expand_more_rounded : Icons.chevron_right_rounded,
+              size: 24,
+              color: _sageGreen,
+            ),
             const SizedBox(width: 8),
-            Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+            Text(
+              title,
+              style: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+                color: _textPrimary,
+              ),
+            ),
             const Spacer(),
-            Text('$count个', style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5))),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              decoration: BoxDecoration(
+                color: _sageGreen.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Text(
+                '$count个',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: _sageGreen,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
           ],
         ),
       ),
@@ -227,19 +304,54 @@ class _IngredientCategoryTabState extends State<IngredientCategoryTab> {
 
   Widget _buildCategoryItem(IngredientCategory category, {required bool canEdit}) {
     final color = _parseColor(category.color);
-    return Card(
-      margin: const EdgeInsets.only(bottom: 8),
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.03),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
       child: ListTile(
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         leading: Container(
-          width: 44,
-          height: 44,
-          decoration: BoxDecoration(color: color.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(10)),
-          child: Center(child: Text(category.icon, style: const TextStyle(fontSize: 24))),
+          width: 48,
+          height: 48,
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: 0.15),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Center(
+            child: Text(
+              category.icon,
+              style: const TextStyle(fontSize: 24),
+            ),
+          ),
         ),
-        title: Text(category.name, style: const TextStyle(fontWeight: FontWeight.w600)),
+        title: Text(
+          category.name,
+          style: const TextStyle(
+            fontWeight: FontWeight.w600,
+            fontSize: 15,
+            color: _textPrimary,
+          ),
+        ),
         trailing: canEdit
-            ? IconButton(icon: const Icon(Icons.edit, size: 20), onPressed: () => _editCategory(category))
-            : Icon(Icons.lock, size: 16, color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.3)),
+            ? IconButton(
+                icon: const Icon(Icons.edit_rounded, size: 20),
+                color: _sageGreen,
+                onPressed: () => _editCategory(category),
+              )
+            : Icon(
+                Icons.lock_rounded,
+                size: 18,
+                color: _textSecondary.withValues(alpha: 0.4),
+              ),
         onTap: canEdit ? () => _editCategory(category) : null,
         onLongPress: canEdit ? () => _deleteCategory(category) : null,
       ),
@@ -306,13 +418,29 @@ class _StorageLocationTabState extends State<StorageLocationTab> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('确认删除'),
-        content: Text('确定要删除位置"${location.name}"吗？'),
+        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text(
+          '确认删除',
+          style: TextStyle(fontWeight: FontWeight.bold, color: _textPrimary),
+        ),
+        content: Text(
+          '确定要删除位置"${location.name}"吗？',
+          style: const TextStyle(color: _textSecondary),
+        ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('取消')),
           TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('取消', style: TextStyle(color: _textSecondary)),
+          ),
+          ElevatedButton(
             onPressed: () => Navigator.pop(context, true),
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: _persimmon,
+              foregroundColor: Colors.white,
+              elevation: 0,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
             child: const Text('删除'),
           ),
         ],
@@ -344,9 +472,11 @@ class _StorageLocationTabState extends State<StorageLocationTab> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: _oatmeal,
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? const Center(child: CircularProgressIndicator(color: _sageGreen))
           : RefreshIndicator(
+              color: _sageGreen,
               onRefresh: _loadLocations,
               child: SingleChildScrollView(
                 padding: const EdgeInsets.all(16),
@@ -354,16 +484,41 @@ class _StorageLocationTabState extends State<StorageLocationTab> {
                   children: [
                     InkWell(
                       onTap: () => setState(() => _isExpanded = !_isExpanded),
-                      borderRadius: BorderRadius.circular(8),
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 8),
+                      borderRadius: BorderRadius.circular(12),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 4),
                         child: Row(
                           children: [
-                            Icon(_isExpanded ? Icons.expand_more : Icons.chevron_right, size: 24),
+                            Icon(
+                              _isExpanded ? Icons.expand_more_rounded : Icons.chevron_right_rounded,
+                              size: 24,
+                              color: _sageGreen,
+                            ),
                             const SizedBox(width: 8),
-                            const Text('我的位置', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+                            const Text(
+                              '我的位置',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w700,
+                                color: _textPrimary,
+                              ),
+                            ),
                             const Spacer(),
-                            Text('${_locations.length}个', style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5))),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: _sageGreen.withValues(alpha: 0.1),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Text(
+                                '${_locations.length}个',
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  color: _sageGreen,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
                           ],
                         ),
                       ),
@@ -382,27 +537,63 @@ class _StorageLocationTabState extends State<StorageLocationTab> {
       floatingActionButton: FloatingActionButton(
         onPressed: _addLocation,
         heroTag: 'add_location',
-        child: const Icon(Icons.add),
+        backgroundColor: _sageGreen,
+        foregroundColor: Colors.white,
+        elevation: 4,
+        child: const Icon(Icons.add_rounded),
       ),
     );
   }
 
   Widget _buildLocationItem(StorageLocation location) {
-    return Card(
+    return Container(
       key: ValueKey(location.id),
-      margin: const EdgeInsets.only(bottom: 8),
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.03),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
       child: ListTile(
-        leading: const Icon(Icons.drag_handle),
-        title: Text(location.name, style: const TextStyle(fontWeight: FontWeight.w600)),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        leading: Container(
+          width: 40,
+          height: 40,
+          decoration: BoxDecoration(
+            color: _sageGreen.withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: const Icon(
+            Icons.drag_handle_rounded,
+            color: _sageGreen,
+            size: 20,
+          ),
+        ),
+        title: Text(
+          location.name,
+          style: const TextStyle(
+            fontWeight: FontWeight.w600,
+            fontSize: 15,
+            color: _textPrimary,
+          ),
+        ),
         trailing: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
             IconButton(
-              icon: const Icon(Icons.edit, size: 20),
+              icon: const Icon(Icons.edit_rounded, size: 20),
+              color: _sageGreen,
               onPressed: () => _editLocation(location),
             ),
             IconButton(
-              icon: const Icon(Icons.delete, size: 20, color: Colors.red),
+              icon: const Icon(Icons.delete_rounded, size: 20),
+              color: _persimmon,
               onPressed: () => _deleteLocation(location),
             ),
           ],
@@ -416,17 +607,44 @@ class _StorageLocationTabState extends State<StorageLocationTab> {
     return showDialog<String>(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text(title),
+        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Text(
+          title,
+          style: const TextStyle(fontWeight: FontWeight.bold, color: _textPrimary),
+        ),
         content: TextField(
           controller: controller,
-          decoration: const InputDecoration(labelText: '名称', border: OutlineInputBorder()),
+          autofocus: true,
+          style: const TextStyle(color: _textPrimary),
+          decoration: InputDecoration(
+            labelText: '名称',
+            labelStyle: TextStyle(color: _textSecondary),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: _textSecondary.withValues(alpha: 0.3)),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: _sageGreen, width: 2),
+            ),
+          ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('取消')),
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('取消', style: TextStyle(color: _textSecondary)),
+          ),
           ElevatedButton(
             onPressed: () {
               if (controller.text.isNotEmpty) Navigator.pop(context, controller.text);
             },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: _sageGreen,
+              foregroundColor: Colors.white,
+              elevation: 0,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
             child: const Text('保存'),
           ),
         ],
@@ -448,37 +666,105 @@ Future<Map<String, String>?> _showCategoryDialog(BuildContext context, {String? 
     context: context,
     builder: (context) => StatefulBuilder(
       builder: (context, setDialogState) => AlertDialog(
-        title: Text(initialName != null ? '编辑分类' : '添加分类'),
+        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Text(
+          initialName != null ? '编辑分类' : '添加分类',
+          style: const TextStyle(fontWeight: FontWeight.bold, color: _textPrimary),
+        ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            TextField(controller: nameController, decoration: const InputDecoration(labelText: '名称')),
+            TextField(
+              controller: nameController,
+              autofocus: true,
+              style: const TextStyle(color: _textPrimary),
+              decoration: InputDecoration(
+                labelText: '名称',
+                labelStyle: TextStyle(color: _textSecondary),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(color: _textSecondary.withValues(alpha: 0.3)),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: const BorderSide(color: _sageGreen, width: 2),
+                ),
+              ),
+            ),
             const SizedBox(height: 16),
+            const Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                '选择图标',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: _textPrimary,
+                ),
+              ),
+            ),
+            const SizedBox(height: 8),
             Wrap(
               spacing: 8,
+              runSpacing: 8,
               children: icons.map((icon) => InkWell(
                 onTap: () => setDialogState(() => selectedIcon = icon),
+                borderRadius: BorderRadius.circular(12),
                 child: Container(
-                  padding: const EdgeInsets.all(8),
+                  padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    border: selectedIcon == icon ? Border.all(color: Colors.blue) : null,
-                    borderRadius: BorderRadius.circular(4),
+                    color: selectedIcon == icon
+                        ? _sageGreen.withValues(alpha: 0.15)
+                        : Colors.grey.withValues(alpha: 0.1),
+                    border: Border.all(
+                      color: selectedIcon == icon ? _sageGreen : Colors.transparent,
+                      width: 2,
+                    ),
+                    borderRadius: BorderRadius.circular(12),
                   ),
                   child: Text(icon, style: const TextStyle(fontSize: 24)),
                 ),
               )).toList(),
             ),
              const SizedBox(height: 16),
+            const Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                '选择颜色',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: _textPrimary,
+                ),
+              ),
+            ),
+            const SizedBox(height: 8),
             Wrap(
-              spacing: 8,
+              spacing: 12,
+              runSpacing: 12,
               children: colors.map((color) => InkWell(
                 onTap: () => setDialogState(() => selectedColor = color),
+                borderRadius: BorderRadius.circular(20),
                 child: Container(
-                  width: 30, height: 30,
+                  width: 40,
+                  height: 40,
                   decoration: BoxDecoration(
                     color: Color(int.parse(color.replaceFirst('#', '0xFF'))),
-                    border: selectedColor == color ? Border.all(color: Colors.black, width: 2) : null,
+                    border: Border.all(
+                      color: selectedColor == color ? _textPrimary : Colors.transparent,
+                      width: 3,
+                    ),
                     shape: BoxShape.circle,
+                    boxShadow: selectedColor == color
+                        ? [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.2),
+                              blurRadius: 8,
+                              offset: const Offset(0, 2),
+                            ),
+                          ]
+                        : null,
                   ),
                 ),
               )).toList(),
@@ -486,9 +772,18 @@ Future<Map<String, String>?> _showCategoryDialog(BuildContext context, {String? 
           ],
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('取消')),
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('取消', style: TextStyle(color: _textSecondary)),
+          ),
           ElevatedButton(
             onPressed: () => Navigator.pop(context, {'name': nameController.text, 'icon': selectedIcon, 'color': selectedColor}),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: _sageGreen,
+              foregroundColor: Colors.white,
+              elevation: 0,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
             child: const Text('保存'),
           ),
         ],

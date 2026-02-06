@@ -77,14 +77,9 @@ class RecipeCard extends StatelessWidget {
                             recipe.image!,
                             fit: BoxFit.cover,
                             errorBuilder: (context, error, stackTrace) =>
-                                _buildPlaceholder(),
+                                _buildPlaceholder(colorScheme),
                           )
-                        : Image.asset(
-                            'assets/chinese-potato-strips.jpg',
-                            fit: BoxFit.cover,
-                            errorBuilder: (context, error, stackTrace) =>
-                                _buildPlaceholder(),
-                          ),
+                        : _buildPlaceholder(colorScheme),
                   ),
                 ),
                 // 收藏按钮
@@ -320,16 +315,29 @@ class RecipeCard extends StatelessWidget {
     }).toList();
   }
 
-  Widget _buildPlaceholder() {
-    return Center(
-      child: Container(
-        width: 48,
-        height: 48,
-        decoration: BoxDecoration(
-          color: Colors.grey.shade200,
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: Colors.grey.shade300, width: 2),
-        ),
+  Widget _buildPlaceholder(ColorScheme colorScheme) {
+    return Container(
+      width: double.infinity,
+      height: double.infinity,
+      color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.image_not_supported_outlined,
+            size: 40,
+            color: colorScheme.onSurface.withValues(alpha: 0.3),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            '暂无图片',
+            style: TextStyle(
+              fontSize: 12,
+              color: colorScheme.onSurface.withValues(alpha: 0.4),
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
       ),
     );
   }

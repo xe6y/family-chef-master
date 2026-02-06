@@ -94,6 +94,9 @@ class ShoppingList {
   /// 完成时间
   final String? completedAt;
 
+  /// 家庭ID
+  final String? familyId;
+
   ShoppingList({
     required this.id,
     required this.name,
@@ -101,6 +104,7 @@ class ShoppingList {
     required this.totalPrice,
     this.createdAt,
     this.completedAt,
+    this.familyId,
   });
 
   /// 从JSON创建ShoppingList实例
@@ -116,6 +120,7 @@ class ShoppingList {
       totalPrice: (json['totalPrice'] ?? 0).toDouble(),
       createdAt: json['createdAt'],
       completedAt: json['completedAt'],
+      familyId: json['familyId'],
     );
   }
 
@@ -126,6 +131,7 @@ class ShoppingList {
       'name': name,
       'items': items.map((e) => e.toJson()).toList(),
       'totalPrice': totalPrice,
+      'familyId': familyId,
     };
   }
 

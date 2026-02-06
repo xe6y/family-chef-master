@@ -51,10 +51,23 @@ type CreateIngredientRequest struct {
 func (h *IngredientHandler) GetIngredients(c *gin.Context) {
 	userID := middleware.GetUserIDFromContext(c)
 
-	// 构建查询
-	query := config.DB.Model(&models.IngredientItem{}).
-		Preload("Category").
-		Where("user_id = ?", userID)
+	// 获取用户的家庭ID
+	var user models.User
+	if err := config.DB.First(&user, "id = ?", userID).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, models.NewErrorResponse(
+			models.CodeServerError,
+			"获取用户信息失败",
+		))
+		return
+	}
+
+	// 构建查询 - 优先使用 family_id，如果没有则使用 user_id
+	query := config.DB.Model(&models.IngredientItem{}).Preload("Category")
+	if user.FamilyID != "" {
+		query = query.Where("family_id = ?", user.FamilyID)
+	} else {
+		query = query.Where("user_id = ?", userID)
+	}
 
 	// 存储位置筛选
 	if storage := c.Query("storage"); storage != "" {
@@ -114,11 +127,25 @@ func (h *IngredientHandler) GetIngredientsGrouped(c *gin.Context) {
 	userID := middleware.GetUserIDFromContext(c)
 	storage := c.Query("storage")
 
-	// 获取所有可用分类
+	// 获取用户的家庭ID
+	var user models.User
+	if err := config.DB.First(&user, "id = ?", userID).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, models.NewErrorResponse(
+			models.CodeServerError,
+			"获取用户信息失败",
+		))
+		return
+	}
+
+	// 获取所有可用分类（系统分类 + 用户/家庭自定义分类）
 	var categories []models.IngredientCategory
-	config.DB.Where("is_system = ? OR user_id = ?", true, userID).
-		Order("sort_order ASC").
-		Find(&categories)
+	categoryQuery := config.DB.Where("is_system = ?", true)
+	if user.FamilyID != "" {
+		categoryQuery = categoryQuery.Or("family_id = ?", user.FamilyID)
+	} else {
+		categoryQuery = categoryQuery.Or("user_id = ?", userID)
+	}
+	categoryQuery.Order("sort_order ASC").Find(&categories)
 
 	// 为每个分类获取食材
 	groups := make([]*models.IngredientGroupResponse, 0)
@@ -126,8 +153,14 @@ func (h *IngredientHandler) GetIngredientsGrouped(c *gin.Context) {
 		var ingredients []models.IngredientItem
 		query := config.DB.Model(&models.IngredientItem{}).
 			Preload("Category").
-			Where("user_id = ?", userID).
 			Where("category_id = ?", cat.ID)
+
+		// 使用 family_id 或 user_id 过滤
+		if user.FamilyID != "" {
+			query = query.Where("family_id = ?", user.FamilyID)
+		} else {
+			query = query.Where("user_id = ?", userID)
+		}
 
 		// 存储位置筛选
 		if storage != "" {
@@ -209,6 +242,16 @@ func (h *IngredientHandler) GetIngredientsGrouped(c *gin.Context) {
 func (h *IngredientHandler) GetExpiringIngredients(c *gin.Context) {
 	userID := middleware.GetUserIDFromContext(c)
 
+	// 获取用户的家庭ID
+	var user models.User
+	if err := config.DB.First(&user, "id = ?", userID).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, models.NewErrorResponse(
+			models.CodeServerError,
+			"获取用户信息失败",
+		))
+		return
+	}
+
 	// 获取天数参数，默认3天
 	days, _ := strconv.Atoi(c.DefaultQuery("days", "3"))
 
@@ -217,8 +260,13 @@ func (h *IngredientHandler) GetExpiringIngredients(c *gin.Context) {
 
 	// 查询即将过期的食材
 	var ingredients []models.IngredientItem
-	config.DB.Preload("Category").
-		Where("user_id = ? AND expiry_date <= ?", userID, targetDate).
+	query := config.DB.Preload("Category")
+	if user.FamilyID != "" {
+		query = query.Where("family_id = ? AND expiry_date <= ?", user.FamilyID, targetDate)
+	} else {
+		query = query.Where("user_id = ? AND expiry_date <= ?", userID, targetDate)
+	}
+	query.
 		Order("expiry_date ASC").
 		Find(&ingredients)
 
@@ -249,10 +297,25 @@ func (h *IngredientHandler) GetIngredientDetail(c *gin.Context) {
 	userID := middleware.GetUserIDFromContext(c)
 	ingredientID := c.Param("ingredientId")
 
+	// 获取用户的家庭ID
+	var user models.User
+	if err := config.DB.First(&user, "id = ?", userID).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, models.NewErrorResponse(
+			models.CodeServerError,
+			"获取用户信息失败",
+		))
+		return
+	}
+
 	var ingredient models.IngredientItem
-	if result := config.DB.Preload("Category").
-		Where("id = ? AND user_id = ?", ingredientID, userID).
-		First(&ingredient); result.Error != nil {
+	query := config.DB.Preload("Category").Where("id = ?", ingredientID)
+	if user.FamilyID != "" {
+		query = query.Where("family_id = ?", user.FamilyID)
+	} else {
+		query = query.Where("user_id = ?", userID)
+	}
+
+	if result := query.First(&ingredient); result.Error != nil {
 		c.JSON(http.StatusNotFound, models.NewErrorResponse(
 			models.CodeNotFound,
 			"食材不存在",
@@ -285,11 +348,25 @@ func (h *IngredientHandler) GetIngredientBatches(c *gin.Context) {
 		return
 	}
 
+	// 获取用户的家庭ID
+	var user models.User
+	if err := config.DB.First(&user, "id = ?", userID).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, models.NewErrorResponse(
+			models.CodeServerError,
+			"获取用户信息失败",
+		))
+		return
+	}
+
+	// 构建查询 - 优先使用 family_id，如果没有则使用 user_id
 	var ingredients []models.IngredientItem
-	config.DB.Preload("Category").
-		Where("user_id = ? AND name = ?", userID, name).
-		Order("expiry_date ASC").
-		Find(&ingredients)
+	query := config.DB.Preload("Category").Where("name = ?", name)
+	if user.FamilyID != "" {
+		query = query.Where("family_id = ?", user.FamilyID)
+	} else {
+		query = query.Where("user_id = ?", userID)
+	}
+	query.Order("expiry_date ASC").Find(&ingredients)
 
 	// 转换为响应结构
 	list := make([]*models.IngredientResponse, len(ingredients))
@@ -359,6 +436,16 @@ func (h *IngredientHandler) CreateIngredient(c *gin.Context) {
 		purchaseDate = time.Now()
 	}
 
+	// 获取用户的家庭ID
+	var user models.User
+	if err := config.DB.First(&user, "id = ?", userID).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, models.NewErrorResponse(
+			models.CodeServerError,
+			"获取用户信息失败",
+		))
+		return
+	}
+
 	// 默认存储位置
 	if req.Storage == "" {
 		req.Storage = models.StorageFridge
@@ -393,6 +480,7 @@ func (h *IngredientHandler) CreateIngredient(c *gin.Context) {
 		ExpiryDate:   expiryDate,
 		PurchaseDate: purchaseDate,
 		UserID:       userID,
+		FamilyID:     user.FamilyID, // 自动填充家庭ID
 	}
 
 	if result := config.DB.Create(ingredient); result.Error != nil {
@@ -425,8 +513,26 @@ func (h *IngredientHandler) UpdateIngredient(c *gin.Context) {
 	userID := middleware.GetUserIDFromContext(c)
 	ingredientID := c.Param("ingredientId")
 
+	// 获取用户的家庭ID
+	var user models.User
+	if err := config.DB.First(&user, "id = ?", userID).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, models.NewErrorResponse(
+			models.CodeServerError,
+			"获取用户信息失败",
+		))
+		return
+	}
+
+	// 查询食材 - 优先使用 family_id，如果没有则使用 user_id
 	var ingredient models.IngredientItem
-	if result := config.DB.Where("id = ? AND user_id = ?", ingredientID, userID).First(&ingredient); result.Error != nil {
+	query := config.DB.Where("id = ?", ingredientID)
+	if user.FamilyID != "" {
+		query = query.Where("family_id = ?", user.FamilyID)
+	} else {
+		query = query.Where("user_id = ?", userID)
+	}
+
+	if result := query.First(&ingredient); result.Error != nil {
 		c.JSON(http.StatusNotFound, models.NewErrorResponse(
 			models.CodeNotFound,
 			"食材不存在",
@@ -526,8 +632,26 @@ func (h *IngredientHandler) DeleteIngredient(c *gin.Context) {
 	userID := middleware.GetUserIDFromContext(c)
 	ingredientID := c.Param("ingredientId")
 
+	// 获取用户的家庭ID
+	var user models.User
+	if err := config.DB.First(&user, "id = ?", userID).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, models.NewErrorResponse(
+			models.CodeServerError,
+			"获取用户信息失败",
+		))
+		return
+	}
+
+	// 查询食材 - 优先使用 family_id，如果没有则使用 user_id
 	var ingredient models.IngredientItem
-	if result := config.DB.Where("id = ? AND user_id = ?", ingredientID, userID).First(&ingredient); result.Error != nil {
+	query := config.DB.Where("id = ?", ingredientID)
+	if user.FamilyID != "" {
+		query = query.Where("family_id = ?", user.FamilyID)
+	} else {
+		query = query.Where("user_id = ?", userID)
+	}
+
+	if result := query.First(&ingredient); result.Error != nil {
 		c.JSON(http.StatusNotFound, models.NewErrorResponse(
 			models.CodeNotFound,
 			"食材不存在",

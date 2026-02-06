@@ -38,11 +38,25 @@ type CreateCategoryRequest struct {
 func (h *IngredientCategoryHandler) GetCategories(c *gin.Context) {
 	userID := middleware.GetUserIDFromContext(c)
 
-	// 查询系统分类和用户自定义分类
+	// 获取用户的家庭ID
+	var user models.User
+	if err := config.DB.First(&user, "id = ?", userID).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, models.NewErrorResponse(
+			models.CodeServerError,
+			"获取用户信息失败",
+		))
+		return
+	}
+
+	// 查询系统分类和用户/家庭自定义分类
 	var categories []models.IngredientCategory
-	config.DB.Where("is_system = ? OR user_id = ?", true, userID).
-		Order("sort_order ASC, created_at ASC").
-		Find(&categories)
+	query := config.DB.Where("is_system = ?", true)
+	if user.FamilyID != "" {
+		query = query.Or("family_id = ?", user.FamilyID)
+	} else {
+		query = query.Or("user_id = ?", userID)
+	}
+	query.Order("sort_order ASC, created_at ASC").Find(&categories)
 
 	// 转换为响应结构
 	list := make([]*models.IngredientCategoryResp, len(categories))
@@ -71,9 +85,26 @@ func (h *IngredientCategoryHandler) GetCategoryDetail(c *gin.Context) {
 	userID := middleware.GetUserIDFromContext(c)
 	categoryID := c.Param("categoryId")
 
+	// 获取用户的家庭ID
+	var user models.User
+	if err := config.DB.First(&user, "id = ?", userID).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, models.NewErrorResponse(
+			models.CodeServerError,
+			"获取用户信息失败",
+		))
+		return
+	}
+
+	// 可以查看系统分类或自己家庭的自定义分类
 	var category models.IngredientCategory
-	// 可以查看系统分类或自己的自定义分类
-	if result := config.DB.Where("id = ? AND (is_system = ? OR user_id = ?)", categoryID, true, userID).First(&category); result.Error != nil {
+	query := config.DB.Where("id = ?", categoryID).Where("is_system = ?", true)
+	if user.FamilyID != "" {
+		query = query.Or("id = ? AND family_id = ?", categoryID, user.FamilyID)
+	} else {
+		query = query.Or("id = ? AND user_id = ?", categoryID, userID)
+	}
+
+	if result := query.First(&category); result.Error != nil {
 		c.JSON(http.StatusNotFound, models.NewErrorResponse(
 			models.CodeNotFound,
 			"分类不存在",
@@ -107,9 +138,26 @@ func (h *IngredientCategoryHandler) CreateCategory(c *gin.Context) {
 		return
 	}
 
-	// 检查是否已存在同名分类
+	// 获取用户的家庭ID
+	var user models.User
+	if err := config.DB.First(&user, "id = ?", userID).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, models.NewErrorResponse(
+			models.CodeServerError,
+			"获取用户信息失败",
+		))
+		return
+	}
+
+	// 检查是否已存在同名分类（系统分类或家庭/用户自定义分类）
 	var existing models.IngredientCategory
-	if result := config.DB.Where("name = ? AND (is_system = ? OR user_id = ?)", req.Name, true, userID).First(&existing); result.Error == nil {
+	query := config.DB.Where("name = ?", req.Name).Where("is_system = ?", true)
+	if user.FamilyID != "" {
+		query = query.Or("name = ? AND family_id = ?", req.Name, user.FamilyID)
+	} else {
+		query = query.Or("name = ? AND user_id = ?", req.Name, userID)
+	}
+
+	if result := query.First(&existing); result.Error == nil {
 		c.JSON(http.StatusBadRequest, models.NewErrorResponse(
 			models.CodeBadRequest,
 			"分类名称已存在",
@@ -132,6 +180,7 @@ func (h *IngredientCategoryHandler) CreateCategory(c *gin.Context) {
 		SortOrder: req.SortOrder,
 		IsSystem:  false,
 		UserID:    userID,
+		FamilyID:  user.FamilyID, // 自动填充家庭ID
 	}
 
 	if result := config.DB.Create(category); result.Error != nil {
@@ -162,8 +211,26 @@ func (h *IngredientCategoryHandler) UpdateCategory(c *gin.Context) {
 	userID := middleware.GetUserIDFromContext(c)
 	categoryID := c.Param("categoryId")
 
+	// 获取用户的家庭ID
+	var user models.User
+	if err := config.DB.First(&user, "id = ?", userID).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, models.NewErrorResponse(
+			models.CodeServerError,
+			"获取用户信息失败",
+		))
+		return
+	}
+
+	// 查询分类 - 优先使用 family_id，如果没有则使用 user_id
 	var category models.IngredientCategory
-	if result := config.DB.Where("id = ? AND user_id = ?", categoryID, userID).First(&category); result.Error != nil {
+	query := config.DB.Where("id = ?", categoryID)
+	if user.FamilyID != "" {
+		query = query.Where("family_id = ?", user.FamilyID)
+	} else {
+		query = query.Where("user_id = ?", userID)
+	}
+
+	if result := query.First(&category); result.Error != nil {
 		c.JSON(http.StatusNotFound, models.NewErrorResponse(
 			models.CodeNotFound,
 			"分类不存在或无权限修改",
@@ -236,8 +303,26 @@ func (h *IngredientCategoryHandler) DeleteCategory(c *gin.Context) {
 	userID := middleware.GetUserIDFromContext(c)
 	categoryID := c.Param("categoryId")
 
+	// 获取用户的家庭ID
+	var user models.User
+	if err := config.DB.First(&user, "id = ?", userID).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, models.NewErrorResponse(
+			models.CodeServerError,
+			"获取用户信息失败",
+		))
+		return
+	}
+
+	// 查询分类 - 优先使用 family_id，如果没有则使用 user_id
 	var category models.IngredientCategory
-	if result := config.DB.Where("id = ? AND user_id = ?", categoryID, userID).First(&category); result.Error != nil {
+	query := config.DB.Where("id = ?", categoryID)
+	if user.FamilyID != "" {
+		query = query.Where("family_id = ?", user.FamilyID)
+	} else {
+		query = query.Where("user_id = ?", userID)
+	}
+
+	if result := query.First(&category); result.Error != nil {
 		c.JSON(http.StatusNotFound, models.NewErrorResponse(
 			models.CodeNotFound,
 			"分类不存在或无权限删除",
