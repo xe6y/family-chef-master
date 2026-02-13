@@ -1,1 +1,34 @@
-GEMINI.md
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Go
+cookmate_service/bitepal_server
+cookmate_service/bitepal_service
+cookmate_service/*.db
+cookmate_service/.env
+
+# Flutter/Dart
+cookmate_ui/.dart_tool/
+cookmate_ui/.flutter-plugins
+cookmate_ui/.flutter-plugins-dependencies
+cookmate_ui/.packages
+cookmate_ui/build/
+cookmate_ui/.pub-cache/
+cookmate_ui/.pub/
+cookmate_ui/pubspec.lock
+
+# Logs
+*.log
+
+# Temporary files
+*.tmp
+*.temp
