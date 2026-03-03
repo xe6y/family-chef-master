@@ -29,18 +29,24 @@ type CreateShoppingListRequest struct {
 
 // AddShoppingItemRequest 添加购物项请求结构
 type AddShoppingItemRequest struct {
-	Name   string  `json:"name" binding:"required"` // 商品名称
-	Amount string  `json:"amount"`                  // 数量
-	Price  float64 `json:"price"`                   // 价格
+	IngredientID   string  `json:"ingredientId" binding:"required"`   // 食材ID
+	IngredientName string  `json:"ingredientName" binding:"required"` // 食材名称
+	Quantity       float64 `json:"quantity" binding:"required"`       // 数量
+	UnitID         string  `json:"unitId" binding:"required"`         // 单位ID
+	UnitName       string  `json:"unitName" binding:"required"`       // 单位名称
+	Price          float64 `json:"price"`                             // 价格
 }
 
 // UpdateShoppingItemRequest 更新购物项请求结构
 type UpdateShoppingItemRequest struct {
-	Name         string   `json:"name"`         // 商品名称
-	Amount       string   `json:"amount"`       // 预计购买数量
-	ActualAmount string   `json:"actualAmount"` // 实际购买数量
-	Price        *float64 `json:"price"`        // 价格
-	Checked      *bool    `json:"checked"`      // 是否已购买
+	IngredientID   *string  `json:"ingredientId"`   // 食材ID
+	IngredientName *string  `json:"ingredientName"` // 食材名称
+	Quantity       *float64 `json:"quantity"`       // 预计购买数量
+	UnitID         *string  `json:"unitId"`         // 单位ID
+	UnitName       *string  `json:"unitName"`       // 单位名称
+	ActualQuantity *float64 `json:"actualQuantity"` // 实际购买数量
+	Price          *float64 `json:"price"`          // 价格
+	Checked        *bool    `json:"checked"`        // 是否已购买
 }
 
 // GetShoppingLists 获取购物清单列表
@@ -347,17 +353,20 @@ func (h *ShoppingHandler) AddShoppingItem(c *gin.Context) {
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, models.NewErrorResponse(
 			models.CodeBadRequest,
-			"请求参数错误：商品名称不能为空",
+			"请求参数错误：食材信息不完整",
 		))
 		return
 	}
 
 	item := models.ShoppingItem{
-		ID:      uuid.New().String(),
-		Name:    req.Name,
-		Amount:  req.Amount,
-		Price:   req.Price,
-		Checked: false,
+		ID:             uuid.New().String(),
+		IngredientID:   req.IngredientID,
+		IngredientName: req.IngredientName,
+		Quantity:       req.Quantity,
+		UnitID:         req.UnitID,
+		UnitName:       req.UnitName,
+		Price:          req.Price,
+		Checked:        false,
 	}
 
 	list.AddItem(item)
@@ -432,14 +441,23 @@ func (h *ShoppingHandler) UpdateShoppingItem(c *gin.Context) {
 	var foundItem *models.ShoppingItem
 	for i, item := range list.Items {
 		if item.ID == itemID {
-			if req.Name != "" {
-				list.Items[i].Name = req.Name
+			if req.IngredientID != nil {
+				list.Items[i].IngredientID = *req.IngredientID
 			}
-			if req.Amount != "" {
-				list.Items[i].Amount = req.Amount
+			if req.IngredientName != nil {
+				list.Items[i].IngredientName = *req.IngredientName
 			}
-			if req.ActualAmount != "" {
-				list.Items[i].ActualAmount = req.ActualAmount
+			if req.Quantity != nil {
+				list.Items[i].Quantity = *req.Quantity
+			}
+			if req.UnitID != nil {
+				list.Items[i].UnitID = *req.UnitID
+			}
+			if req.UnitName != nil {
+				list.Items[i].UnitName = *req.UnitName
+			}
+			if req.ActualQuantity != nil {
+				list.Items[i].ActualQuantity = req.ActualQuantity
 			}
 			if req.Price != nil {
 				list.Items[i].Price = *req.Price
@@ -850,14 +868,14 @@ func (h *ShoppingHandler) GetShoppingHistoryItems(c *gin.Context) {
 
 	for _, list := range lists {
 		for _, item := range list.Items {
-			// 简单的去重逻辑：按名称去重
-			if search != "" && !utils.ContainsIgnoreCase(item.Name, search) {
+			// 简单的去重逻辑：按食材名称去重
+			if search != "" && !utils.ContainsIgnoreCase(item.IngredientName, search) {
 				continue
 			}
-			
+
 			// 如果已经存在，跳过（保留最近的记录，因为我们是按时间倒序遍历清单的）
-			if _, exists := itemMap[item.Name]; !exists {
-				itemMap[item.Name] = item
+			if _, exists := itemMap[item.IngredientName]; !exists {
+				itemMap[item.IngredientName] = item
 				allItems = append(allItems, item)
 			}
 		}

@@ -278,7 +278,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  item.name,
+                  item.ingredientName,
                   style: TextStyle(
                     fontSize: 15,
                     fontWeight: FontWeight.w500,
@@ -288,16 +288,14 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                         : null,
                   ),
                 ),
-                if (item.amount.isNotEmpty) ...[
-                  const SizedBox(height: 2),
-                  Text(
-                    item.amount,
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5),
-                    ),
+                const SizedBox(height: 2),
+                Text(
+                  item.displayAmount,
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5),
                   ),
-                ],
+                ),
               ],
             ),
           ),

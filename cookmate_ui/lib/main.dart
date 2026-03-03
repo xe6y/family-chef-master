@@ -200,7 +200,7 @@ class _MainScreenState extends State<MainScreen> {
         currentIndex: _currentIndex,
         onTap: (index) {
           setState(() => _currentIndex = index);
-          
+
           // 切换页面时刷新数据（延迟执行，确保页面已切换）
           WidgetsBinding.instance.addPostFrameCallback((_) {
             _refreshPage(index);

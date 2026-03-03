@@ -9,6 +9,23 @@ const Color _sageGreen = Color(0xFFB2AC88);
 const Color _textPrimary = Color(0xFF4A4F50);
 const Color _textSecondary = Color(0xFF8C8F90);
 
+// --- 购物项数据结构 ---
+class ShoppingItemData {
+  final String ingredientId;
+  final String ingredientName;
+  final double quantity;
+  final String unitId;
+  final String unitName;
+
+  ShoppingItemData({
+    required this.ingredientId,
+    required this.ingredientName,
+    required this.quantity,
+    required this.unitId,
+    required this.unitName,
+  });
+}
+
 // --- Helper Components ---
 
 class BouncyCard extends StatefulWidget {
@@ -160,7 +177,7 @@ class _MinimalInputState extends State<MinimalInput> {
 // --- Main Dialog ---
 
 class AddShoppingItemDialog extends StatefulWidget {
-  final Function(String name, String amount) onAdd;
+  final Function(ShoppingItemData data) onAdd;
 
   const AddShoppingItemDialog({super.key, required this.onAdd});
 
@@ -211,8 +228,8 @@ class _AddShoppingItemDialogState extends State<AddShoppingItemDialog> {
     });
   }
 
-  void _showAmountInput(String name) {
-    final amountController = TextEditingController();
+  void _showAmountInput(IngredientItem item) {
+    final quantityController = TextEditingController();
     showDialog(
       context: context,
       builder: (context) => Dialog(
@@ -228,7 +245,7 @@ class _AddShoppingItemDialogState extends State<AddShoppingItemDialog> {
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(
-                '添加 $name',
+                '添加 ${item.name}',
                 style: const TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
@@ -237,9 +254,17 @@ class _AddShoppingItemDialogState extends State<AddShoppingItemDialog> {
               ),
               const SizedBox(height: 20),
               MinimalInput(
-                controller: amountController,
-                hintText: "预计数量 (如: 2个, 500g)",
+                controller: quantityController,
+                hintText: "数量 (如: 2, 500)",
                 autofocus: true,
+              ),
+              const SizedBox(height: 12),
+              Text(
+                '单位: ${item.unit}',
+                style: const TextStyle(
+                  fontSize: 12,
+                  color: _textSecondary,
+                ),
               ),
               const SizedBox(height: 24),
               Row(
@@ -257,8 +282,26 @@ class _AddShoppingItemDialogState extends State<AddShoppingItemDialog> {
                   Expanded(
                     child: ElevatedButton(
                       onPressed: () {
+                        final quantityText = quantityController.text.trim();
+                        if (quantityText.isEmpty) {
+                          return;
+                        }
+                        final quantity = double.tryParse(quantityText);
+                        if (quantity == null || quantity <= 0) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('请输入有效的数量')),
+                          );
+                          return;
+                        }
+
                         HapticFeedback.lightImpact();
-                        widget.onAdd(name, amountController.text);
+                        widget.onAdd(ShoppingItemData(
+                          ingredientId: item.ingredientId ?? '',
+                          ingredientName: item.name,
+                          quantity: quantity,
+                          unitId: item.unitId ?? '',
+                          unitName: item.unit,
+                        ));
                         Navigator.pop(context); // Close amount
                         Navigator.pop(context); // Close main add
                       },
@@ -342,26 +385,10 @@ class _AddShoppingItemDialogState extends State<AddShoppingItemDialog> {
                         horizontal: 24,
                         vertical: 8,
                       ),
-                      itemCount:
-                          _filteredIngredients.length +
-                          (_searchController.text.isNotEmpty ? 1 : 0),
+                      itemCount: _filteredIngredients.length,
                       itemBuilder: (context, index) {
-                        if (_searchController.text.isNotEmpty && index == 0) {
-                          return _buildActionTile(
-                            "直接添加 \"${_searchController.text}\"",
-                            "作为新食材添加",
-                            Icons.add_rounded,
-                            () {
-                              _showAmountInput(_searchController.text);
-                            },
-                          );
-                        }
-                        final item =
-                            _filteredIngredients[_searchController
-                                    .text
-                                    .isNotEmpty
-                                ? index - 1
-                                : index];
+                        // 移除"直接添加"选项，只显示食材库中的食材
+                        final item = _filteredIngredients[index];
                         return _buildIngredientTile(item);
                       },
                     ),
@@ -433,7 +460,7 @@ class _AddShoppingItemDialogState extends State<AddShoppingItemDialog> {
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: BouncyCard(
-        onTap: () => _showAmountInput(item.name),
+        onTap: () => _showAmountInput(item),
         child: Container(
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(

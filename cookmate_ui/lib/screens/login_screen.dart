@@ -127,22 +127,18 @@ class _LoginScreenState extends State<LoginScreen>
               opacity: _fadeAnimation,
               child: SlideTransition(
                 position: _slideAnimation,
-                child: SingleChildScrollView(
-                  physics: const BouncingScrollPhysics(),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 24),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        const SizedBox(height: 60),
-                        _buildLogo(),
-                        const SizedBox(height: 48),
-                        _buildLoginForm(),
-                        const SizedBox(height: 32),
-                        _buildFooter(),
-                        const SizedBox(height: 24),
-                      ],
-                    ),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 24),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Spacer(),
+                      _buildLogo(),
+                      const SizedBox(height: 48),
+                      _buildLoginForm(),
+                      const Spacer(),
+                    ],
                   ),
                 ),
               ),
@@ -448,20 +444,4 @@ class _LoginScreenState extends State<LoginScreen>
     );
   }
 
-  /// 构建底部
-  Widget _buildFooter() {
-    return Column(
-      children: [
-        // 跳过登录
-        TextButton(
-          onPressed: widget.onLoginSuccess,
-          style: TextButton.styleFrom(
-            foregroundColor: AppColors.onSurfaceVariantLight,
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-          ),
-          child: const Text('跳过登录，先看看', style: TextStyle(fontSize: 14)),
-        ),
-      ],
-    );
-  }
 }

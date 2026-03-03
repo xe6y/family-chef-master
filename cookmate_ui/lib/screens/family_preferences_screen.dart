@@ -164,30 +164,30 @@ class _FamilyPreferencesScreenState extends State<FamilyPreferencesScreen> {
               const SizedBox(height: 12),
 
               // 口味偏好
-              if (member.preferences.tastes.isNotEmpty) ...[
+              if (member.preferences?.tastes.isNotEmpty ?? false) ...[
                 _buildPreferenceSection(
                   '口味偏好',
-                  member.preferences.tastes,
+                  member.preferences!.tastes,
                   const Color(0xFF4CAF50),
                 ),
                 const SizedBox(height: 8),
               ],
 
               // 过敏食材
-              if (member.preferences.allergies.isNotEmpty) ...[
+              if (member.preferences?.allergies.isNotEmpty ?? false) ...[
                 _buildPreferenceSection(
                   '过敏食材',
-                  member.preferences.allergies,
+                  member.preferences!.allergies,
                   const Color(0xFFFF6B6B),
                 ),
                 const SizedBox(height: 8),
               ],
 
               // 不喜欢的食材
-              if (member.preferences.dislikes.isNotEmpty) ...[
+              if (member.preferences?.dislikes.isNotEmpty ?? false) ...[
                 _buildPreferenceSection(
                   '不喜欢',
-                  member.preferences.dislikes,
+                  member.preferences!.dislikes,
                   const Color(0xFFFFA726),
                 ),
               ],

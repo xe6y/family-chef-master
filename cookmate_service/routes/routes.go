@@ -90,6 +90,7 @@ func SetupRouter() *gin.Engine {
 		{
 			meals.GET("/recipes", mealHandler.GetMealRecipes)                    // 获取点餐菜品列表
 			meals.GET("/summary", mealHandler.GetOrderSummary)                   // 获取订单统计
+			meals.GET("/ingredient-check", mealHandler.CheckTodayMenuIngredients) // 检查今日菜单食材需求
 			meals.POST("/orders", mealHandler.CreateMealOrder)                   // 创建点餐清单
 			meals.GET("/orders", mealHandler.GetMealOrders)                      // 获取点餐历史
 			meals.POST("/orders/:orderId/confirm", mealHandler.ConfirmMealOrder) // 确认点餐
@@ -118,6 +119,8 @@ func SetupRouter() *gin.Engine {
 		{
 			ingredientMaster.GET("", ingredientMasterHandler.GetIngredientMasterList)
 			ingredientMaster.GET("/:id/units", ingredientMasterHandler.GetIngredientMasterUnits)
+			ingredientMaster.POST("/resolve", ingredientMasterHandler.ResolveIngredients) // 批量解析食材名+单位名为 ID
+			ingredientMaster.POST("/ensure", ingredientMasterHandler.EnsureIngredients)   // 批量确保食材/单位存在，不存在则自动创建
 		}
 
 		// 存储位置相关 (新增)

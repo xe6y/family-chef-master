@@ -5,6 +5,7 @@ import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 import '../models/recipe.dart';
 import '../models/recipe_category.dart';
 import '../models/recipe_selection.dart';
+import '../models/meal_order.dart';
 import '../services/meal_service.dart';
 import '../services/category_service.dart';
 import '../services/recipe_service.dart';
@@ -13,7 +14,6 @@ import '../widgets/refreshable_screen.dart';
 import '../widgets/recipe_card.dart';
 import '../widgets/stacked_avatars.dart';
 import 'recipe_detail_screen.dart';
-import 'order_summary_screen.dart';
 
 // --- Helper Components (1:1 with Recipes Screen) ---
 
@@ -208,6 +208,8 @@ class _MealsScreenState extends State<MealsScreen>
     // CRITICAL: Restored old method name to fix NoSuchMethodError crash
     _todayMenuState.addListener(_onTodayMenuStateChanged);
     _loadData();
+    // 加载今日菜单缓存（家庭共享菜单）
+    _loadTodayMenuCache();
   }
 
   @override
@@ -220,6 +222,11 @@ class _MealsScreenState extends State<MealsScreen>
   // CRITICAL: Method name matches what the singleton is trying to call
   void _onTodayMenuStateChanged() {
     if (mounted) setState(() {});
+  }
+
+  /// 加载今日菜单缓存
+  Future<void> _loadTodayMenuCache() async {
+    await _todayMenuState.loadTodayMenuFromCache();
   }
 
   Future<void> _loadData() async {
@@ -355,29 +362,51 @@ class _MealsScreenState extends State<MealsScreen>
   }
 
   Future<void> _confirmOrder() async {
-    final selected = _todayMenuState.selectedMeals;
-    if (selected.isEmpty) return;
+    final checkedSelections = _todayMenuState.getCheckedSelections();
+    if (checkedSelections.isEmpty) return;
 
-    // 跳转到订单统计页面
-    final result = await Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => OrderSummaryScreen(
-          selectedRecipes: selected,
-        ),
+    // 显示加载提示
+    if (!mounted) return;
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const Center(
+        child: CircularProgressIndicator(color: _sageGreen),
       ),
     );
 
-    // 如果确认创建订单，刷新页面
-    if (result == true && mounted) {
-      _todayMenuState.clearSelected();
+    try {
+      // 将 Recipe 转换为 OrderRecipe
+      final orderRecipes = checkedSelections.map((s) {
+        return OrderRecipe(
+          recipeId: s.recipe.id,
+          recipeName: s.recipe.name,
+        );
+      }).toList();
+
+      // 创建今日菜单订单
+      await _mealService.createMealOrder(orderRecipes);
+
+      // 清空已选菜品缓存
+      await _todayMenuState.clearSelected();
+
+      // 刷新今日菜单
       await _todayMenuState.refreshTodayMenu();
+
       if (!mounted) return;
+      Navigator.pop(context); // 关闭加载对话框
+      Navigator.pop(context); // 关闭已选菜品弹窗
+
       HapticFeedback.mediumImpact();
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('点餐成功！祝您用餐愉快 🍽️')),
+        const SnackBar(content: Text('已同步到今日菜单！🍽️')),
       );
-      if (Navigator.canPop(context)) Navigator.pop(context);
+    } catch (e) {
+      if (!mounted) return;
+      Navigator.pop(context); // 关闭加载对话框
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('同步失败: $e')),
+      );
     }
   }
 
@@ -430,10 +459,11 @@ class _MealsScreenState extends State<MealsScreen>
                     childCount: _recipes.length,
                     itemBuilder: (context, index) {
                       final recipe = _recipes[index];
-                      final isAdded = _todayMenuState.isSelected(recipe.id);
+                      final isAdded = _todayMenuState.isSelectedByCurrentMember(recipe.id);
                       return RecipeCard(
                         recipe: recipe,
                         isAdded: isAdded,
+                        selectedByCount: 0, // 不在菜单列表中显示人数
                         onTap: () async {
                           await Navigator.push(
                             context,
@@ -445,9 +475,9 @@ class _MealsScreenState extends State<MealsScreen>
                             ),
                           );
                         },
-                        onAdd: () {
+                        onAdd: () async {
                           HapticFeedback.lightImpact();
-                          _todayMenuState.toggleSelected(recipe);
+                          await _todayMenuState.toggleSelected(recipe);
                         },
                       );
                     },
@@ -918,6 +948,10 @@ class _OrderListSheetState extends State<_OrderListSheet> {
     List<RecipeSelection> myRecipes,
     List<RecipeSelection> onlineRecipes,
   ) {
+    // 按选择人数倒序排列
+    myRecipes.sort((a, b) => b.selectedBy.length.compareTo(a.selectedBy.length));
+    onlineRecipes.sort((a, b) => b.selectedBy.length.compareTo(a.selectedBy.length));
+
     return Flexible(
       child: SingleChildScrollView(
         child: Column(
@@ -1028,11 +1062,34 @@ class _OrderListSheetState extends State<_OrderListSheet> {
             ),
           ),
           const SizedBox(width: 12),
-          StackedAvatars(
-            members: selection.selectedBy,
-            size: 28,
-            maxDisplay: 3,
-            overlap: 10,
+          // 选择人数和头像
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (selection.selectedBy.length > 1)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFB2AC88).withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    '${selection.selectedBy.length}人',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFFB2AC88),
+                    ),
+                  ),
+                ),
+              if (selection.selectedBy.length > 1) const SizedBox(width: 8),
+              StackedAvatars(
+                members: selection.selectedBy,
+                size: 28,
+                maxDisplay: 3,
+                overlap: 10,
+              ),
+            ],
           ),
           const SizedBox(width: 8),
           IconButton(
@@ -1074,7 +1131,7 @@ class _OrderListSheetState extends State<_OrderListSheet> {
           elevation: 0,
         ),
         child: Text(
-          "生成今日菜单 ($checkedCount)",
+          "同步到今日菜单 ($checkedCount)",
           style: const TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.bold,

@@ -1,14 +1,17 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
 import '../models/recipe.dart';
 import '../models/ingredient_item.dart';
 import '../services/ingredient_service.dart';
+import '../services/ingredient_check_service.dart';
 import '../services/today_menu_state.dart';
 import '../widgets/random_meal_dialog.dart';
 import 'recipe_detail_screen.dart';
 import 'profile_screen.dart';
+import 'ingredient_check_screen.dart';
 
 /// ============================================
-/// Soft UI Home Screen（轻拟物风格首页）
+/// iOS 风格首页
 /// ============================================
 
 class HomeScreen extends StatefulWidget {
@@ -23,6 +26,9 @@ class _HomeScreenState extends State<HomeScreen>
   /// 食材服务
   final IngredientService _ingredientService = IngredientService();
 
+  /// 食材检查服务
+  final IngredientCheckService _ingredientCheckService = IngredientCheckService();
+
   /// 今日菜单状态
   final TodayMenuState _todayMenuState = TodayMenuState();
 
@@ -31,6 +37,9 @@ class _HomeScreenState extends State<HomeScreen>
 
   /// 即将过期食材列表
   List<IngredientItem> _expiringIngredients = [];
+
+  /// 食材检查结果
+  IngredientCheckResult? _ingredientCheckResult;
 
   /// 是否正在加载
   bool _isLoading = true;
@@ -72,13 +81,15 @@ class _HomeScreenState extends State<HomeScreen>
     setState(() => _isLoading = true);
 
     try {
-      // 并行加载今日菜单和即将过期食材
+      // 并行加载今日菜单、即将过期食材和食材检查结果
       final ingredientsFuture =
           _ingredientService.getExpiringIngredients(days: 3);
       final menuFuture = _todayMenuState.loadTodayMenu();
+      final checkFuture = _ingredientCheckService.checkTodayMenuIngredients();
 
       _expiringIngredients = await ingredientsFuture;
       await menuFuture;
+      _ingredientCheckResult = await checkFuture;
 
       _updateMoodByTime();
     } catch (e) {
@@ -116,152 +127,143 @@ class _HomeScreenState extends State<HomeScreen>
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
 
-    return Scaffold(
-      backgroundColor: theme.scaffoldBackgroundColor,
-      body: _isLoading
-          ? Center(child: CircularProgressIndicator(color: colorScheme.primary))
-          : SafeArea(
-              bottom: false,
-              child: Column(
-                children: [
-                  // 主体内容区域
-                  Expanded(
-                    child: SingleChildScrollView(
-                      physics: const BouncingScrollPhysics(),
-                      padding: const EdgeInsets.symmetric(horizontal: 20),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const SizedBox(height: 16),
-                          // 顶部问候区
-                          _buildGreetingSection(),
-                          const SizedBox(height: 24),
-                          // 今日推荐卡片 - 核心操作
-                          _buildTodayRecommendationCard(),
-                          const SizedBox(height: 20),
-                          // 今日菜单卡片
-                          _buildTodayMenuCard(),
-                          const SizedBox(height: 20),
-                          // 食材提醒区域
-                          if (_expiringIngredients.isNotEmpty)
-                            _buildIngredientAlertSection(),
-                          const SizedBox(height: 20),
-                        ],
+    return CupertinoPageScaffold(
+      backgroundColor: colorScheme.surface,
+      child: _isLoading
+          ? Center(
+              child: CupertinoActivityIndicator(
+                radius: 14,
+                color: colorScheme.primary,
+              ),
+            )
+          : CustomScrollView(
+              physics: const BouncingScrollPhysics(),
+              slivers: [
+                // iOS 风格大标题导航栏
+                CupertinoSliverNavigationBar(
+                  backgroundColor: colorScheme.surface.withValues(alpha: 0.9),
+                  border: null,
+                  largeTitle: Text(
+                    'CookMate',
+                    style: TextStyle(
+                      color: colorScheme.onSurface,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  trailing: GestureDetector(
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        CupertinoPageRoute(
+                          builder: (context) => const ProfileScreen(),
+                        ),
+                      );
+                    },
+                    child: Container(
+                      width: 36,
+                      height: 36,
+                      decoration: BoxDecoration(
+                        color: colorScheme.primary.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(18),
+                      ),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(18),
+                        child: Image.asset(
+                          'assets/cartoon-avatar.png',
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) =>
+                              Icon(
+                            CupertinoIcons.person_fill,
+                            color: colorScheme.primary,
+                            size: 20,
+                          ),
+                        ),
                       ),
                     ),
                   ),
-                ],
-              ),
-            ),
-    );
-  }
-
-  /// 构建问候区 - 心情头像 + 问候语
-  Widget _buildGreetingSection() {
-    final theme = Theme.of(context);
-    return Row(
-      children: [
-        // 心情头像
-        _buildMoodAvatar(),
-        const SizedBox(width: 14),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                _getGreeting(),
-                style: theme.textTheme.bodySmall?.copyWith(
-                  fontWeight: FontWeight.w500,
                 ),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                "今天想吃点什么？",
-                style: theme.textTheme.headlineMedium?.copyWith(
-                  fontSize: 22,
-                  letterSpacing: -0.5,
-                ),
-              ),
-            ],
-          ),
-        ),
-        // 用户头像
-        GestureDetector(
-          onTap: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (context) => const ProfileScreen()),
-            );
-          },
-          child: Container(
-            width: 48,
-            height: 48,
-            decoration: BoxDecoration(
-              color: theme.colorScheme.surface,
-              borderRadius: BorderRadius.circular(16),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.06),
-                  blurRadius: 12,
-                  offset: const Offset(0, 4),
+                // 主体内容
+                SliverPadding(
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 20),
+                  sliver: SliverList(
+                    delegate: SliverChildListDelegate([
+                      // 今日推荐卡片
+                      _buildTodayRecommendationCard(),
+                      const SizedBox(height: 16),
+                      // 今日菜单卡片
+                      _buildTodayMenuCard(),
+                      const SizedBox(height: 16),
+                      // 食材提醒区域
+                      if (_expiringIngredients.isNotEmpty)
+                        _buildIngredientAlertSection(),
+                      const SizedBox(height: 20),
+                    ]),
+                  ),
                 ),
               ],
             ),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(16),
-              child: Image.asset(
-                'assets/cartoon-avatar.png',
-                fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) => Container(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: [
-                        theme.colorScheme.primary.withValues(alpha: 0.8),
-                        theme.colorScheme.primary,
-                      ],
-                    ),
-                  ),
-                  child: const Icon(
-                    Icons.person,
-                    color: Colors.white,
-                    size: 24,
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ),
-      ],
     );
   }
 
-  /// 心情头像组件
-  Widget _buildMoodAvatar() {
+  /// 构建心情选择器 - iOS 风格
+  Widget _buildMoodSelector() {
+    final theme = Theme.of(context);
     final (icon, color, label) = _getMoodConfig();
 
     return GestureDetector(
       onTap: _showMoodSelector,
       child: Container(
-        width: 48,
-        height: 48,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [color.withValues(alpha: 0.8), color],
-          ),
+          color: color.withValues(alpha: 0.1),
           borderRadius: BorderRadius.circular(16),
-          boxShadow: [
-            BoxShadow(
-              color: color.withValues(alpha: 0.3),
-              blurRadius: 12,
-              offset: const Offset(0, 4),
+          border: Border.all(
+            color: color.withValues(alpha: 0.2),
+            width: 1,
+          ),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [color.withValues(alpha: 0.8), color],
+                ),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(icon, color: Colors.white, size: 22),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    "今天心情",
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+                    ),
+                  ),
+                  Text(
+                    label,
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Icon(
+              CupertinoIcons.chevron_right,
+              size: 18,
+              color: theme.colorScheme.onSurface.withValues(alpha: 0.3),
             ),
           ],
         ),
-        child: Icon(icon, color: Colors.white, size: 26),
       ),
     );
   }
@@ -294,59 +296,100 @@ class _HomeScreenState extends State<HomeScreen>
 
   void _showMoodSelector() {
     final theme = Theme.of(context);
-    showModalBottomSheet(
+    showCupertinoModalPopup(
       context: context,
-      backgroundColor: Colors.transparent,
       builder: (context) => Container(
         decoration: BoxDecoration(
           color: theme.colorScheme.surface,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
         ),
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text("今天心情如何？", style: theme.textTheme.titleLarge),
-            const SizedBox(height: 20),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: MoodState.values.map((mood) {
-                final (icon, color, label) = _getMoodConfigForState(mood);
-                return GestureDetector(
-                  onTap: () {
-                    setState(() => _userMood = mood);
-                    Navigator.pop(context);
-                  },
-                  child: Column(
-                    children: [
-                      Container(
-                        width: 56,
-                        height: 56,
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                            colors: [color.withValues(alpha: 0.8), color],
-                          ),
-                          borderRadius: BorderRadius.circular(20),
-                          boxShadow: [
-                            BoxShadow(
-                              color: color.withValues(alpha: 0.3),
-                              blurRadius: 12,
-                              offset: const Offset(0, 4),
-                            ),
-                          ],
-                        ),
-                        child: Icon(icon, color: Colors.white, size: 28),
+        child: SafeArea(
+          top: false,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // 标题栏
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    CupertinoButton(
+                      padding: EdgeInsets.zero,
+                      onPressed: () => Navigator.pop(context),
+                      child: Text(
+                        "取消",
+                        style: TextStyle(color: theme.colorScheme.primary),
                       ),
-                      const SizedBox(height: 8),
-                      Text(label, style: theme.textTheme.labelMedium),
-                    ],
-                  ),
-                );
-              }).toList(),
-            ),
-          ],
+                    ),
+                    Text(
+                      "今天心情如何？",
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(width: 60),
+                  ],
+                ),
+              ),
+              const Divider(height: 1),
+              // 心情选项
+              Padding(
+                padding: const EdgeInsets.all(20),
+                child: Wrap(
+                  spacing: 16,
+                  runSpacing: 16,
+                  alignment: WrapAlignment.center,
+                  children: MoodState.values.map((mood) {
+                    final (icon, color, label) = _getMoodConfigForState(mood);
+                    final isSelected = _userMood == mood;
+                    return GestureDetector(
+                      onTap: () {
+                        setState(() => _userMood = mood);
+                        Navigator.pop(context);
+                      },
+                      child: Column(
+                        children: [
+                          Container(
+                            width: 64,
+                            height: 64,
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                                colors: [
+                                  color.withValues(alpha: 0.8),
+                                  color
+                                ],
+                              ),
+                              borderRadius: BorderRadius.circular(20),
+                              border: isSelected
+                                  ? Border.all(
+                                      color: color,
+                                      width: 3,
+                                    )
+                                  : null,
+                            ),
+                            child: Icon(icon, color: Colors.white, size: 32),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            label,
+                            style: theme.textTheme.labelMedium?.copyWith(
+                              fontWeight: isSelected
+                                  ? FontWeight.w600
+                                  : FontWeight.normal,
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  }).toList(),
+                ),
+              ),
+              const SizedBox(height: 8),
+            ],
+          ),
         ),
       ),
     );
@@ -490,81 +533,90 @@ class _HomeScreenState extends State<HomeScreen>
     final colorScheme = theme.colorScheme;
     final hasMenu = _todayRecipes.isNotEmpty;
 
-    return Container(
-      decoration: BoxDecoration(
-        color: colorScheme.surface,
-        borderRadius: BorderRadius.circular(24),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 16,
-            offset: const Offset(0, 6),
-          ),
-        ],
-      ),
-      padding: const EdgeInsets.all(20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // 标题行
-          Row(
-            children: [
-              Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  color: (hasMenu ? colorScheme.primary : colorScheme.tertiary)
-                      .withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Icon(
-                  hasMenu
-                      ? Icons.restaurant_menu_rounded
-                      : Icons.menu_book_rounded,
-                  color: hasMenu ? colorScheme.primary : colorScheme.tertiary,
-                  size: 22,
-                ),
+    return Column(
+      children: [
+        Container(
+          decoration: BoxDecoration(
+            color: colorScheme.surface,
+            borderRadius: BorderRadius.circular(24),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.05),
+                blurRadius: 16,
+                offset: const Offset(0, 6),
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text("今日菜单", style: theme.textTheme.titleMedium),
-                    if (hasMenu)
-                      Text(
-                        "已有 ${_todayRecipes.length} 道菜品",
-                        style: theme.textTheme.labelSmall,
-                      ),
-                  ],
-                ),
-              ),
-              if (hasMenu)
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 5,
-                  ),
-                  decoration: BoxDecoration(
-                    color: colorScheme.primary.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(50),
-                  ),
-                  child: Text(
-                    "${_todayRecipes.length} 道",
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: colorScheme.primary,
-                    ),
-                  ),
-                ),
             ],
           ),
-          const SizedBox(height: 16),
-          // 菜单内容
-          if (hasMenu) _buildMenuList() else _buildEmptyMenuState(),
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // 标题行
+              Row(
+                children: [
+                  Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: (hasMenu ? colorScheme.primary : colorScheme.tertiary)
+                          .withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Icon(
+                      hasMenu
+                          ? Icons.restaurant_menu_rounded
+                          : Icons.menu_book_rounded,
+                      color: hasMenu ? colorScheme.primary : colorScheme.tertiary,
+                      size: 22,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text("今日菜单", style: theme.textTheme.titleMedium),
+                        if (hasMenu)
+                          Text(
+                            "已有 ${_todayRecipes.length} 道菜品",
+                            style: theme.textTheme.labelSmall,
+                          ),
+                      ],
+                    ),
+                  ),
+                  if (hasMenu)
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 5,
+                      ),
+                      decoration: BoxDecoration(
+                        color: colorScheme.primary.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(50),
+                      ),
+                      child: Text(
+                        "${_todayRecipes.length} 道",
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: colorScheme.primary,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              // 菜单内容
+              if (hasMenu) _buildMenuList() else _buildEmptyMenuState(),
+            ],
+          ),
+        ),
+        // 食材状态栏
+        if (hasMenu && _ingredientCheckResult != null) ...[
+          const SizedBox(height: 12),
+          _buildIngredientStatusBar(),
         ],
-      ),
+      ],
     );
   }
 
@@ -872,6 +924,86 @@ class _HomeScreenState extends State<HomeScreen>
     if (hour < 18) return '下午好 ☕';
     if (hour < 22) return '晚上好 🌆';
     return '夜深了 🌙';
+  }
+
+  /// 构建食材状态栏
+  Widget _buildIngredientStatusBar() {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final allSufficient = _ingredientCheckResult!.allSufficient;
+    final insufficientCount = _ingredientCheckResult!.insufficientIngredients.length;
+
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => const IngredientCheckScreen(),
+          ),
+        );
+      },
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: allSufficient
+              ? colorScheme.primary.withValues(alpha: 0.1)
+              : Colors.red.withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: allSufficient
+                ? colorScheme.primary.withValues(alpha: 0.2)
+                : Colors.red.withValues(alpha: 0.2),
+            width: 1,
+          ),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(
+                color: allSufficient ? colorScheme.primary : Colors.red,
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                allSufficient ? Icons.check_circle : Icons.warning,
+                color: Colors.white,
+                size: 20,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    allSufficient ? '食材充足' : '食材不足',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                      color: allSufficient ? colorScheme.primary : Colors.red,
+                    ),
+                  ),
+                  if (!allSufficient)
+                    Text(
+                      '有 $insufficientCount 种食材需要补充',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: colorScheme.onSurface.withValues(alpha: 0.6),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+            Icon(
+              Icons.chevron_right_rounded,
+              color: colorScheme.onSurface.withValues(alpha: 0.5),
+              size: 20,
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
 

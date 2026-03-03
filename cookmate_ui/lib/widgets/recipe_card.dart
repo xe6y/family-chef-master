@@ -24,6 +24,7 @@ class RecipeCard extends StatelessWidget {
   final VoidCallback? onFavorite;
   final VoidCallback? onAdd;
   final bool isAdded;
+  final int selectedByCount;
 
   const RecipeCard({
     super.key,
@@ -32,6 +33,7 @@ class RecipeCard extends StatelessWidget {
     this.onFavorite,
     this.onAdd,
     this.isAdded = false,
+    this.selectedByCount = 0,
   });
 
   @override
@@ -152,13 +154,24 @@ class RecipeCard extends StatelessWidget {
                               ),
                             ],
                           ),
-                          child: Icon(
-                            isAdded ? Icons.check : Icons.add,
-                            color: isAdded
-                                ? Colors.white
-                                : colorScheme.primary,
-                            size: 20,
-                          ),
+                          child: selectedByCount > 1
+                              ? Center(
+                                  child: Text(
+                                    '$selectedByCount',
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                )
+                              : Icon(
+                                  isAdded ? Icons.check : Icons.add,
+                                  color: isAdded
+                                      ? Colors.white
+                                      : colorScheme.primary,
+                                  size: 20,
+                                ),
                         ),
                       ),
                     ),

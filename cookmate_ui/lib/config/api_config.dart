@@ -15,6 +15,14 @@ class ApiConfig {
   /// 当前使用的API地址（根据环境切换）
   static const String baseUrl = devBaseUrl;
 
+  // ==================== 菜谱提取器服务 ====================
+
+  /// 提取器服务开发环境地址（workflow/src/api.py，uvicorn 启动于 8100）
+  static const String extractorDevUrl = 'http://localhost:8100';
+
+  /// 提取器服务地址（当前使用）
+  static const String extractorBaseUrl = extractorDevUrl;
+
   /// 请求超时时间（秒）
   static const int connectTimeout = 30;
 
@@ -132,4 +140,8 @@ class ApiConfig {
   // ==================== 用户标签接口 ====================
   /// 用户常用标签
   static const String userTags = '/user-tags';
+
+  // ==================== 菜单缓存接口 ====================
+  /// 菜单缓存（家庭共享菜单）
+  static const String menuCache = '/menu-cache';
 }

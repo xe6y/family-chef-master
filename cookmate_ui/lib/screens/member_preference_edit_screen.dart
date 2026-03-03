@@ -81,9 +81,9 @@ class _MemberPreferenceEditScreenState
   void _initializeData() {
     if (widget.member != null) {
       _nameController.text = widget.member!.name;
-      _selectedTastes = List.from(widget.member!.preferences.tastes);
-      _selectedAllergies = List.from(widget.member!.preferences.allergies);
-      _selectedDislikes = List.from(widget.member!.preferences.dislikes);
+      _selectedTastes = List.from(widget.member!.preferences?.tastes ?? []);
+      _selectedAllergies = List.from(widget.member!.preferences?.allergies ?? []);
+      _selectedDislikes = List.from(widget.member!.preferences?.dislikes ?? []);
     }
   }
 

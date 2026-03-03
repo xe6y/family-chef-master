@@ -29,12 +29,12 @@ func (h *MenuCacheHandler) getCacheKey(familyID string, date time.Time, recipeID
 // POST /api/menu-cache
 func (h *MenuCacheHandler) AddToCache(ctx *gin.Context) {
 	var req struct {
-		FamilyID   string               `json:"familyId" binding:"required"`
-		Date       string               `json:"date" binding:"required"`
-		RecipeID   string               `json:"recipeId" binding:"required"`
-		RecipeName string               `json:"recipeName" binding:"required"`
-		Source     string               `json:"source" binding:"required"`
-		SelectedBy []models.FamilyMember `json:"selectedBy"`
+		FamilyID   string                `json:"familyId" binding:"required"`
+		Date       string                `json:"date" binding:"required"`
+		RecipeID   string                `json:"recipeId" binding:"required"`
+		RecipeName string                `json:"recipeName" binding:"required"`
+		Source     string                `json:"source" binding:"required"`
+		SelectedBy []models.SimpleMember `json:"selectedBy"`
 	}
 
 	if err := ctx.ShouldBindJSON(&req); err != nil {
@@ -189,3 +189,56 @@ func (h *MenuCacheHandler) ClearFamilyCache(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, models.NewSuccessResponseWithMessage("清空成功", nil))
 }
 
+// ArchiveOldMenus 归档旧菜单（定时任务调用）
+// POST /api/menu-cache/archive
+func (h *MenuCacheHandler) ArchiveOldMenus(ctx *gin.Context) {
+	// 获取昨日及之前的所有菜单缓存
+	yesterday := time.Now().AddDate(0, 0, -1).Format("2006-01-02")
+
+	var oldMenus []models.MenuCache
+	if err := config.DB.Where("date < ?", yesterday).Find(&oldMenus).Error; err != nil {
+		ctx.JSON(http.StatusInternalServerError, models.NewErrorResponse(
+			models.CodeServerError,
+			"查询旧菜单失败",
+		))
+		return
+	}
+
+	if len(oldMenus) == 0 {
+		ctx.JSON(http.StatusOK, models.NewSuccessResponseWithMessage("没有需要归档的菜单", nil))
+		return
+	}
+
+	// 按家庭和日期分组归档
+	type archiveKey struct {
+		FamilyID string
+		Date     string
+	}
+	archiveMap := make(map[archiveKey][]models.MenuCache)
+
+	for _, menu := range oldMenus {
+		key := archiveKey{
+			FamilyID: menu.FamilyID,
+			Date:     menu.Date.Format("2006-01-02"),
+		}
+		archiveMap[key] = append(archiveMap[key], menu)
+	}
+
+	// 创建归档记录（如果需要的话，可以创建一个 menu_archive 表）
+	// 这里简单地删除旧记录
+	if err := config.DB.Where("date < ?", yesterday).Delete(&models.MenuCache{}).Error; err != nil {
+		ctx.JSON(http.StatusInternalServerError, models.NewErrorResponse(
+			models.CodeServerError,
+			"归档失败",
+		))
+		return
+	}
+
+	ctx.JSON(http.StatusOK, models.NewSuccessResponseWithMessage(
+		fmt.Sprintf("成功归档 %d 条菜单记录", len(oldMenus)),
+		map[string]interface{}{
+			"archivedCount": len(oldMenus),
+			"families":      len(archiveMap),
+		},
+	))
+}

@@ -11,12 +11,15 @@ import (
 
 // ShoppingItem 购物项结构
 type ShoppingItem struct {
-	ID           string  `json:"id"`           // 购物项ID
-	Name         string  `json:"name"`         // 商品名称
-	Amount       string  `json:"amount"`       // 预计购买数量
-	ActualAmount string  `json:"actualAmount"` // 实际购买数量
-	Price        float64 `json:"price"`        // 价格
-	Checked      bool    `json:"checked"`      // 是否已购买
+	ID             string   `json:"id"`             // 购物项ID
+	IngredientID   string   `json:"ingredientId"`   // 关联到 IngredientMaster
+	IngredientName string   `json:"ingredientName"` // 食材名称（冗余字段，方便显示）
+	Quantity       float64  `json:"quantity"`       // 预计购买数量
+	UnitID         string   `json:"unitId"`         // 单位ID
+	UnitName       string   `json:"unitName"`       // 单位名称（冗余字段，方便显示）
+	ActualQuantity *float64 `json:"actualQuantity"` // 实际购买数量
+	Price          float64  `json:"price"`          // 价格
+	Checked        bool     `json:"checked"`        // 是否已购买
 }
 
 // ShoppingItems 购物项数组类型

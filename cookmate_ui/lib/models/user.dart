@@ -15,12 +15,16 @@ class User {
   /// 用户唯一标识
   final String userId;
 
+  /// 家庭ID
+  final String familyId;
+
   User({
     required this.id,
     required this.username,
     required this.nickname,
     this.avatar,
     required this.userId,
+    this.familyId = '',
   });
 
   /// 从JSON创建User实例
@@ -33,6 +37,7 @@ class User {
       nickname: json['nickname'] ?? '',
       avatar: json['avatar'],
       userId: json['userId'] ?? '',
+      familyId: json['familyId'] ?? json['family_id'] ?? '',
     );
   }
 
@@ -45,6 +50,7 @@ class User {
       'nickname': nickname,
       'avatar': avatar,
       'userId': userId,
+      'familyId': familyId,
     };
   }
 }
@@ -95,16 +101,22 @@ class FamilyMember {
   final String name;
 
   /// 偏好设置
-  final MemberPreferences preferences;
+  final MemberPreferences? preferences;
 
-  FamilyMember({this.id, required this.name, required this.preferences});
+  FamilyMember({
+    this.id,
+    required this.name,
+    this.preferences,
+  });
 
   /// 从JSON创建FamilyMember实例
   factory FamilyMember.fromJson(Map<String, dynamic> json) {
     return FamilyMember(
-      id: json['id'],
-      name: json['name'] ?? '',
-      preferences: MemberPreferences.fromJson(json['preferences'] ?? {}),
+      id: json['id'] ?? json['userId'] ?? json['user_id'],
+      name: json['name'] ?? json['username'] ?? '',
+      preferences: json['preferences'] != null
+          ? MemberPreferences.fromJson(json['preferences'])
+          : null,
     );
   }
 
@@ -112,8 +124,10 @@ class FamilyMember {
   Map<String, dynamic> toJson() {
     return {
       if (id != null) 'id': id,
+      if (id != null) 'userId': id,
       'name': name,
-      'preferences': preferences.toJson(),
+      'username': name,
+      if (preferences != null) 'preferences': preferences!.toJson(),
     };
   }
 }

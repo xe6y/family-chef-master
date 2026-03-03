@@ -41,6 +41,7 @@ type UserResponse struct {
 	Nickname string `json:"nickname"` // 昵称
 	Avatar   string `json:"avatar"`   // 头像URL
 	UserID   string `json:"userId"`   // 用户唯一标识
+	FamilyID string `json:"familyId"` // 所属家庭ID
 }
 
 // ToResponse 转换为响应结构
@@ -52,6 +53,7 @@ func (u *User) ToResponse() *UserResponse {
 		Nickname: u.Nickname,
 		Avatar:   u.Avatar,
 		UserID:   u.UserID,
+		FamilyID: u.FamilyID,
 	}
 }
 

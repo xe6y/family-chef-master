@@ -131,8 +131,8 @@ class _ShoppingHistorySelectionScreenState extends State<ShoppingHistorySelectio
                       }
                       final item = _items[index];
                       return ListTile(
-                        title: Text(item.name),
-                        subtitle: Text(item.amount.isNotEmpty ? item.amount : '未记录数量'),
+                        title: Text(item.ingredientName),
+                        subtitle: Text(item.displayAmount),
                         trailing: const Icon(Icons.chevron_right),
                         onTap: () {
                           Navigator.pop(context, item);

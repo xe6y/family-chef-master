@@ -220,17 +220,17 @@ class _PurchasedItemsScreenState extends State<PurchasedItemsScreen>
     String value,
   ) async {
     double? newPrice;
-    String? newActualAmount;
+    double? newActualQuantity;
     if (field == 'price') {
       newPrice = double.tryParse(value) ?? item.price;
-    } else if (field == 'actualAmount') {
-      newActualAmount = value;
+    } else if (field == 'actualQuantity') {
+      newActualQuantity = double.tryParse(value);
     }
     await _shoppingService.updateShoppingItem(
       widget.listId,
       item.id,
       price: newPrice,
-      actualAmount: newActualAmount,
+      actualQuantity: newActualQuantity,
     );
     // Silent update in background or update local state if needed
   }
@@ -309,7 +309,7 @@ class _PurchasedItemsScreenState extends State<PurchasedItemsScreen>
                                     ),
                                     const SizedBox(width: 12),
                                     Text(
-                                      item.name,
+                                      item.ingredientName,
                                       style: const TextStyle(
                                         fontSize: 16,
                                         fontWeight: FontWeight.bold,
@@ -326,23 +326,21 @@ class _PurchasedItemsScreenState extends State<PurchasedItemsScreen>
                                         controller:
                                             TextEditingController(
                                                 text:
-                                                    item.actualAmount.isNotEmpty
-                                                    ? item.actualAmount
-                                                    : item.amount,
+                                                    item.actualQuantity != null
+                                                    ? '${item.actualQuantity}${item.unitName}'
+                                                    : item.displayAmount,
                                               )
                                               ..selection = TextSelection.collapsed(
                                                 offset:
-                                                    (item
-                                                                .actualAmount
-                                                                .isNotEmpty
-                                                            ? item.actualAmount
-                                                            : item.amount)
+                                                    (item.actualQuantity != null
+                                                            ? '${item.actualQuantity}${item.unitName}'
+                                                            : item.displayAmount)
                                                         .length,
                                               ),
                                         hintText: "实际分量",
                                         onChanged: (val) => _updateItem(
                                           item,
-                                          'actualAmount',
+                                          'actualQuantity',
                                           val,
                                         ),
                                       ),

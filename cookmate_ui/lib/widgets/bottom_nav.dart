@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
 
-/// 底部导航栏
+/// 底部导航栏 - iOS 风格
 class BottomNav extends StatelessWidget {
   /// 当前选中的索引
   final int currentIndex;
@@ -17,11 +18,11 @@ class BottomNav extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final navItems = [
-      _NavItem(icon: Icons.home_outlined, activeIcon: Icons.home_rounded, label: '首页'),
-      _NavItem(icon: Icons.menu_book_outlined, activeIcon: Icons.menu_book_rounded, label: '菜谱'),
-      _NavItem(icon: Icons.restaurant_outlined, activeIcon: Icons.restaurant_rounded, label: '点餐'),
-      _NavItem(icon: Icons.inventory_2_outlined, activeIcon: Icons.inventory_2_rounded, label: '食材'),
-      _NavItem(icon: Icons.shopping_bag_outlined, activeIcon: Icons.shopping_bag_rounded, label: '购物'),
+      _NavItem(icon: CupertinoIcons.house, activeIcon: CupertinoIcons.house_fill, label: '首页'),
+      _NavItem(icon: CupertinoIcons.book, activeIcon: CupertinoIcons.book_fill, label: '菜谱'),
+      _NavItem(icon: CupertinoIcons.square_list, activeIcon: CupertinoIcons.square_list_fill, label: '点餐'),
+      _NavItem(icon: CupertinoIcons.cube_box, activeIcon: CupertinoIcons.cube_box_fill, label: '食材'),
+      _NavItem(icon: CupertinoIcons.bag, activeIcon: CupertinoIcons.bag_fill, label: '购物'),
     ];
 
     final colorScheme = Theme.of(context).colorScheme;
@@ -29,18 +30,20 @@ class BottomNav extends StatelessWidget {
 
     return Container(
       decoration: BoxDecoration(
-        color: colorScheme.surface,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.05),
-            blurRadius: 20,
-            offset: const Offset(0, -4),
+        color: colorScheme.surface.withValues(alpha: 0.95),
+        border: Border(
+          top: BorderSide(
+            color: isDark
+                ? Colors.white.withValues(alpha: 0.1)
+                : Colors.black.withValues(alpha: 0.05),
+            width: 0.5,
           ),
-        ],
+        ),
       ),
       child: SafeArea(
+        top: false,
         child: SizedBox(
-          height: 64,
+          height: 50,
           child: Row(
             children: List.generate(
               navItems.length,
@@ -57,7 +60,7 @@ class BottomNav extends StatelessWidget {
     );
   }
 
-  /// 构建导航项
+  /// 构建导航项 - iOS 风格
   Widget _buildNavItem(
     BuildContext context,
     _NavItem item,
@@ -67,38 +70,25 @@ class BottomNav extends StatelessWidget {
     final colorScheme = Theme.of(context).colorScheme;
 
     return Expanded(
-      child: InkWell(
-        onTap: () => onTap(index),
-        highlightColor: Colors.transparent,
-        splashColor: colorScheme.primary.withValues(alpha: 0.1),
+      child: CupertinoButton(
+        padding: EdgeInsets.zero,
+        onPressed: () => onTap(index),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            // 图标容器（带选中效果）
-            AnimatedContainer(
-              duration: const Duration(milliseconds: 200),
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-              decoration: BoxDecoration(
-                color: isSelected 
-                    ? colorScheme.primary.withValues(alpha: 0.15)
-                    : Colors.transparent,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Icon(
-                isSelected ? item.activeIcon : item.icon,
-                size: 24,
-                color: isSelected
-                    ? colorScheme.primary
-                    : colorScheme.onSurface.withValues(alpha: 0.5),
-              ),
+            Icon(
+              isSelected ? item.activeIcon : item.icon,
+              size: 24,
+              color: isSelected
+                  ? colorScheme.primary
+                  : colorScheme.onSurface.withValues(alpha: 0.5),
             ),
-            const SizedBox(height: 4),
-            // 标签
+            const SizedBox(height: 2),
             Text(
               item.label,
               style: TextStyle(
                 fontSize: 10,
-                fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                fontWeight: FontWeight.w500,
                 color: isSelected
                     ? colorScheme.primary
                     : colorScheme.onSurface.withValues(alpha: 0.5),

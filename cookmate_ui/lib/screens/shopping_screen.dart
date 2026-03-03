@@ -185,7 +185,7 @@ class _ShoppingScreenState extends State<ShoppingScreen>
     final keyword = _searchKeyword.trim().toLowerCase();
     if (keyword.isEmpty) return List<ShoppingItem>.from(source);
     return source
-        .where((item) => item.name.toLowerCase().contains(keyword))
+        .where((item) => item.ingredientName.toLowerCase().contains(keyword))
         .toList();
   }
 
@@ -203,14 +203,14 @@ class _ShoppingScreenState extends State<ShoppingScreen>
   Future<void> _markAsPurchased(ShoppingItem item) async {
     if (_currentList == null) return;
     HapticFeedback.mediumImpact();
-    final actualAmount = item.actualAmount.isNotEmpty
-        ? item.actualAmount
-        : item.amount;
+    final actualAmount = item.actualQuantity != null && item.actualQuantity! > 0
+        ? item.actualQuantity!
+        : item.quantity;
     await _shoppingService.updateShoppingItem(
       _currentList!.id,
       item.id,
       checked: true,
-      actualAmount: actualAmount,
+      actualQuantity: actualAmount,
     );
     setState(() {
       _allItems.removeWhere((i) => i.id == item.id);
@@ -219,7 +219,7 @@ class _ShoppingScreenState extends State<ShoppingScreen>
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('"${item.name}" 已放入菜篮 🧺'),
+        content: Text('"${item.ingredientName}" 已放入菜篮 🧺'),
         duration: const Duration(seconds: 1),
       ),
     );
@@ -229,13 +229,15 @@ class _ShoppingScreenState extends State<ShoppingScreen>
     showDialog(
       context: context,
       builder: (context) => AddShoppingItemDialog(
-        onAdd: (name, amount) async {
-          Navigator.pop(context);
+        onAdd: (data) async {
           if (_currentList != null) {
             await _shoppingService.addShoppingItem(
               _currentList!.id,
-              name: name,
-              amount: amount,
+              ingredientId: data.ingredientId,
+              ingredientName: data.ingredientName,
+              quantity: data.quantity,
+              unitId: data.unitId,
+              unitName: data.unitName,
               price: 0,
             );
             _loadShoppingList();
@@ -486,21 +488,20 @@ class _ShoppingScreenState extends State<ShoppingScreen>
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        item.name,
+                        item.ingredientName,
                         style: const TextStyle(
                           fontWeight: FontWeight.bold,
                           fontSize: 16,
                           color: _textPrimary,
                         ),
                       ),
-                      if (item.amount.isNotEmpty)
-                        Text(
-                          "需要: ${item.amount}",
-                          style: const TextStyle(
-                            fontSize: 12,
-                            color: _textSecondary,
-                          ),
+                      Text(
+                        "需要: ${item.displayAmount}",
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: _textSecondary,
                         ),
+                      ),
                     ],
                   ),
                 ),

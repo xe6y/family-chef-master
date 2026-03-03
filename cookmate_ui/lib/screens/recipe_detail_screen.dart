@@ -229,11 +229,19 @@ class RecipeDetailScreen extends StatefulWidget {
   final bool isFromMyRecipes;
   final bool isCreateMode;
 
+  /// 从草稿/URL 提取结果预填充的数据（isCreateMode=true 时有效）
+  final Map<String, dynamic>? initialData;
+
+  /// 对应草稿 ID（保存成功后由调用方删除草稿用）
+  final String? draftId;
+
   const RecipeDetailScreen({
     super.key,
     this.recipeId,
     this.isFromMyRecipes = false,
     this.isCreateMode = false,
+    this.initialData,
+    this.draftId,
   });
 
   @override
@@ -328,10 +336,82 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen>
   }
 
   void _initCreateMode() {
-    _nameController = TextEditingController();
-    _timeController = TextEditingController();
-    _ingredients = [Ingredient(ingredientId: '', quantity: null, unitId: '')];
-    _steps = [""];
+    final data = widget.initialData;
+    if (data != null) {
+      _initFromExtractedData(data);
+    } else {
+      _nameController = TextEditingController();
+      _timeController = TextEditingController();
+      _ingredients = [Ingredient(ingredientId: '', quantity: null, unitId: '')];
+      _steps = [""];
+    }
+  }
+
+  /// 将提取器返回的 JSON 映射到编辑状态
+  void _initFromExtractedData(Map<String, dynamic> data) {
+    _nameController = TextEditingController(text: data['name'] as String? ?? '');
+
+    // time 字段格式如 "20分钟"，提取纯数字填入
+    final timeRaw = data['time'] as String? ?? '';
+    final timeDigits = timeRaw.replaceAll(RegExp(r'[^0-9]'), '');
+    _timeController = TextEditingController(text: timeDigits);
+
+    // 难度
+    final diff = data['difficulty'] as String? ?? '';
+    if (diff.isNotEmpty && (_difficultyOptions.contains(diff) || _difficultyOptions.isEmpty)) {
+      _difficulty = diff;
+    }
+
+    // 标签
+    _tags = List<String>.from((data['tags'] as List?)?.cast<String>() ?? []);
+    _tagColors = List.filled(_tags.length, '');
+
+    // 食材：提取器可能已解析 ID，也可能只有名称（_unresolved=true）
+    final rawIngredients = data['ingredients'] as List? ?? [];
+    if (rawIngredients.isNotEmpty) {
+      _ingredients = rawIngredients.map((e) {
+        final m = Map<String, dynamic>.from(e as Map);
+        double? qty;
+        if (m['quantity'] != null) {
+          final v = m['quantity'];
+          if (v is int) qty = v.toDouble();
+          if (v is num) qty = v.toDouble();
+        }
+        return Ingredient(
+          ingredientId: m['ingredientId']?.toString() ?? '',
+          quantity: qty,
+          unitId: m['unitId']?.toString() ?? '',
+          name: m['_ingredientName'] as String?,
+          amountDisplay: _buildAmountDisplay(
+            qty,
+            m['_unitName'] as String?,
+          ),
+        );
+      }).toList();
+    } else {
+      _ingredients = [Ingredient(ingredientId: '', quantity: null, unitId: '')];
+    }
+
+    // 步骤
+    final rawSteps = data['steps'] as List? ?? [];
+    _steps = rawSteps.isNotEmpty
+        ? rawSteps.cast<String>().toList()
+        : [''];
+
+    // 封面图
+    if (data['image'] != null && (data['image'] as String).isNotEmpty) {
+      _uploadedImageUrl = data['image'] as String;
+    }
+  }
+
+  String? _buildAmountDisplay(double? qty, String? unitName) {
+    if (qty == null && (unitName == null || unitName == '适量')) return '适量';
+    if (qty == null) return unitName;
+    if (unitName == null || unitName.isEmpty) return qty.toString();
+    if (qty == qty.truncateToDouble()) {
+      return '${qty.toInt()}$unitName';
+    }
+    return '$qty$unitName';
   }
 
   Future<void> _loadRecipeDetail() async {
@@ -377,13 +457,25 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen>
   // --- Ingredient Status Check ---
 
   /// 检查食材充足状态（按食材库ID或名称）
-  Future<String> _checkIngredientStatus(String nameOrId, {String? ingredientId}) async {
+  Future<String> _checkIngredientStatus(
+    String nameOrId, {
+    String? ingredientId,
+  }) async {
     final key = ingredientId?.isNotEmpty == true ? ingredientId! : nameOrId;
-    if (_ingredientStatusCache.containsKey(key)) return _ingredientStatusCache[key]!;
+    if (_ingredientStatusCache.containsKey(key)) {
+      return _ingredientStatusCache[key]!;
+    }
 
     try {
-      final batches = await _ingredientService.getIngredientBatches(nameOrId, ingredientId: ingredientId);
-      final status = batches.isEmpty ? 'unknown' : (batches.fold<double>(0, (s, i) => s + i.quantity) > 0 ? 'sufficient' : 'insufficient');
+      final batches = await _ingredientService.getIngredientBatches(
+        nameOrId,
+        ingredientId: ingredientId,
+      );
+      final status = batches.isEmpty
+          ? 'unknown'
+          : (batches.fold<double>(0, (s, i) => s + i.quantity) > 0
+                ? 'sufficient'
+                : 'insufficient');
       _ingredientStatusCache[key] = status;
       return status;
     } catch (e) {
@@ -395,11 +487,21 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen>
   /// 批量检查所有食材状态（仅当接口未返回 status 时按 ingredientId/name 查询）
   Future<void> _checkAllIngredientsStatus() async {
     if (_ingredients.isEmpty) return;
-    final needCheck = _ingredients.where((ing) => ing.status == null || ing.status!.isEmpty).toList();
-    if (needCheck.isEmpty) { if (mounted) setState(() {}); return; }
+    final needCheck = _ingredients
+        .where((ing) => ing.status == null || ing.status!.isEmpty)
+        .toList();
+    if (needCheck.isEmpty) {
+      if (mounted) setState(() {});
+      return;
+    }
 
     await Future.wait(
-      needCheck.map((ing) => _checkIngredientStatus(ing.name ?? ing.ingredientId, ingredientId: ing.ingredientId)),
+      needCheck.map(
+        (ing) => _checkIngredientStatus(
+          ing.name ?? ing.ingredientId,
+          ingredientId: ing.ingredientId,
+        ),
+      ),
     );
     if (mounted) setState(() {});
   }
@@ -469,7 +571,11 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen>
                 },
               ),
               if (!widget.isFromMyRecipes) ...[
-                Divider(height: 1, thickness: 0.5, color: Colors.grey.withValues(alpha: 0.1)),
+                Divider(
+                  height: 1,
+                  thickness: 0.5,
+                  color: Colors.grey.withValues(alpha: 0.1),
+                ),
                 _buildMoreOptionItem(
                   icon: Icons.edit_note_rounded,
                   title: '申请编辑菜谱',
@@ -480,7 +586,11 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen>
                 ),
               ],
               if (widget.isFromMyRecipes) ...[
-                Divider(height: 1, thickness: 0.5, color: Colors.grey.withValues(alpha: 0.1)),
+                Divider(
+                  height: 1,
+                  thickness: 0.5,
+                  color: Colors.grey.withValues(alpha: 0.1),
+                ),
                 _buildMoreOptionItem(
                   icon: Icons.delete_outline_rounded,
                   title: '删除菜谱',
@@ -547,10 +657,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen>
   void _requestEditPermission() {
     // TODO: 实现申请编辑权限功能
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('已提交编辑申请'),
-        duration: Duration(seconds: 2),
-      ),
+      const SnackBar(content: Text('已提交编辑申请'), duration: Duration(seconds: 2)),
     );
   }
 
@@ -586,7 +693,8 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen>
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (_) => Center(child: CircularProgressIndicator(color: _sageGreen)),
+      builder: (_) =>
+          Center(child: CircularProgressIndicator(color: _sageGreen)),
     );
 
     try {
@@ -615,37 +723,98 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen>
     } catch (e) {
       if (mounted) {
         Navigator.pop(context);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('发生错误: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('发生错误: $e')));
       }
     }
   }
 
   /// 选择图片
   Future<void> _pickImage() async {
-    try {
-      final XFile? image = await _imagePicker.pickImage(
-        source: ImageSource.gallery,
-        maxWidth: 1920,
-        maxHeight: 1080,
-        imageQuality: 85,
-      );
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(height: 16),
+            Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.grey[300],
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(height: 16),
+            ListTile(
+              leading: const Icon(Icons.photo_camera, color: _sageGreen),
+              title: const Text('拍照'),
+              onTap: () async {
+                Navigator.pop(context);
+                try {
+                  final XFile? image = await _imagePicker.pickImage(
+                    source: ImageSource.camera,
+                    maxWidth: 1920,
+                    maxHeight: 1080,
+                    imageQuality: 85,
+                  );
 
-      if (image != null) {
-        setState(() {
-          _selectedImageFile = File(image.path);
-        });
-        // 自动上传图片
-        await _uploadImage();
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('选择图片失败: $e')),
-        );
-      }
-    }
+                  if (image != null) {
+                    setState(() {
+                      _selectedImageFile = File(image.path);
+                    });
+                    // 自动上传图片
+                    await _uploadImage();
+                  }
+                } catch (e) {
+                  if (mounted) {
+                    ScaffoldMessenger.of(
+                      context,
+                    ).showSnackBar(SnackBar(content: Text('拍照失败: $e')));
+                  }
+                }
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo_library, color: _sageGreen),
+              title: const Text('从相册选择'),
+              onTap: () async {
+                Navigator.pop(context);
+                try {
+                  final XFile? image = await _imagePicker.pickImage(
+                    source: ImageSource.gallery,
+                    maxWidth: 1920,
+                    maxHeight: 1080,
+                    imageQuality: 85,
+                  );
+
+                  if (image != null) {
+                    setState(() {
+                      _selectedImageFile = File(image.path);
+                    });
+                    // 自动上传图片
+                    await _uploadImage();
+                  }
+                } catch (e) {
+                  if (mounted) {
+                    ScaffoldMessenger.of(
+                      context,
+                    ).showSnackBar(SnackBar(content: Text('选择图片失败: $e')));
+                  }
+                }
+              },
+            ),
+            const SizedBox(height: 16),
+          ],
+        ),
+      ),
+    );
   }
 
   /// 上传图片到服务器
@@ -668,9 +837,9 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen>
           _isUploadingImage = false;
         });
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('图片上传成功')),
-          );
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(const SnackBar(content: Text('图片上传成功')));
         }
       } else {
         throw Exception('上传失败');
@@ -678,9 +847,9 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen>
     } catch (e) {
       setState(() => _isUploadingImage = false);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('图片上传失败: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('图片上传失败: $e')));
       }
     }
   }
@@ -691,7 +860,9 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen>
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       setState(() {
-        _ingredients.add(Ingredient(ingredientId: '', quantity: null, unitId: ''));
+        _ingredients.add(
+          Ingredient(ingredientId: '', quantity: null, unitId: ''),
+        );
       });
     });
   }
@@ -743,7 +914,9 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen>
 
       categories: [],
 
-      ingredients: _ingredients.where((i) => i.ingredientId.isNotEmpty && i.unitId.isNotEmpty).toList(),
+      ingredients: _ingredients
+          .where((i) => i.ingredientId.isNotEmpty && i.unitId.isNotEmpty)
+          .toList(),
 
       steps: _steps.where((s) => s.trim().isNotEmpty).toList(), // 过滤空步骤
 
@@ -855,7 +1028,11 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen>
 
   /// 构建食材状态指示器
   Widget _buildIngredientStatusIndicator(Ingredient ingredient) {
-    final status = ingredient.status ?? _ingredientStatusCache[ingredient.ingredientId] ?? _ingredientStatusCache[ingredient.name ?? ''] ?? 'unknown';
+    final status =
+        ingredient.status ??
+        _ingredientStatusCache[ingredient.ingredientId] ??
+        _ingredientStatusCache[ingredient.name ?? ''] ??
+        'unknown';
 
     IconData icon;
     Color color;
@@ -981,7 +1158,12 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen>
           ),
         ),
         if (index < _steps.length - 1)
-          Divider(height: 1, indent: 50, thickness: 0.5, color: Colors.grey.withValues(alpha: 0.05)),
+          Divider(
+            height: 1,
+            indent: 50,
+            thickness: 0.5,
+            color: Colors.grey.withValues(alpha: 0.05),
+          ),
       ],
     );
   }
@@ -1016,7 +1198,8 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen>
                       }
 
                       // 显示已上传的图片
-                      if (_uploadedImageUrl != null && _uploadedImageUrl!.isNotEmpty) {
+                      if (_uploadedImageUrl != null &&
+                          _uploadedImageUrl!.isNotEmpty) {
                         return Image.network(
                           _uploadedImageUrl!,
                           fit: BoxFit.cover,
@@ -1088,101 +1271,58 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen>
                         ),
                       ),
                     ),
-                  // 右上角更多选项按钮（非编辑模式显示）
-                  if (!_isEditing)
-                    Positioned(
-                      top: MediaQuery.of(context).padding.top + 10,
-                      right: 16,
-                      child: GlassContainer(
-                        borderRadius: 50,
-                        padding: const EdgeInsets.all(8),
-                        child: GestureDetector(
-                          onTap: _showMoreOptions,
-                          child: const Icon(
-                            Icons.more_vert,
-                            color: Colors.white,
-                            size: 20,
-                          ),
+                  // 右上角按钮（编辑模式显示相机按钮，非编辑模式显示更多选项）
+                  Positioned(
+                    top: MediaQuery.of(context).padding.top + 10,
+                    right: 16,
+                    child: GlassContainer(
+                      borderRadius: 50,
+                      padding: const EdgeInsets.all(8),
+                      child: GestureDetector(
+                        onTap: _isEditing
+                            ? (_isUploadingImage ? null : _pickImage)
+                            : _showMoreOptions,
+                        child: Icon(
+                          _isEditing
+                              ? Icons.camera_alt_rounded
+                              : Icons.more_vert,
+                          color: Colors.white,
+                          size: 20,
                         ),
                       ),
                     ),
-                  // 底部名称容器
-                  Positioned(
-                    bottom: 16,
-                    left: 16,
-                    right: 16,
-                    child: GlassContainer(
-                        opacity: 0.6,
-                        blur: 16,
-                        borderRadius: 12,
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 8,
-                        ),
-                        child: _isEditing
-                            ? TextField(
-                                controller: _nameController,
-                                style: const TextStyle(
-                                  fontSize: 20,
-                                  fontWeight: FontWeight.w600,
-                                  color: _textPrimary,
-                                  height: 1.2,
-                                ),
-                              decoration: const InputDecoration(
-                                hintText: "输入菜谱名称...",
-                                hintStyle: TextStyle(color: _textSecondary),
-                                border: InputBorder.none,
-                                isDense: true,
-                              ),
-                            )
-                          : Text(
-                              _nameController.text,
-                              style: const TextStyle(
-                                fontSize: 20,
-                                fontWeight: FontWeight.w600,
-                                color: _textPrimary,
-                                height: 1.2,
-                              ),
-                            ),
-                    ),
                   ),
-                  // 编辑模式下：点击图片区域上传（放在最后，但排除名称输入框区域）
-                  if (_isEditing)
+                  // 上传中提示（编辑模式下显示）
+                  if (_isEditing && _isUploadingImage)
                     Positioned.fill(
-                      bottom: 80, // 排除底部名称输入框区域（16 + 高度约50 + 余量）
-                      child: GestureDetector(
-                        onTap: _isUploadingImage ? null : _pickImage,
-                        child: Container(
-                          color: Colors.transparent,
-                          child: _isUploadingImage
-                              ? Center(
-                                  child: Container(
-                                    padding: const EdgeInsets.all(20),
-                                    decoration: BoxDecoration(
-                                      color: Colors.black.withValues(alpha: 0.6),
-                                      borderRadius: BorderRadius.circular(12),
-                                    ),
-                                    child: const Column(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        CircularProgressIndicator(
-                                          valueColor: AlwaysStoppedAnimation<Color>(
-                                            Colors.white,
-                                          ),
-                                        ),
-                                        SizedBox(height: 12),
-                                        Text(
-                                          '上传中...',
-                                          style: TextStyle(
-                                            color: Colors.white,
-                                            fontSize: 14,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
+                      child: Container(
+                        color: Colors.black.withValues(alpha: 0.3),
+                        child: Center(
+                          child: Container(
+                            padding: const EdgeInsets.all(20),
+                            decoration: BoxDecoration(
+                              color: Colors.black.withValues(alpha: 0.6),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: const Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                CircularProgressIndicator(
+                                  valueColor: AlwaysStoppedAnimation<Color>(
+                                    Colors.white,
                                   ),
-                                )
-                              : null,
+                                ),
+                                SizedBox(height: 12),
+                                Text(
+                                  '上传中...',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 14,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
                         ),
                       ),
                     ),
@@ -1203,6 +1343,79 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen>
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    // 菜谱名称（非编辑模式显示）
+                    if (!_isEditing) ...[
+                      Text(
+                        _nameController.text,
+                        style: const TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.w600,
+                          color: _textPrimary,
+                        ),
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        child: Divider(
+                          height: 1,
+                          thickness: 0.5,
+                          color: Colors.grey.withValues(alpha: 0.05),
+                        ),
+                      ),
+                    ],
+                    // 菜谱名称输入框（仅在编辑模式显示）
+                    if (_isEditing) ...[
+                      Row(
+                        children: [
+                          const Icon(
+                            Icons.restaurant_menu_rounded,
+                            size: 18,
+                            color: _textSecondary,
+                          ),
+                          const SizedBox(width: 8),
+                          const Text(
+                            "菜谱名称",
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: _textSecondary,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      TextField(
+                        controller: _nameController,
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: _textPrimary,
+                        ),
+                        decoration: InputDecoration(
+                          hintText: "输入菜谱名称...",
+                          hintStyle: TextStyle(
+                            fontSize: 15,
+                            color: _textSecondary.withValues(alpha: 0.5),
+                          ),
+                          filled: true,
+                          fillColor: _sageGreen.withValues(alpha: 0.05),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide.none,
+                          ),
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 12,
+                          ),
+                        ),
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        child: Divider(
+                          height: 1,
+                          thickness: 0.5,
+                          color: Colors.grey.withValues(alpha: 0.05),
+                        ),
+                      ),
+                    ],
                     // Row 1: Time Input
                     Row(
                       children: [
@@ -1520,11 +1733,17 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen>
                                     ? MinimalInput(
                                         controller:
                                             TextEditingController(
-                                                text: _ingredients[index].name ?? '',
+                                                text:
+                                                    _ingredients[index].name ??
+                                                    '',
                                               )
                                               ..selection =
                                                   TextSelection.collapsed(
-                                                    offset: (_ingredients[index].name ?? '').length,
+                                                    offset:
+                                                        (_ingredients[index]
+                                                                    .name ??
+                                                                '')
+                                                            .length,
                                                   ),
                                         hintText: "食材名称",
                                         style: const TextStyle(
@@ -1534,15 +1753,20 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen>
                                         ),
                                         onChanged: (val) =>
                                             _ingredients[index] = Ingredient(
-                                              ingredientId: _ingredients[index].ingredientId,
-                                              quantity: _ingredients[index].quantity,
-                                              unitId: _ingredients[index].unitId,
+                                              ingredientId: _ingredients[index]
+                                                  .ingredientId,
+                                              quantity:
+                                                  _ingredients[index].quantity,
+                                              unitId:
+                                                  _ingredients[index].unitId,
                                               name: val,
-                                              amount: _ingredients[index].amount,
+                                              amount:
+                                                  _ingredients[index].amount,
                                             ),
                                       )
                                     : Text(
-                                        _ingredients[index].name ?? _ingredients[index].ingredientId,
+                                        _ingredients[index].name ??
+                                            _ingredients[index].ingredientId,
                                         style: const TextStyle(
                                           fontSize: 15,
                                           fontWeight: FontWeight.w500,
@@ -1572,7 +1796,8 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen>
                                 child: _isEditing
                                     ? MinimalInput(
                                         controller: TextEditingController(
-                                          text: _ingredients[index].displayAmount,
+                                          text:
+                                              _ingredients[index].displayAmount,
                                         ),
                                         hintText: "用量",
                                         textAlign: TextAlign.end,
@@ -1583,7 +1808,8 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen>
                                         onChanged: (val) {
                                           final q = double.tryParse(val);
                                           _ingredients[index] = Ingredient(
-                                            ingredientId: _ingredients[index].ingredientId,
+                                            ingredientId: _ingredients[index]
+                                                .ingredientId,
                                             quantity: q,
                                             unitId: _ingredients[index].unitId,
                                             name: _ingredients[index].name,
@@ -1760,7 +1986,10 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen>
                     ),
                     child: Text(
                       widget.isFromMyRecipes ? "加入菜单" : "加入私房",
-                      style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+                      style: const TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                   ),
                 ),

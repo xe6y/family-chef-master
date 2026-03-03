@@ -234,6 +234,7 @@ class _IngredientEditScreenState extends State<IngredientEditScreen> {
   List<IngredientCategory> _categories = [];
   List<StorageLocation> _storages = [];
   List<IngredientMaster> _masterList = [];
+  List<IngredientMaster> _filteredMasterList = [];
   List<IngredientUnitOption> _unitOptions = [];
   IngredientMaster? _selectedMaster;
   String? _selectedUnitId;
@@ -244,6 +245,7 @@ class _IngredientEditScreenState extends State<IngredientEditScreen> {
   late TextEditingController _quantityController;
   late TextEditingController _unitController;
   late TextEditingController _noteController;
+  late TextEditingController _shelfLifeController;
 
   /// 图标选项列表（不可用 string[i] 按索引取 emoji，会拆散 UTF-16 代理对导致非法字符）
   static const List<String> _iconOptions = [
@@ -284,6 +286,7 @@ class _IngredientEditScreenState extends State<IngredientEditScreen> {
     );
     _unitController = TextEditingController(text: item?.unit ?? '个');
     _noteController = TextEditingController(text: item?.note ?? '');
+    _shelfLifeController = TextEditingController(text: '7');
 
     if (item != null) {
       _selectedStorage = item.storage;
@@ -298,6 +301,7 @@ class _IngredientEditScreenState extends State<IngredientEditScreen> {
         if (exp != null && pur != null) {
           _purchaseDate = pur;
           _shelfLifeDays = exp.difference(pur).inDays;
+          _shelfLifeController.text = _shelfLifeDays.toString();
         }
       }
     } else if (widget.defaultStorage != null) {
@@ -324,6 +328,19 @@ class _IngredientEditScreenState extends State<IngredientEditScreen> {
 
   Future<void> _loadMasterList() async {
     _masterList = await _masterService.search();
+    _filteredMasterList = _masterList;
+  }
+
+  void _filterIngredients(String query) {
+    setState(() {
+      if (query.isEmpty) {
+        _filteredMasterList = _masterList;
+      } else {
+        _filteredMasterList = _masterList
+            .where((m) => m.name.toLowerCase().contains(query.toLowerCase()))
+            .toList();
+      }
+    });
   }
 
   Future<void> _loadUnitsFor(String ingredientId) async {
@@ -352,15 +369,60 @@ class _IngredientEditScreenState extends State<IngredientEditScreen> {
     _quantityController.dispose();
     _unitController.dispose();
     _noteController.dispose();
+    _shelfLifeController.dispose();
     super.dispose();
   }
 
   Future<void> _pickImage() async {
-    final XFile? file = await _imagePicker.pickImage(
-      source: ImageSource.gallery,
-      maxWidth: 1000,
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(height: 16),
+            Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.grey[300],
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(height: 16),
+            ListTile(
+              leading: const Icon(Icons.photo_camera, color: _sageGreen),
+              title: const Text('拍照'),
+              onTap: () async {
+                Navigator.pop(context);
+                final XFile? file = await _imagePicker.pickImage(
+                  source: ImageSource.camera,
+                  maxWidth: 1000,
+                );
+                if (file != null) setState(() => _selectedImageFile = File(file.path));
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo_library, color: _sageGreen),
+              title: const Text('从相册选择'),
+              onTap: () async {
+                Navigator.pop(context);
+                final XFile? file = await _imagePicker.pickImage(
+                  source: ImageSource.gallery,
+                  maxWidth: 1000,
+                );
+                if (file != null) setState(() => _selectedImageFile = File(file.path));
+              },
+            ),
+            const SizedBox(height: 16),
+          ],
+        ),
+      ),
     );
-    if (file != null) setState(() => _selectedImageFile = File(file.path));
   }
 
   Future<void> _save() async {
@@ -530,49 +592,32 @@ class _IngredientEditScreenState extends State<IngredientEditScreen> {
                 BouncyCard(
                   child: Column(
                     children: [
-                      _buildFormRow(
-                        Icons.shopping_basket_rounded,
-                        "选择食材",
-                        _masterList.isEmpty
-                            ? _buildGlassDropdownTrigger(
-                                icon: Icons.shopping_basket_rounded,
-                                text: "请选择食材",
-                              )
-                            : PopupMenuButton<IngredientMaster>(
-                                padding: EdgeInsets.zero,
-                                offset: const Offset(0, 42),
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                                color: Colors.white,
-                                onSelected: (m) async {
-                                  setState(() => _selectedMaster = m);
-                                  await _loadUnitsFor(m.id);
-                                  setState(() {
-                                    _selectedUnitId = _unitOptions.isNotEmpty ? _unitOptions.first.unitId : null;
-                                  });
-                                },
-                                itemBuilder: (context) => _masterList.map((m) {
-                                  final isActive = _selectedMaster?.id == m.id;
-                                  return PopupMenuItem<IngredientMaster>(
-                                    value: m,
-                                    child: SizedBox(
-                                      width: 200,
-                                      child: Text(
-                                        m.name,
-                                        overflow: TextOverflow.ellipsis,
-                                        style: TextStyle(
-                                          fontSize: 14,
-                                          fontWeight: isActive ? FontWeight.w600 : FontWeight.normal,
-                                          color: _textPrimary,
-                                        ),
-                                      ),
-                                    ),
-                                  );
-                                }).toList(),
-                                child: _buildGlassDropdownTrigger(
-                                  icon: Icons.shopping_basket_rounded,
-                                  text: _selectedMaster?.name ?? "请选择食材",
+                      // 食材名称输入框
+                      GestureDetector(
+                        onTap: _showIngredientSearchDialog,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                          decoration: BoxDecoration(
+                            color: _sageGreen.withValues(alpha: 0.05),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(Icons.shopping_basket_rounded, size: 18, color: _textSecondary),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Text(
+                                  _selectedMaster?.name ?? "输入食材名称",
+                                  style: TextStyle(
+                                    fontSize: 15,
+                                    color: _selectedMaster != null ? _textPrimary : _textSecondary.withValues(alpha: 0.5),
+                                    fontWeight: _selectedMaster != null ? FontWeight.w600 : FontWeight.normal,
+                                  ),
                                 ),
                               ),
+                            ],
+                          ),
+                        ),
                       ),
                       Divider(
                         height: 24,
@@ -596,7 +641,7 @@ class _IngredientEditScreenState extends State<IngredientEditScreen> {
                         color: _textSecondary.withValues(alpha: 0.1),
                       ),
                       _buildFormRow(
-                        Icons.format_list_numbered_rounded,
+                        Icons.scale_rounded,
                         "数量与单位",
                         Row(
                           children: [
@@ -938,6 +983,112 @@ class _IngredientEditScreenState extends State<IngredientEditScreen> {
 
   // --- Modal Pickers ---
 
+  void _showIngredientSearchDialog() {
+    final searchController = TextEditingController();
+    setState(() => _filteredMasterList = _masterList);
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.white,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (context) => Padding(
+        padding: EdgeInsets.only(
+          left: 20,
+          right: 20,
+          top: 20,
+          bottom: MediaQuery.of(context).viewInsets.bottom + 20,
+        ),
+        child: StatefulBuilder(
+          builder: (context, setModalState) => Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // 搜索框
+              Container(
+                decoration: BoxDecoration(
+                  color: _oatmeal,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: TextField(
+                  controller: searchController,
+                  autofocus: true,
+                  style: const TextStyle(fontSize: 15, color: _textPrimary),
+                  decoration: InputDecoration(
+                    hintText: "搜索食材名称...",
+                    hintStyle: TextStyle(
+                      fontSize: 14,
+                      color: _textSecondary.withValues(alpha: 0.5),
+                    ),
+                    prefixIcon: const Icon(Icons.search, size: 20, color: _textSecondary),
+                    border: InputBorder.none,
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  ),
+                  onChanged: (query) {
+                    setModalState(() {
+                      if (query.isEmpty) {
+                        _filteredMasterList = _masterList;
+                      } else {
+                        _filteredMasterList = _masterList
+                            .where((m) => m.name.toLowerCase().contains(query.toLowerCase()))
+                            .toList();
+                      }
+                    });
+                  },
+                ),
+              ),
+              const SizedBox(height: 12),
+              // 结果列表
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxHeight: 300),
+                child: _filteredMasterList.isEmpty
+                    ? const Padding(
+                        padding: EdgeInsets.all(32),
+                        child: Text(
+                          "未找到匹配的食材",
+                          style: TextStyle(color: _textSecondary, fontSize: 14),
+                        ),
+                      )
+                    : ListView.builder(
+                        shrinkWrap: true,
+                        itemCount: _filteredMasterList.length,
+                        itemBuilder: (context, index) {
+                          final m = _filteredMasterList[index];
+                          final isActive = _selectedMaster?.id == m.id;
+                          return ListTile(
+                            dense: true,
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                            title: Text(
+                              m.name,
+                              style: TextStyle(
+                                fontSize: 15,
+                                fontWeight: isActive ? FontWeight.w600 : FontWeight.normal,
+                                color: _textPrimary,
+                              ),
+                            ),
+                            trailing: isActive
+                                ? const Icon(Icons.check_circle, size: 20, color: _sageGreen)
+                                : null,
+                            onTap: () async {
+                              Navigator.pop(context);
+                              setState(() => _selectedMaster = m);
+                              await _loadUnitsFor(m.id);
+                              setState(() {
+                                _selectedUnitId = _unitOptions.isNotEmpty ? _unitOptions.first.unitId : null;
+                              });
+                            },
+                          );
+                        },
+                      ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   void _showIconPicker() {
     showModalBottomSheet(
       context: context,
@@ -1011,35 +1162,138 @@ class _IngredientEditScreenState extends State<IngredientEditScreen> {
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.white,
+      isScrollControlled: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
       ),
       builder: (_) => Padding(
-        padding: const EdgeInsets.all(24),
-        child: Wrap(
-          spacing: 12,
-          runSpacing: 12,
-          children: [3, 7, 10, 14, 30, 60]
-              .map(
-                (d) => GestureDetector(
-                  onTap: () {
-                    setState(() => _shelfLifeDays = d);
-                    Navigator.pop(context);
-                  },
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 20,
-                      vertical: 10,
+        padding: EdgeInsets.only(
+          left: 24,
+          right: 24,
+          top: 24,
+          bottom: MediaQuery.of(context).viewInsets.bottom + 24,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              "保质时长",
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: _textPrimary,
+              ),
+            ),
+            const SizedBox(height: 16),
+            const Text(
+              "快捷选择",
+              style: TextStyle(
+                fontSize: 14,
+                color: _textSecondary,
+              ),
+            ),
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 12,
+              runSpacing: 12,
+              children: [3, 7, 10, 14, 30, 60]
+                  .map(
+                    (d) => GestureDetector(
+                      onTap: () {
+                        setState(() {
+                          _shelfLifeDays = d;
+                          _shelfLifeController.text = d.toString();
+                        });
+                        Navigator.pop(context);
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 20,
+                          vertical: 10,
+                        ),
+                        decoration: BoxDecoration(
+                          color: _shelfLifeDays == d ? _sageGreen : _oatmeal,
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Text(
+                          "$d 天",
+                          style: TextStyle(
+                            color: _shelfLifeDays == d ? Colors.white : _textPrimary,
+                            fontWeight: _shelfLifeDays == d ? FontWeight.w600 : FontWeight.normal,
+                          ),
+                        ),
+                      ),
                     ),
-                    decoration: BoxDecoration(
-                      color: _oatmeal,
-                      borderRadius: BorderRadius.circular(20),
+                  )
+                  .toList(),
+            ),
+            const SizedBox(height: 24),
+            const Text(
+              "或手动输入天数",
+              style: TextStyle(
+                fontSize: 14,
+                color: _textSecondary,
+              ),
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _shelfLifeController,
+                    keyboardType: TextInputType.number,
+                    style: const TextStyle(fontSize: 15, color: _textPrimary),
+                    decoration: InputDecoration(
+                      hintText: "输入天数",
+                      hintStyle: TextStyle(
+                        fontSize: 14,
+                        color: _textSecondary.withValues(alpha: 0.4),
+                      ),
+                      suffixText: "天",
+                      suffixStyle: const TextStyle(
+                        fontSize: 14,
+                        color: _textSecondary,
+                      ),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(color: _textSecondary.withValues(alpha: 0.2)),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: const BorderSide(color: _sageGreen, width: 2),
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                     ),
-                    child: Text("$d 天"),
                   ),
                 ),
-              )
-              .toList(),
+                const SizedBox(width: 12),
+                ElevatedButton(
+                  onPressed: () {
+                    final days = int.tryParse(_shelfLifeController.text);
+                    if (days != null && days > 0) {
+                      setState(() => _shelfLifeDays = days);
+                      Navigator.pop(context);
+                    } else {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('请输入有效的天数')),
+                      );
+                    }
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: _sageGreen,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    elevation: 0,
+                  ),
+                  child: const Text("确定"),
+                ),
+              ],
+            ),
+          ],
         ),
       ),
     );

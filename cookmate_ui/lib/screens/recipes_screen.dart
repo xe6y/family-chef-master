@@ -3,8 +3,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 import '../models/recipe.dart';
 import '../models/recipe_category.dart';
+import '../models/recipe_draft.dart';
 import '../services/recipe_service.dart';
 import '../services/category_service.dart';
+import '../services/draft_service.dart';
+import '../config/api_config.dart';
 import '../widgets/refreshable_screen.dart';
 import '../widgets/recipe_card.dart';
 import 'recipe_detail_screen.dart';
@@ -246,6 +249,7 @@ class _RecipesScreenState extends State<RecipesScreen>
     with RefreshableScreenState<RecipesScreen> {
   final RecipeService _recipeService = RecipeService();
   final CategoryService _categoryService = CategoryService();
+  final DraftService _draftService = DraftService();
   final TextEditingController _searchController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
 
@@ -276,10 +280,17 @@ class _RecipesScreenState extends State<RecipesScreen>
     super.initState();
     _loadCategories();
     _loadRecipes();
+    _draftService.load();
+    _draftService.addListener(_onDraftsChanged);
+  }
+
+  void _onDraftsChanged() {
+    if (mounted) setState(() {});
   }
 
   @override
   void dispose() {
+    _draftService.removeListener(_onDraftsChanged);
     _searchController.dispose();
     _scrollController.dispose();
     super.dispose();
@@ -513,9 +524,13 @@ class _RecipesScreenState extends State<RecipesScreen>
             ),
           ),
 
+          // 2. 草稿箱（仅在"我的私房"标签下显示）
+          if (_activeTab == "my" && _draftService.drafts.isNotEmpty)
+            SliverToBoxAdapter(child: _buildDraftsSection()),
+
           // 3. Recipe List (Staggered Grid)
           SliverPadding(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
             sliver: _isLoading
                 ? const SliverFillRemaining(
                     child: Center(
@@ -730,17 +745,7 @@ class _RecipesScreenState extends State<RecipesScreen>
 
   Widget _buildAddButton() {
     return GestureDetector(
-      onTap: () async {
-        final result = await Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => const RecipeDetailScreen(isCreateMode: true),
-          ),
-        );
-        if (result == true) {
-          _loadRecipes();
-        }
-      },
+      onTap: _showAddRecipeOptions,
       child: Container(
         padding: const EdgeInsets.all(8),
         decoration: BoxDecoration(
@@ -761,6 +766,241 @@ class _RecipesScreenState extends State<RecipesScreen>
         ),
       ),
     );
+  }
+
+  void _showAddRecipeOptions() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => _AddRecipeSheet(
+        onManual: () async {
+          Navigator.pop(ctx);
+          final result = await Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => const RecipeDetailScreen(isCreateMode: true),
+            ),
+          );
+          if (result == true) _loadRecipes();
+        },
+        onFromUrl: () {
+          Navigator.pop(ctx);
+          _showUrlInputDialog();
+        },
+      ),
+    );
+  }
+
+  void _showUrlInputDialog() {
+    final urlController = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text(
+          '从链接获取菜谱',
+          style: TextStyle(
+            fontSize: 17,
+            fontWeight: FontWeight.w700,
+            color: Color(0xFF4A4F50),
+          ),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              '粘贴菜谱视频或网页链接，AI 将自动提取菜谱内容。\n支持 YouTube、Bilibili、下厨房等。',
+              style: TextStyle(fontSize: 13, color: Color(0xFF8C8F90)),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: urlController,
+              autofocus: true,
+              keyboardType: TextInputType.url,
+              decoration: InputDecoration(
+                hintText: 'https://...',
+                hintStyle: const TextStyle(color: Color(0xFFCCCCCC)),
+                filled: true,
+                fillColor: const Color(0xFFF5F5F0),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide.none,
+                ),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 12,
+                ),
+              ),
+              style: const TextStyle(fontSize: 14, color: Color(0xFF4A4F50)),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('取消', style: TextStyle(color: Color(0xFF8C8F90))),
+          ),
+          TextButton(
+            onPressed: () {
+              final url = urlController.text.trim();
+              if (url.isEmpty) return;
+              Navigator.pop(ctx);
+              _startUrlExtraction(url);
+            },
+            child: const Text(
+              '开始提取',
+              style: TextStyle(
+                color: Color(0xFFB2AC88),
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _startUrlExtraction(String url) {
+    // 异步启动提取，不阻塞 UI；DraftService 监听器会在完成时刷新界面
+    _draftService.extractFromUrl(url, ApiConfig.extractorBaseUrl);
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: const Text('正在后台提取菜谱，完成后将出现在草稿箱 ✨'),
+        duration: const Duration(seconds: 3),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        backgroundColor: const Color(0xFF4A4F50),
+      ),
+    );
+  }
+
+  // --- Drafts Section ---
+
+  Widget _buildDraftsSection() {
+    final drafts = _draftService.drafts;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(20, 8, 16, 10),
+          child: Row(
+            children: [
+              const Text(
+                '草稿箱',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFF8C8F90),
+                  letterSpacing: 0.5,
+                ),
+              ),
+              const SizedBox(width: 6),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFB2AC88).withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Text(
+                  '${drafts.length}',
+                  style: const TextStyle(
+                    fontSize: 11,
+                    color: Color(0xFFB2AC88),
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        SizedBox(
+          height: 88,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            itemCount: drafts.length,
+            separatorBuilder: (context, index) => const SizedBox(width: 10),
+            itemBuilder: (_, i) => _DraftCard(
+              draft: drafts[i],
+              onTap: () => _onDraftTap(drafts[i]),
+              onDelete: () => _draftService.deleteDraft(drafts[i].id),
+            ),
+          ),
+        ),
+        const SizedBox(height: 12),
+        Divider(
+          height: 1,
+          thickness: 0.5,
+          indent: 16,
+          endIndent: 16,
+          color: Colors.grey.withValues(alpha: 0.15),
+        ),
+        const SizedBox(height: 8),
+      ],
+    );
+  }
+
+  void _onDraftTap(RecipeDraft draft) {
+    if (draft.status == DraftStatus.extracting) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('菜谱正在提取中，请稍候...'),
+          duration: const Duration(seconds: 2),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          backgroundColor: const Color(0xFF4A4F50),
+        ),
+      );
+      return;
+    }
+    if (draft.status == DraftStatus.failed) {
+      showDialog(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: const Text('提取失败'),
+          content: Text(draft.errorMessage ?? '未知错误'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('关闭'),
+            ),
+            if (draft.sourceUrl != null)
+              TextButton(
+                onPressed: () {
+                  Navigator.pop(ctx);
+                  _draftService.deleteDraft(draft.id);
+                  _startUrlExtraction(draft.sourceUrl!);
+                },
+                child: const Text(
+                  '重试',
+                  style: TextStyle(color: Color(0xFFB2AC88)),
+                ),
+              ),
+          ],
+        ),
+      );
+      return;
+    }
+    // 草稿已就绪，打开预填充的菜谱编辑界面
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => RecipeDetailScreen(
+          isCreateMode: true,
+          initialData: draft.extractedData,
+          draftId: draft.id,
+        ),
+      ),
+    ).then((result) {
+      if (result == true) {
+        _draftService.deleteDraft(draft.id);
+        _loadRecipes();
+      }
+    });
   }
 
   // --- Empty State with Floating Animation ---
@@ -812,6 +1052,297 @@ class _RecipesScreenState extends State<RecipesScreen>
         ],
       ),
     );
+  }
+}
+
+// --- Add Recipe Bottom Sheet ---
+
+class _AddRecipeSheet extends StatelessWidget {
+  final VoidCallback onManual;
+  final VoidCallback onFromUrl;
+
+  const _AddRecipeSheet({required this.onManual, required this.onFromUrl});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      padding: const EdgeInsets.fromLTRB(24, 16, 24, 40),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 36,
+            height: 4,
+            margin: const EdgeInsets.only(bottom: 24),
+            decoration: BoxDecoration(
+              color: Colors.grey.withValues(alpha: 0.25),
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+          const Text(
+            '添加菜谱',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w700,
+              color: Color(0xFF4A4F50),
+            ),
+          ),
+          const SizedBox(height: 24),
+          _OptionTile(
+            icon: Icons.edit_note_rounded,
+            title: '手动创建',
+            subtitle: '从零开始填写菜谱信息',
+            color: const Color(0xFF7B9E89),
+            onTap: onManual,
+          ),
+          const SizedBox(height: 12),
+          _OptionTile(
+            icon: Icons.link_rounded,
+            title: '从链接获取',
+            subtitle: 'AI 自动从视频或网页中提取菜谱',
+            color: const Color(0xFFE8956F),
+            onTap: onFromUrl,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _OptionTile extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final Color color;
+  final VoidCallback onTap;
+
+  const _OptionTile({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.color,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.06),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: color.withValues(alpha: 0.15)),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(icon, color: color, size: 22),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFF4A4F50),
+                    ),
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    subtitle,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: Color(0xFF8C8F90),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Icon(
+              Icons.chevron_right_rounded,
+              color: color.withValues(alpha: 0.5),
+              size: 20,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// --- Draft Card ---
+
+class _DraftCard extends StatelessWidget {
+  final RecipeDraft draft;
+  final VoidCallback onTap;
+  final VoidCallback onDelete;
+
+  const _DraftCard({
+    required this.draft,
+    required this.onTap,
+    required this.onDelete,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final isExtracting = draft.status == DraftStatus.extracting;
+    final isFailed = draft.status == DraftStatus.failed;
+
+    Color statusColor;
+    IconData statusIcon;
+    String statusLabel;
+
+    if (isExtracting) {
+      statusColor = const Color(0xFF7B9E89);
+      statusIcon = Icons.hourglass_top_rounded;
+      statusLabel = '提取中';
+    } else if (isFailed) {
+      statusColor = const Color(0xFFE07070);
+      statusIcon = Icons.error_outline_rounded;
+      statusLabel = '失败';
+    } else {
+      statusColor = const Color(0xFFE8956F);
+      statusIcon = Icons.check_circle_outline_rounded;
+      statusLabel = '待编辑';
+    }
+
+    return GestureDetector(
+      onTap: onTap,
+      onLongPress: () {
+        showModalBottomSheet(
+          context: context,
+          backgroundColor: Colors.transparent,
+          builder: (_) => Container(
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+            ),
+            padding: const EdgeInsets.fromLTRB(0, 12, 0, 32),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 36,
+                  height: 4,
+                  margin: const EdgeInsets.only(bottom: 16),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.withValues(alpha: 0.25),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                ListTile(
+                  leading: const Icon(Icons.delete_outline_rounded,
+                      color: Colors.red),
+                  title: const Text(
+                    '删除草稿',
+                    style: TextStyle(color: Colors.red),
+                  ),
+                  onTap: () {
+                    Navigator.pop(context);
+                    onDelete();
+                  },
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+      child: Container(
+        width: 160,
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: statusColor.withValues(alpha: 0.2),
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.04),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                if (isExtracting)
+                  SizedBox(
+                    width: 14,
+                    height: 14,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      valueColor:
+                          AlwaysStoppedAnimation<Color>(statusColor),
+                    ),
+                  )
+                else
+                  Icon(statusIcon, size: 14, color: statusColor),
+                const SizedBox(width: 5),
+                Text(
+                  statusLabel,
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: statusColor,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Expanded(
+              child: Text(
+                draft.name,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFF4A4F50),
+                  height: 1.3,
+                ),
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              _formatTime(draft.createdAt),
+              style: const TextStyle(
+                fontSize: 10,
+                color: Color(0xFFBBBBBB),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _formatTime(DateTime dt) {
+    final now = DateTime.now();
+    final diff = now.difference(dt);
+    if (diff.inMinutes < 1) return '刚刚';
+    if (diff.inMinutes < 60) return '${diff.inMinutes}分钟前';
+    if (diff.inHours < 24) return '${diff.inHours}小时前';
+    return '${dt.month}/${dt.day}';
   }
 }
 

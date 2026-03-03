@@ -3,14 +3,23 @@ class ShoppingItem {
   /// 购物项ID
   final String id;
 
-  /// 商品名称
-  final String name;
+  /// 食材ID（关联到 IngredientMaster）
+  final String ingredientId;
+
+  /// 食材名称
+  final String ingredientName;
 
   /// 预计购买数量
-  final String amount;
+  final double quantity;
+
+  /// 单位ID
+  final String unitId;
+
+  /// 单位名称
+  final String unitName;
 
   /// 实际购买数量
-  final String actualAmount;
+  final double? actualQuantity;
 
   /// 价格
   final double price;
@@ -20,10 +29,13 @@ class ShoppingItem {
 
   ShoppingItem({
     required this.id,
-    required this.name,
-    required this.amount,
-    this.actualAmount = '',
-    required this.price,
+    required this.ingredientId,
+    required this.ingredientName,
+    required this.quantity,
+    required this.unitId,
+    required this.unitName,
+    this.actualQuantity,
+    this.price = 0.0,
     this.checked = false,
   });
 
@@ -33,9 +45,14 @@ class ShoppingItem {
   factory ShoppingItem.fromJson(Map<String, dynamic> json) {
     return ShoppingItem(
       id: json['id']?.toString() ?? '',
-      name: json['name'] ?? '',
-      amount: json['amount'] ?? '',
-      actualAmount: json['actualAmount'] ?? '',
+      ingredientId: json['ingredientId'] ?? '',
+      ingredientName: json['ingredientName'] ?? '',
+      quantity: (json['quantity'] ?? 0).toDouble(),
+      unitId: json['unitId'] ?? '',
+      unitName: json['unitName'] ?? '',
+      actualQuantity: json['actualQuantity'] != null
+          ? (json['actualQuantity'] as num).toDouble()
+          : null,
       price: (json['price'] ?? 0).toDouble(),
       checked: json['checked'] ?? false,
     );
@@ -46,9 +63,12 @@ class ShoppingItem {
   Map<String, dynamic> toJson() {
     return {
       'id': id,
-      'name': name,
-      'amount': amount,
-      'actualAmount': actualAmount,
+      'ingredientId': ingredientId,
+      'ingredientName': ingredientName,
+      'quantity': quantity,
+      'unitId': unitId,
+      'unitName': unitName,
+      'actualQuantity': actualQuantity,
       'price': price,
       'checked': checked,
     };
@@ -57,21 +77,30 @@ class ShoppingItem {
   /// 复制并修改
   ShoppingItem copyWith({
     String? id,
-    String? name,
-    String? amount,
-    String? actualAmount,
+    String? ingredientId,
+    String? ingredientName,
+    double? quantity,
+    String? unitId,
+    String? unitName,
+    double? actualQuantity,
     double? price,
     bool? checked,
   }) {
     return ShoppingItem(
       id: id ?? this.id,
-      name: name ?? this.name,
-      amount: amount ?? this.amount,
-      actualAmount: actualAmount ?? this.actualAmount,
+      ingredientId: ingredientId ?? this.ingredientId,
+      ingredientName: ingredientName ?? this.ingredientName,
+      quantity: quantity ?? this.quantity,
+      unitId: unitId ?? this.unitId,
+      unitName: unitName ?? this.unitName,
+      actualQuantity: actualQuantity ?? this.actualQuantity,
       price: price ?? this.price,
       checked: checked ?? this.checked,
     );
   }
+
+  /// 获取显示用的数量字符串
+  String get displayAmount => '$quantity$unitName';
 }
 
 /// 购物清单模型

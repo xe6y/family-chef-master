@@ -113,21 +113,30 @@ class ShoppingService {
 
   /// 添加购物项
   /// listId: 清单ID
-  /// name: 商品名称
-  /// amount: 数量
+  /// ingredientId: 食材ID
+  /// ingredientName: 食材名称
+  /// quantity: 数量
+  /// unitId: 单位ID
+  /// unitName: 单位名称
   /// price: 价格
   /// 返回: 添加的购物项
   Future<ShoppingItem?> addShoppingItem(
     String listId, {
-    required String name,
-    String? amount,
+    required String ingredientId,
+    required String ingredientName,
+    required double quantity,
+    required String unitId,
+    required String unitName,
     double? price,
   }) async {
     final response = await _client.post(
       '${ApiConfig.shoppingLists}/$listId/items',
       data: {
-        'name': name,
-        if (amount != null) 'amount': amount,
+        'ingredientId': ingredientId,
+        'ingredientName': ingredientName,
+        'quantity': quantity,
+        'unitId': unitId,
+        'unitName': unitName,
         if (price != null) 'price': price,
       },
     );
@@ -142,27 +151,36 @@ class ShoppingService {
   /// 更新购物项
   /// listId: 清单ID
   /// itemId: 购物项ID
-  /// name: 商品名称
-  /// amount: 数量
-  /// actualAmount: 实际购买数量
+  /// ingredientId: 食材ID
+  /// ingredientName: 食材名称
+  /// quantity: 数量
+  /// unitId: 单位ID
+  /// unitName: 单位名称
+  /// actualQuantity: 实际购买数量
   /// price: 价格
   /// checked: 是否已购买
   /// 返回: 更新后的购物项
   Future<ShoppingItem?> updateShoppingItem(
     String listId,
     String itemId, {
-    String? name,
-    String? amount,
-    String? actualAmount,
+    String? ingredientId,
+    String? ingredientName,
+    double? quantity,
+    String? unitId,
+    String? unitName,
+    double? actualQuantity,
     double? price,
     bool? checked,
   }) async {
     final response = await _client.put(
       '${ApiConfig.shoppingLists}/$listId/items/$itemId',
       data: {
-        if (name != null) 'name': name,
-        if (amount != null) 'amount': amount,
-        if (actualAmount != null) 'actualAmount': actualAmount,
+        if (ingredientId != null) 'ingredientId': ingredientId,
+        if (ingredientName != null) 'ingredientName': ingredientName,
+        if (quantity != null) 'quantity': quantity,
+        if (unitId != null) 'unitId': unitId,
+        if (unitName != null) 'unitName': unitName,
+        if (actualQuantity != null) 'actualQuantity': actualQuantity,
         if (price != null) 'price': price,
         if (checked != null) 'checked': checked,
       },

@@ -440,10 +440,10 @@ class _IngredientsScreenState extends State<IngredientsScreen>
     if (selected != null && mounted) {
       final prefill = IngredientItem(
         id: '',
-        name: selected.name,
-        quantity: 1,
-        unit: '个',
-        amount: selected.amount,
+        name: selected.ingredientName,
+        quantity: selected.quantity,
+        unit: selected.unitName,
+        amount: selected.displayAmount,
         storage: _activeStorage,
         categoryId: 'cat_other',
         icon: '🥬',

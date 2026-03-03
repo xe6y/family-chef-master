@@ -305,7 +305,7 @@ class _HistoryExpandableCardState extends State<_HistoryExpandableCard> {
                   const SizedBox(width: 12),
                   Expanded(
                     child: Text(
-                      item.name,
+                      item.ingredientName,
                       style: const TextStyle(fontSize: 14, color: _textPrimary),
                     ),
                   ),

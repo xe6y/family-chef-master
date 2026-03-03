@@ -360,3 +360,139 @@ func (h *MealHandler) GetOrderSummary(c *gin.Context) {
 
 	c.JSON(http.StatusOK, models.NewSuccessResponseWithMessage("获取成功", summary))
 }
+
+// CheckTodayMenuIngredients 检查今日菜单的食材需求
+// @Summary 检查今日菜单的食材需求
+// @Description 检查今日菜单所需食材与库存的对比
+// @Tags 家庭点餐
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Success 200 {object} models.Response
+// @Router /api/meals/ingredient-check [get]
+func (h *MealHandler) CheckTodayMenuIngredients(c *gin.Context) {
+	userID := middleware.GetUserIDFromContext(c)
+
+	// 获取用户的家庭ID
+	var user models.User
+	if err := config.DB.Select("family_id").Where("id = ?", userID).First(&user).Error; err != nil {
+		c.JSON(http.StatusBadRequest, models.NewErrorResponse(
+			models.CodeBadRequest,
+			"用户信息不存在",
+		))
+		return
+	}
+
+	if user.FamilyID == "" {
+		c.JSON(http.StatusBadRequest, models.NewErrorResponse(
+			models.CodeBadRequest,
+			"用户未加入家庭",
+		))
+		return
+	}
+
+	// 查询今日菜单（今日订单）
+	today := time.Now().Format("2006-01-02")
+	var todayOrders []models.MealOrder
+	config.DB.Where("family_id = ? AND DATE(created_at) = ?", user.FamilyID, today).
+		Order("created_at DESC").
+		Find(&todayOrders)
+
+	if len(todayOrders) == 0 {
+		// 没有今日菜单
+		c.JSON(http.StatusOK, models.NewSuccessResponseWithMessage("获取成功", map[string]interface{}{
+			"allSufficient": true,
+			"requirements":  []interface{}{},
+		}))
+		return
+	}
+
+	// 提取今日菜单中的菜谱ID
+	var recipeIds []string
+	for _, order := range todayOrders {
+		for _, recipe := range order.Recipes {
+			recipeIds = append(recipeIds, recipe.RecipeID)
+		}
+	}
+
+	// 查询菜谱详情
+	var recipes []models.Recipe
+	if err := config.DB.Where("id IN ?", recipeIds).Find(&recipes).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, models.NewErrorResponse(
+			models.CodeServerError,
+			"查询菜谱失败",
+		))
+		return
+	}
+
+	// 统计所需食材（按 ingredientId 合并，数量相加）
+	type IngredientRequirement struct {
+		IngredientID   string  `json:"ingredientId"`
+		IngredientName string  `json:"ingredientName"`
+		RequiredAmount float64 `json:"requiredAmount"`
+		AvailableAmount float64 `json:"availableAmount"`
+		Unit           string  `json:"unit"`
+		IsSufficient   bool    `json:"isSufficient"`
+	}
+
+	ingredientMap := make(map[string]*IngredientRequirement)
+
+	for _, recipe := range recipes {
+		for _, ing := range recipe.Ingredients {
+			if ing.IngredientID == "" {
+				continue
+			}
+
+			if _, ok := ingredientMap[ing.IngredientID]; !ok {
+				ingredientMap[ing.IngredientID] = &IngredientRequirement{
+					IngredientID:   ing.IngredientID,
+					IngredientName: ing.IngredientID, // 临时使用ID，后面会查询名称
+					RequiredAmount: 0,
+					AvailableAmount: 0,
+					Unit:           ing.UnitID,
+					IsSufficient:   false,
+				}
+			}
+
+			if ing.Quantity != nil {
+				ingredientMap[ing.IngredientID].RequiredAmount += *ing.Quantity
+			}
+		}
+	}
+
+	// 查询库存食材
+	var ingredientIds []string
+	for id := range ingredientMap {
+		ingredientIds = append(ingredientIds, id)
+	}
+
+	var ingredients []models.IngredientItem
+	if len(ingredientIds) > 0 {
+		config.DB.Where("user_id = ? AND ingredient_id IN ?", userID, ingredientIds).
+			Find(&ingredients)
+	}
+
+	// 统计库存数量
+	for _, ing := range ingredients {
+		if req, ok := ingredientMap[ing.IngredientID]; ok {
+			req.IngredientName = ing.Name
+			req.AvailableAmount += ing.Quantity
+		}
+	}
+
+	// 判断是否充足
+	allSufficient := true
+	requirements := make([]IngredientRequirement, 0, len(ingredientMap))
+	for _, req := range ingredientMap {
+		req.IsSufficient = req.AvailableAmount >= req.RequiredAmount
+		if !req.IsSufficient {
+			allSufficient = false
+		}
+		requirements = append(requirements, *req)
+	}
+
+	c.JSON(http.StatusOK, models.NewSuccessResponseWithMessage("获取成功", map[string]interface{}{
+		"allSufficient": allSufficient,
+		"requirements":  requirements,
+	}))
+}
