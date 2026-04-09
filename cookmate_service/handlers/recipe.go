@@ -43,6 +43,7 @@ type CreateRecipeRequest struct {
 	Ingredients []models.RecipeIngredient `json:"ingredients"`             // 食材
 	Steps       []string                  `json:"steps"`                   // 步骤
 	IsPublic    bool                      `json:"isPublic"`                // 是否公开
+	SourceURL   string                    `json:"sourceUrl"`               // 原始网页/视频 URL（从链接导入时传入）
 }
 
 // GetMyRecipes 获取我的菜谱列表
@@ -122,6 +123,37 @@ func (h *RecipeHandler) GetMyRecipes(c *gin.Context) {
 		models.NewPagedResponse(list, total, pagination.Page, pagination.PageSize)))
 }
 
+// CheckPublicRecipeByURL 检查某链接是否已存在于公开菜谱中
+//
+// GET /api/recipes/public/check-url?url=...
+//
+// 返回 {exists: bool, recipe: {id, name}} 或 {exists: false}
+func (h *RecipeHandler) CheckPublicRecipeByURL(c *gin.Context) {
+	rawURL := c.Query("url")
+	if rawURL == "" {
+		c.JSON(http.StatusBadRequest, models.NewErrorResponse(models.CodeBadRequest, "url 参数不能为空"))
+		return
+	}
+
+	var recipe models.PublicRecipe
+	result := config.DB.
+		Where("source_url = ? AND review_status != ?", rawURL, models.ReviewStatusRejected).
+		First(&recipe)
+
+	if result.Error != nil {
+		c.JSON(http.StatusOK, models.NewSuccessResponseWithMessage("未找到重复菜谱", gin.H{"exists": false}))
+		return
+	}
+
+	c.JSON(http.StatusOK, models.NewSuccessResponseWithMessage("已存在相同链接的菜谱", gin.H{
+		"exists": true,
+		"recipe": gin.H{
+			"id":   recipe.ID,
+			"name": recipe.Name,
+		},
+	}))
+}
+
 // GetPublicRecipes 获取网络菜谱列表
 // @Summary 获取网络菜谱列表
 // @Description 获取公开的菜谱列表
@@ -135,10 +167,13 @@ func (h *RecipeHandler) GetMyRecipes(c *gin.Context) {
 // @Success 200 {object} models.Response{data=models.PagedResponse}
 // @Router /api/recipes/public [get]
 func (h *RecipeHandler) GetPublicRecipes(c *gin.Context) {
+	userID := middleware.GetUserIDFromContext(c)
 	pagination := utils.GetPagination(c)
 
-	// 构建查询 - 查询公开菜谱表
-	query := config.DB.Model(&models.PublicRecipe{})
+	// 构建查询 - 已通过的对所有人可见；pending/rejected 的只对创建者自己可见
+	query := config.DB.Model(&models.PublicRecipe{}).
+		Where("review_status = ? OR (review_status = ? AND creator_id = ?)",
+			models.ReviewStatusApproved, models.ReviewStatusPending, userID)
 
 	// 关键词搜索
 	if keyword := c.Query("keyword"); keyword != "" {
@@ -317,6 +352,7 @@ func (h *RecipeHandler) GetRecipeDetail(c *gin.Context) {
 		"ingredientsDisplay": display,
 		"caloriesTotal": cal, "proteinTotal": pro, "fatTotal": fat, "carbTotal": carb,
 		"steps": recipe.Steps, "userId": recipe.UserID,
+		"sourcePublicRecipeId": recipe.SourcePublicRecipeID,
 		"createdAt": recipe.CreatedAt, "updatedAt": recipe.UpdatedAt,
 	}
 	c.JSON(http.StatusOK, models.NewSuccessResponseWithMessage("获取成功", out))
@@ -360,19 +396,26 @@ func (h *RecipeHandler) CreateRecipe(c *gin.Context) {
 	}
 
 	if req.IsPublic {
-		// 创建公开菜谱
+		// 判断来源类型
+		sourceType := "user_created"
+		if req.SourceURL != "" {
+			sourceType = "web_import"
+		}
+		// 创建公开菜谱，初始状态为待审核
 		recipe := &models.PublicRecipe{
-			Name:        req.Name,
-			Image:       req.Image,
-			Time:        req.Time,
-			Difficulty:  req.Difficulty,
-			Tags:        req.Tags,
-			TagColors:   req.TagColors,
-			Categories:  req.Categories,
-			Ingredients: req.Ingredients,
-			Steps:       req.Steps,
-			CreatorID:   userID,
-			Source:      "user_created",
+			Name:         req.Name,
+			Image:        req.Image,
+			Time:         req.Time,
+			Difficulty:   req.Difficulty,
+			Tags:         req.Tags,
+			TagColors:    req.TagColors,
+			Categories:   req.Categories,
+			Ingredients:  req.Ingredients,
+			Steps:        req.Steps,
+			CreatorID:    userID,
+			Source:       sourceType,
+			SourceURL:    req.SourceURL,
+			ReviewStatus: models.ReviewStatusPending,
 		}
 		if result := config.DB.Create(recipe); result.Error != nil {
 			c.JSON(http.StatusInternalServerError, models.NewErrorResponse(
@@ -381,7 +424,7 @@ func (h *RecipeHandler) CreateRecipe(c *gin.Context) {
 			))
 			return
 		}
-		c.JSON(http.StatusOK, models.NewSuccessResponseWithMessage("创建成功", recipe))
+		c.JSON(http.StatusOK, models.NewSuccessResponseWithMessage("创建成功，等待审核后将在探索发现中展示", recipe))
 	} else {
 		// 创建私房菜
 		recipe := &models.MyRecipe{
@@ -394,7 +437,7 @@ func (h *RecipeHandler) CreateRecipe(c *gin.Context) {
 			Categories:  req.Categories,
 			Ingredients: req.Ingredients,
 			Steps:       req.Steps,
-			UserID:      userID,
+			UserID: userID,
 		}
 		if result := config.DB.Create(recipe); result.Error != nil {
 			c.JSON(http.StatusInternalServerError, models.NewErrorResponse(
@@ -604,16 +647,17 @@ func (h *RecipeHandler) AddToMyRecipes(c *gin.Context) {
 
 	// 从公开菜谱复制到私房菜
 	newRecipe := &models.MyRecipe{
-		Name:        recipe.Name,
-		Image:       recipe.Image,
-		Time:        recipe.Time,
-		Difficulty:  recipe.Difficulty,
-		Tags:        recipe.Tags,
-		TagColors:   recipe.TagColors,
-		Categories:  recipe.Categories,
-		Ingredients: recipe.Ingredients,
-		Steps:       recipe.Steps,
-		UserID:      userID,
+		Name:                 recipe.Name,
+		Image:                recipe.Image,
+		Time:                 recipe.Time,
+		Difficulty:           recipe.Difficulty,
+		Tags:                 recipe.Tags,
+		TagColors:            recipe.TagColors,
+		Categories:           recipe.Categories,
+		Ingredients:          recipe.Ingredients,
+		Steps:                recipe.Steps,
+		UserID:               userID,
+		SourcePublicRecipeID: recipe.ID, // 记录来源公开菜谱 ID
 	}
 
 	if result := config.DB.Create(newRecipe); result.Error != nil {
@@ -625,6 +669,57 @@ func (h *RecipeHandler) AddToMyRecipes(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, models.NewSuccessResponseWithMessage("添加成功", newRecipe))
+}
+
+// PublishUpdateRecipe 更新已有公开菜谱（创建者重新提交审核）
+//
+// PUT /api/recipes/:recipeId/publish
+//
+// 只有该公开菜谱的 creator_id 可调用。更新内容字段并将 review_status 重置为 pending。
+func (h *RecipeHandler) PublishUpdateRecipe(c *gin.Context) {
+	userID := middleware.GetUserIDFromContext(c)
+	publicRecipeID := c.Param("recipeId")
+
+	// 检查记录是否存在且调用者是创建者
+	var existing models.PublicRecipe
+	if result := config.DB.First(&existing, "id = ?", publicRecipeID); result.Error != nil {
+		c.JSON(http.StatusNotFound, models.NewErrorResponse(models.CodeNotFound, "公开菜谱不存在"))
+		return
+	}
+	if existing.CreatorID != userID {
+		c.JSON(http.StatusForbidden, models.NewErrorResponse(models.CodeForbidden, "无权限修改他人的公开菜谱"))
+		return
+	}
+
+	var req CreateRecipeRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, models.NewErrorResponse(models.CodeBadRequest, "请求参数格式错误"))
+		return
+	}
+
+	updates := map[string]interface{}{
+		"name":          req.Name,
+		"image":         req.Image,
+		"time":          req.Time,
+		"difficulty":    req.Difficulty,
+		"tags":          models.StringArray(req.Tags),
+		"tag_colors":    models.StringArray(req.TagColors),
+		"categories":    models.StringArray(req.Categories),
+		"ingredients":   models.RecipeIngredients(req.Ingredients),
+		"steps":         models.StringArray(req.Steps),
+		"review_status": models.ReviewStatusPending, // 重新进入审核
+	}
+	if req.SourceURL != "" {
+		updates["source_url"] = req.SourceURL
+	}
+
+	if result := config.DB.Model(&existing).Updates(updates); result.Error != nil {
+		c.JSON(http.StatusInternalServerError, models.NewErrorResponse(models.CodeServerError, "更新失败"))
+		return
+	}
+
+	config.DB.First(&existing, "id = ?", publicRecipeID)
+	c.JSON(http.StatusOK, models.NewSuccessResponseWithMessage("更新成功，已重新提交审核", existing))
 }
 
 // populateDifficultyColors 填充菜谱列表的难度颜色（旧版本，保留兼容性）

@@ -15,6 +15,7 @@ cookmate_service/bitepal_server
 cookmate_service/bitepal_service
 cookmate_service/*.db
 cookmate_service/.env
+workflow/.env
 
 # Flutter/Dart
 cookmate_ui/.dart_tool/

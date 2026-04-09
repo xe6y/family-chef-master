@@ -62,15 +62,17 @@ func SetupRouter() *gin.Engine {
 		recipes := api.Group("/recipes")
 		recipes.Use(middleware.AuthMiddleware())
 		{
-			recipes.GET("/my", recipeHandler.GetMyRecipes)                     // 获取我的菜谱列表
-			recipes.GET("/public", recipeHandler.GetPublicRecipes)             // 获取网络菜谱列表
-			recipes.GET("/:recipeId", recipeHandler.GetRecipeDetail)           // 获取菜谱详情
+			recipes.GET("/my", recipeHandler.GetMyRecipes)                              // 获取我的菜谱列表
+			recipes.GET("/public", recipeHandler.GetPublicRecipes)                  // 获取网络菜谱列表
+			recipes.GET("/public/check-url", recipeHandler.CheckPublicRecipeByURL)  // 检查链接是否已有公开菜谱
+			recipes.GET("/:recipeId", recipeHandler.GetRecipeDetail)                // 获取菜谱详情
 			recipes.POST("", recipeHandler.CreateRecipe)                       // 创建菜谱
 			recipes.PUT("/:recipeId", recipeHandler.UpdateRecipe)              // 更新菜谱
 			recipes.DELETE("/:recipeId", recipeHandler.DeleteRecipe)           // 删除菜谱
-			recipes.POST("/:recipeId/favorite", recipeHandler.ToggleFavorite)  // 收藏/取消收藏
-			recipes.POST("/:recipeId/add-to-my", recipeHandler.AddToMyRecipes) // 加入我的菜单
-			recipes.POST("/random", randomHandler.RandomRecipe)                // 随机推荐菜品
+			recipes.POST("/:recipeId/favorite", recipeHandler.ToggleFavorite)       // 收藏/取消收藏
+			recipes.POST("/:recipeId/add-to-my", recipeHandler.AddToMyRecipes)  // 加入我的菜单
+			recipes.PUT("/:recipeId/publish", recipeHandler.PublishUpdateRecipe) // 更新已有公开菜谱（创建者重新提交审核）
+			recipes.POST("/random", randomHandler.RandomRecipe)                  // 随机推荐菜品
 		}
 
 		// 菜谱分类相关

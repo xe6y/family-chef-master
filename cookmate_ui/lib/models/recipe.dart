@@ -48,6 +48,15 @@ class Recipe {
   /// 是否公开
   final bool? isPublic;
 
+  /// 来源公开菜谱 ID（从「探索发现」保存到私房时记录，非空表示该私房菜有公开原版）
+  final String? sourcePublicRecipeId;
+
+  /// 审核状态（公开菜谱用）：pending / approved / rejected
+  final String? reviewStatus;
+
+  /// 来源网页/视频 URL（公开菜谱从链接导入时记录）
+  final String? sourceUrl;
+
   Recipe({
     required this.id,
     required this.name,
@@ -63,6 +72,9 @@ class Recipe {
     this.steps,
     this.userId,
     this.isPublic,
+    this.sourcePublicRecipeId,
+    this.reviewStatus,
+    this.sourceUrl,
     this.caloriesTotal,
     this.proteinTotal,
     this.fatTotal,
@@ -98,6 +110,9 @@ class Recipe {
       steps: json['steps'] != null ? List<String>.from(json['steps']) : null,
       userId: json['userId'],
       isPublic: json['isPublic'],
+      sourcePublicRecipeId: json['sourcePublicRecipeId'] as String?,
+      reviewStatus: json['reviewStatus'] as String?,
+      sourceUrl: json['sourceUrl'] as String?,
       caloriesTotal: _toDouble(json['caloriesTotal'] ?? json['calories_total']),
       proteinTotal: _toDouble(json['proteinTotal'] ?? json['protein_total']),
       fatTotal: _toDouble(json['fatTotal'] ?? json['fat_total']),
@@ -129,6 +144,9 @@ class Recipe {
       'ingredients': ingredients?.map((e) => e.toJson()).toList(),
       'steps': steps,
       'isPublic': isPublic,
+      'sourcePublicRecipeId': sourcePublicRecipeId,
+      'reviewStatus': reviewStatus,
+      'sourceUrl': sourceUrl,
       'caloriesTotal': caloriesTotal,
       'proteinTotal': proteinTotal,
       'fatTotal': fatTotal,
@@ -152,6 +170,9 @@ class Recipe {
     List<String>? steps,
     String? userId,
     bool? isPublic,
+    String? sourcePublicRecipeId,
+    String? reviewStatus,
+    String? sourceUrl,
     double? caloriesTotal,
     double? proteinTotal,
     double? fatTotal,
@@ -172,6 +193,9 @@ class Recipe {
       steps: steps ?? this.steps,
       userId: userId ?? this.userId,
       isPublic: isPublic ?? this.isPublic,
+      sourcePublicRecipeId: sourcePublicRecipeId ?? this.sourcePublicRecipeId,
+      reviewStatus: reviewStatus ?? this.reviewStatus,
+      sourceUrl: sourceUrl ?? this.sourceUrl,
       caloriesTotal: caloriesTotal ?? this.caloriesTotal,
       proteinTotal: proteinTotal ?? this.proteinTotal,
       fatTotal: fatTotal ?? this.fatTotal,

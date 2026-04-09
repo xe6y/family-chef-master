@@ -59,6 +59,9 @@ class ApiConfig {
   /// 随机推荐菜品
   static const String randomRecipe = '/recipes/random';
 
+  /// 检查链接是否已有对应的公开菜谱
+  static const String publicRecipeCheckUrl = '/recipes/public/check-url';
+
   // ==================== 点餐接口 ====================
   /// 点餐基础路径
   static const String meals = '/meals';

@@ -14,27 +14,35 @@
   4. 输出符合 PublicRecipe 格式的 JSON
 
 用法：
-  export OPENAI_API_KEY=sk-...
+  export MOONSHOT_API_KEY=sk-...
   export COOKMATE_EMAIL=user@example.com
   export COOKMATE_PASSWORD=yourpassword
-  python recipe_extractor.py <URL>
+  python recipe_extractor.py <URL> --provider kimi
   python recipe_extractor.py <URL> --output recipe.json
   python recipe_extractor.py <URL> --provider anthropic --no-resolve
-  python recipe_extractor.py <URL> --provider kimi --model moonshot-v1-32k
+  python recipe_extractor.py <URL> --provider kimi --model kimi-k2-turbo-preview
+
+默认模型：OpenAI gpt-5.2 / Anthropic claude-sonnet-4-6 / Kimi kimi-k2.5
 """
 
 import json
 import os
+import re
 import sys
+from dataclasses import dataclass, field
 from typing import Optional
-from urllib.parse import urlparse
+from urllib.parse import urlparse, urljoin
+
+from pathlib import Path
 
 import requests
+from bs4 import BeautifulSoup
 from dotenv import load_dotenv
+from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_core.prompts import ChatPromptTemplate
-from pydantic import BaseModel, Field
+from pydantic import AliasChoices, BaseModel, Field, field_validator
 
-load_dotenv()
+load_dotenv(Path(__file__).resolve().parent.parent / ".env")
 
 # ============================================================
 # Pydantic 数据模型（LLM 输出用）
@@ -43,14 +51,28 @@ load_dotenv()
 class RecipeIngredientRaw(BaseModel):
     """LLM 提取的食材（原始文字，未解析 ID）"""
 
-    ingredientName: str = Field(description="食材名称，如'猪五花肉'、'生姜'")
+    ingredientName: str = Field(
+        description="食材名称，如'猪五花肉'、'生姜'",
+        validation_alias=AliasChoices("ingredientName", "name"),
+    )
     quantity: Optional[float] = Field(
         default=None,
         description="数量，适量/少许等不确定数量时为 null",
     )
+
+    @field_validator("quantity", mode="before")
+    @classmethod
+    def _coerce_quantity(cls, v):
+        if v is None or v == "" or v == "null":
+            return None
+        try:
+            return float(v)
+        except (ValueError, TypeError):
+            return None
     unitName: str = Field(
         default="适量",
         description="单位名称，如'克'、'毫升'、'个'、'片'、'勺'、'适量'",
+        validation_alias=AliasChoices("unitName", "unit"),
     )
 
 
@@ -137,7 +159,15 @@ class CookmateClient:
         password = os.environ.get("COOKMATE_PASSWORD")
         if email and password:
             client = cls(base_url)
-            client.login(email, password)
+            try:
+                client.login(email, password)
+            except Exception as e:
+                print(
+                    f"[!] Cookmate 登录失败（{e}），跳过 ID 解析。"
+                    " 请检查 COOKMATE_EMAIL / COOKMATE_PASSWORD 或后端服务状态。",
+                    file=sys.stderr,
+                )
+                return None
             return client
 
         return None
@@ -248,6 +278,24 @@ class CookmateClient:
 # 内容加载
 # ============================================================
 
+_UA = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0 Safari/537.36"
+
+_IMG_SKIP_PATTERNS = re.compile(
+    r"(icon|logo|avatar|emoji|badge|qrcode|barcode|sprite|placeholder|loading|blank"
+    r"|\.svg|\.gif|data:image/svg|1x1|spacer)",
+    re.IGNORECASE,
+)
+
+MAX_IMAGES = 8
+
+
+@dataclass
+class ContentResult:
+    """load_content 的返回结果"""
+    text: str
+    image_urls: list[str] = field(default_factory=list)
+
+
 def _is_youtube(url: str) -> bool:
     hostname = urlparse(url).hostname or ""
     return hostname in ("www.youtube.com", "youtube.com", "youtu.be", "m.youtube.com")
@@ -256,6 +304,55 @@ def _is_youtube(url: str) -> bool:
 def _is_bilibili(url: str) -> bool:
     hostname = urlparse(url).hostname or ""
     return "bilibili.com" in hostname
+
+
+def _extract_images(url: str, html: str | None = None) -> list[str]:
+    """从网页 HTML 提取菜谱相关图片 URL（步骤图、成品图等）"""
+    if html is None:
+        try:
+            resp = requests.get(url, headers={"User-Agent": _UA}, timeout=15)
+            resp.raise_for_status()
+            html = resp.text
+        except Exception as e:
+            print(f"[!] 图片提取：页面请求失败（{e}）", file=sys.stderr)
+            return []
+
+    soup = BeautifulSoup(html, "html.parser")
+    candidates: list[str] = []
+
+    for img in soup.find_all("img"):
+        src = img.get("src") or img.get("data-src") or img.get("data-original") or ""
+        if not src or src.startswith("data:image/svg"):
+            continue
+
+        if _IMG_SKIP_PATTERNS.search(src):
+            continue
+
+        abs_url = urljoin(url, src)
+        if not abs_url.startswith("http"):
+            continue
+
+        w = img.get("width", "")
+        h = img.get("height", "")
+        try:
+            if (w and int(w) < 80) or (h and int(h) < 80):
+                continue
+        except ValueError:
+            pass
+
+        candidates.append(abs_url)
+
+    seen = set()
+    unique = []
+    for u in candidates:
+        if u not in seen:
+            seen.add(u)
+            unique.append(u)
+
+    result = unique[:MAX_IMAGES]
+    if result:
+        print(f"[+] 提取到 {len(result)} 张菜谱相关图片", file=sys.stderr)
+    return result
 
 
 def _load_youtube(url: str) -> str:
@@ -278,31 +375,64 @@ def _load_youtube(url: str) -> str:
     return _load_webpage(url)
 
 
-def _load_webpage(url: str) -> str:
-    """通用网页内容加载"""
+def _fetch_html(url: str) -> str:
+    """获取原始 HTML（带完整请求头，适配反爬）"""
+    resp = requests.get(
+        url,
+        headers={
+            "User-Agent": _UA,
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+            "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8",
+            "Referer": url,
+        },
+        timeout=20,
+    )
+    resp.raise_for_status()
+    return resp.text
+
+
+def _html_to_text(html: str) -> str:
+    """从 HTML 提取纯文本"""
+    soup = BeautifulSoup(html, "html.parser")
+    for tag in soup(["script", "style", "nav", "footer", "header"]):
+        tag.decompose()
+    return soup.get_text(separator="\n", strip=True)
+
+
+def _load_webpage(url: str) -> tuple[str, str]:
+    """通用网页内容加载，返回 (纯文本, 原始HTML)"""
+    try:
+        html = _fetch_html(url)
+        text = _html_to_text(html)
+        return text, html
+    except Exception as e:
+        print(f"[!] 自定义抓取失败（{e}），回退到 WebBaseLoader", file=sys.stderr)
+
     from langchain_community.document_loaders import WebBaseLoader
 
     loader = WebBaseLoader(
         url,
-        requests_kwargs={
-            "headers": {"User-Agent": "Mozilla/5.0 (compatible; RecipeBot/1.0)"}
-        },
+        requests_kwargs={"headers": {"User-Agent": _UA}},
     )
     docs = loader.load()
-    return "\n\n".join(doc.page_content for doc in docs)
+    text = "\n\n".join(doc.page_content for doc in docs)
+    return text, ""
 
 
-def load_content(url: str) -> str:
-    """根据 URL 类型加载内容，返回纯文本"""
+def load_content(url: str) -> ContentResult:
+    """根据 URL 类型加载内容，返回文本 + 图片列表"""
     if _is_youtube(url):
         print("[+] 检测到 YouTube 链接", file=sys.stderr)
-        return _load_youtube(url)
+        return ContentResult(text=_load_youtube(url))
     elif _is_bilibili(url):
         print("[+] 检测到 Bilibili 链接，加载页面内容", file=sys.stderr)
-        return _load_webpage(url)
+        text, _ = _load_webpage(url)
+        return ContentResult(text=text)
     else:
         print("[+] 检测到图文网页链接", file=sys.stderr)
-        return _load_webpage(url)
+        text, html = _load_webpage(url)
+        images = _extract_images(url, html=html or None)
+        return ContentResult(text=text, image_urls=images)
 
 
 # ============================================================
@@ -311,6 +441,7 @@ def load_content(url: str) -> str:
 
 SYSTEM_PROMPT = """\
 你是一个专业的菜谱提取助手。从用户提供的内容中提取完整的菜谱信息。
+如果附带了图片，请仔细识别图片中的文字和烹饪操作，将其补充到步骤和食材中。
 
 【难度等级说明】
 - 有手就行：极简单，完全不需要厨艺
@@ -327,6 +458,23 @@ SYSTEM_PROMPT = """\
 5. 如内容中无菜谱，name 填"未识别"，其余字段为空
 """
 
+MULTIMODAL_JSON_INSTRUCTION = """\
+请以纯 JSON 格式输出菜谱，不要包含 markdown 代码块标记，直接输出 JSON 对象。
+JSON 结构：
+{
+  "name": "菜谱名称",
+  "image": "封面图URL或空字符串",
+  "time": "制作时间",
+  "difficulty": "难度等级",
+  "tags": ["标签1", "标签2"],
+  "categories": ["分类1"],
+  "ingredients": [
+    {"ingredientName": "食材名", "quantity": 数字或null, "unitName": "单位"}
+  ],
+  "steps": ["步骤1", "步骤2"]
+}
+"""
+
 
 def _make_llm(provider: str, model_name: str):
     """构建带结构化输出的 LLM（LangChain v0.3 with_structured_output）"""
@@ -340,21 +488,60 @@ def _make_llm(provider: str, model_name: str):
 
         llm = ChatOpenAI(
             model=model_name,
-            temperature=0,
+            temperature=1,
             openai_api_key=os.environ.get("MOONSHOT_API_KEY"),
             openai_api_base="https://api.moonshot.cn/v1",
         )
-        return llm.with_structured_output(RecipeExtracted, method="json_schema")
+        return llm.with_structured_output(RecipeExtracted)
     else:
         from langchain_openai import ChatOpenAI
 
         llm = ChatOpenAI(model=model_name, temperature=0)
-        # method="json_schema" 使用 OpenAI 原生 JSON Schema，输出更稳定
         return llm.with_structured_output(RecipeExtracted, method="json_schema")
 
 
-def _llm_extract(url: str, content: str, provider: str, model_name: str) -> RecipeExtracted:
-    """调用 LLM 提取菜谱结构"""
+def _make_raw_llm(provider: str, model_name: str):
+    """构建原始 LLM（不带 structured output，用于多模态场景）"""
+    if provider == "kimi":
+        from langchain_openai import ChatOpenAI
+
+        return ChatOpenAI(
+            model=model_name,
+            temperature=1,
+            openai_api_key=os.environ.get("MOONSHOT_API_KEY"),
+            openai_api_base="https://api.moonshot.cn/v1",
+        )
+    elif provider == "anthropic":
+        from langchain_anthropic import ChatAnthropic
+
+        return ChatAnthropic(model=model_name, temperature=0, max_tokens=4096)
+    else:
+        from langchain_openai import ChatOpenAI
+
+        return ChatOpenAI(model=model_name, temperature=0)
+
+
+def _parse_json_response(text: str) -> dict:
+    """从 LLM 响应中提取 JSON（兼容 markdown 代码块包裹）"""
+    cleaned = text.strip()
+    if cleaned.startswith("```"):
+        cleaned = re.sub(r"^```\w*\n?", "", cleaned)
+        cleaned = re.sub(r"\n?```$", "", cleaned)
+    return json.loads(cleaned)
+
+
+def _llm_extract(
+    url: str,
+    content: str,
+    provider: str,
+    model_name: str,
+    image_urls: list[str] | None = None,
+) -> RecipeExtracted:
+    """调用 LLM 提取菜谱结构，有图片时使用多模态输入"""
+
+    if image_urls:
+        return _llm_extract_multimodal(url, content, image_urls, provider, model_name)
+
     structured_llm = _make_llm(provider, model_name)
     prompt = ChatPromptTemplate.from_messages([
         ("system", SYSTEM_PROMPT),
@@ -362,6 +549,37 @@ def _llm_extract(url: str, content: str, provider: str, model_name: str) -> Reci
     ])
     chain = prompt | structured_llm
     return chain.invoke({"url": url, "content": content})
+
+
+def _llm_extract_multimodal(
+    url: str,
+    content: str,
+    image_urls: list[str],
+    provider: str,
+    model_name: str,
+) -> RecipeExtracted:
+    """多模态提取：文字 + 图片 → 菜谱 JSON"""
+    llm = _make_raw_llm(provider, model_name)
+
+    human_parts: list[dict] = [
+        {"type": "text", "text": f"来源 URL：{url}\n\n页面文字内容：\n{content}"},
+    ]
+    for img_url in image_urls:
+        human_parts.append({
+            "type": "image_url",
+            "image_url": {"url": img_url},
+        })
+
+    print(f"[+] 多模态提取：{len(image_urls)} 张图片 + 文字", file=sys.stderr)
+
+    messages = [
+        SystemMessage(content=SYSTEM_PROMPT + "\n\n" + MULTIMODAL_JSON_INSTRUCTION),
+        HumanMessage(content=human_parts),
+    ]
+
+    response = llm.invoke(messages)
+    data = _parse_json_response(response.content)
+    return RecipeExtracted(**data)
 
 
 CONVERSION_SYSTEM_PROMPT = """\
@@ -412,7 +630,8 @@ def estimate_conversions(
         from langchain_openai import ChatOpenAI
         llm = ChatOpenAI(
             model=model_name,
-            temperature=0,
+            # kimi-k2.5 要求 temperature 固定为 1
+            temperature=1,
             openai_api_key=os.environ.get("MOONSHOT_API_KEY"),
             openai_api_base="https://api.moonshot.cn/v1",
         )
@@ -421,12 +640,19 @@ def estimate_conversions(
         llm = ChatOpenAI(model=model_name, temperature=0)
 
     structured_llm = llm.with_structured_output(ConversionList)
-    result: ConversionList = structured_llm.invoke(
-        f"{CONVERSION_SYSTEM_PROMPT}\n\n请为以下食材+单位估算换算值：\n{items_desc}"
-    )
+    try:
+        result: ConversionList = structured_llm.invoke(
+            f"{CONVERSION_SYSTEM_PROMPT}\n\n请为以下食材+单位估算换算值：\n{items_desc}"
+        )
+        conversions = result.items
+    except Exception as e:
+        print(
+            f"[!] LLM 换算估算失败（{e}），使用默认值 100g/unit",
+            file=sys.stderr,
+        )
+        conversions = []
 
-    # 补齐数量（防止 LLM 漏项）
-    conversions = result.items
+    # 补齐数量（LLM 漏项或解析失败时用默认值兜底）
     while len(conversions) < len(unmatched):
         ing, resolved = unmatched[len(conversions)]
         name = resolved.get("ingredientName") or ing.ingredientName
@@ -456,7 +682,7 @@ def estimate_conversions(
 def extract_recipe(
     url: str,
     provider: str = "openai",
-    model_name: str = "gpt-4o",
+    model_name: str = "gpt-5.2",
     resolve_ids: bool = True,
 ) -> dict:
     """
@@ -464,16 +690,19 @@ def extract_recipe(
 
     Args:
         url:         要解析的链接
-        provider:    LLM 提供商，"openai" 或 "anthropic"
+        provider:    LLM 提供商，"openai" / "anthropic" / "kimi"
         model_name:  模型名称
         resolve_ids: 是否调用 Cookmate API 解析食材/单位 ID
 
     Returns:
         符合 PublicRecipe 结构的字典
     """
-    # 1. 加载内容
-    content = load_content(url)
-    if not content.strip():
+    # 1. 加载内容（文字 + 可能的图片）
+    result = load_content(url)
+    content = result.text
+    image_urls = result.image_urls
+
+    if not content.strip() and not image_urls:
         raise ValueError("无法从该 URL 获取有效内容")
 
     MAX_CHARS = 12000
@@ -482,8 +711,11 @@ def extract_recipe(
         print(f"[!] 内容已截断至 {MAX_CHARS} 字符", file=sys.stderr)
 
     # 2. LLM 提取
-    print(f"[+] 使用 {provider}/{model_name} 提取菜谱...", file=sys.stderr)
-    extracted: RecipeExtracted = _llm_extract(url, content, provider, model_name)
+    mode = f"多模态（{len(image_urls)} 图）" if image_urls else "纯文本"
+    print(f"[+] 使用 {provider}/{model_name} 提取菜谱（{mode}）...", file=sys.stderr)
+    extracted: RecipeExtracted = _llm_extract(
+        url, content, provider, model_name, image_urls=image_urls or None,
+    )
 
     # 3. 尝试解析食材 ID
     client: Optional[CookmateClient] = None
@@ -605,14 +837,15 @@ def main():
   python recipe_extractor.py https://www.bilibili.com/video/BVxxxxx
   python recipe_extractor.py https://www.xiachufang.com/recipe/xxxxx
   python recipe_extractor.py <URL> --output recipe.json
-  python recipe_extractor.py <URL> --provider anthropic --model claude-3-5-sonnet-20241022
-  python recipe_extractor.py <URL> --provider kimi --model moonshot-v1-32k
+  python recipe_extractor.py <URL> --provider anthropic --model claude-sonnet-4-6
+  python recipe_extractor.py <URL> --provider kimi
+  python recipe_extractor.py <URL> --provider kimi --model kimi-k2-turbo-preview
   python recipe_extractor.py <URL> --no-resolve   # 跳过 ID 解析，仅输出原始名称
 
 环境变量（LLM）：
   OPENAI_API_KEY      使用 OpenAI 时必填
   ANTHROPIC_API_KEY   使用 Anthropic 时必填
-  MOONSHOT_API_KEY    使用 Kimi 时必填
+  MOONSHOT_API_KEY    使用 Kimi 时必填（kimi-k2.5 / kimi-k2-turbo-preview）
 
 环境变量（Cookmate API - 食材 ID 解析）：
   COOKMATE_API_URL    API 地址，默认 http://localhost:8080/api
@@ -632,8 +865,8 @@ def main():
         "--model",
         default=None,
         help=(
-            "模型名称（OpenAI 默认 gpt-4o，Anthropic 默认 claude-3-5-sonnet-20241022，"
-            "Kimi 默认 moonshot-v1-32k）"
+            "模型名称（OpenAI 默认 gpt-5.2，Anthropic 默认 claude-sonnet-4-6，"
+            "Kimi 默认 kimi-k2.5）"
         ),
     )
     ap.add_argument(
@@ -648,9 +881,9 @@ def main():
     args = ap.parse_args()
 
     default_models = {
-        "openai": "gpt-4o",
-        "anthropic": "claude-3-5-sonnet-20241022",
-        "kimi": "moonshot-v1-32k",
+        "openai": "gpt-5.2",
+        "anthropic": "claude-sonnet-4-6",
+        "kimi": "kimi-k2.5",
     }
     if args.model is None:
         args.model = default_models[args.provider]

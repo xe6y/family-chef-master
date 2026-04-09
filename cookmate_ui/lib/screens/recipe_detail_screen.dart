@@ -235,6 +235,9 @@ class RecipeDetailScreen extends StatefulWidget {
   /// 对应草稿 ID（保存成功后由调用方删除草稿用）
   final String? draftId;
 
+  /// 公开模式：保存时直接发布到探索发现（isPublic=true，进入审核）
+  final bool isPublicMode;
+
   const RecipeDetailScreen({
     super.key,
     this.recipeId,
@@ -242,6 +245,7 @@ class RecipeDetailScreen extends StatefulWidget {
     this.isCreateMode = false,
     this.initialData,
     this.draftId,
+    this.isPublicMode = false,
   });
 
   @override
@@ -642,15 +646,293 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen>
     );
   }
 
-  /// 分享至网络
+  /// 分享至网络：将私房菜公开到"探索发现"（所有分享进入审核）
   void _shareToNetwork() {
-    // TODO: 实现分享至网络功能
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('分享功能开发中...'),
-        duration: Duration(seconds: 2),
+    if (_recipe == null) return;
+
+    final sourceId = _recipe!.sourcePublicRecipeId;
+    if (sourceId != null && sourceId.isNotEmpty) {
+      // 有来源公开菜谱——先加载原版进行对比
+      _loadAndComparePublicRecipe(sourceId);
+    } else {
+      // 原创菜谱——直接进入确认分享流程
+      _showShareConfirmDialog(
+        onConfirm: () => _doShareToNetwork(mode: _ShareMode.createNew),
+      );
+    }
+  }
+
+  Future<void> _loadAndComparePublicRecipe(String publicId) async {
+    // 显示加载
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const Center(
+        child: CircularProgressIndicator(color: _sageGreen),
       ),
     );
+
+    try {
+      final original = await _recipeService.getRecipeDetail(publicId, type: 'public');
+      if (!mounted) return;
+      Navigator.pop(context); // 关闭加载圈
+
+      if (original == null) {
+        // 原版已不存在，当作新菜谱分享
+        _showShareConfirmDialog(
+          subtitle: '未找到原版公开菜谱，将作为新版本提交审核。',
+          onConfirm: () => _doShareToNetwork(mode: _ShareMode.createNew),
+        );
+        return;
+      }
+
+      _showCompareDialog(original);
+    } catch (e) {
+      if (!mounted) return;
+      Navigator.pop(context);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('加载原版菜谱失败：$e')),
+      );
+    }
+  }
+
+  /// 展示当前版本与原版的对比，让用户选择"更新原版"或"创建新版本"
+  void _showCompareDialog(Recipe original) {
+    final current = _recipe!;
+    final diffs = _buildDiffs(original, current);
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text(
+          '与原版对比',
+          style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
+        ),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (diffs.isEmpty)
+                const Text(
+                  '与原版内容完全一致，无需重新分享。',
+                  style: TextStyle(fontSize: 14, color: Color(0xFF8C8F90)),
+                )
+              else ...[
+                Text(
+                  '你对以下内容做了修改（共 ${diffs.length} 处）：',
+                  style: const TextStyle(fontSize: 13, color: Color(0xFF8C8F90)),
+                ),
+                const SizedBox(height: 12),
+                ConstrainedBox(
+                  constraints: const BoxConstraints(maxHeight: 200),
+                  child: SingleChildScrollView(
+                    child: Column(
+                      children: diffs
+                          .map((d) => _DiffRow(label: d.$1, detail: d.$2))
+                          .toList(),
+                    ),
+                  ),
+                ),
+              ],
+              const SizedBox(height: 16),
+              const Text(
+                '提交后将进入审核，通过后在探索发现中更新展示。',
+                style: TextStyle(fontSize: 12, color: Color(0xFFB2AC88)),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('取消', style: TextStyle(color: Color(0xFF8C8F90))),
+          ),
+          if (diffs.isNotEmpty) ...[
+            TextButton(
+              onPressed: () {
+                Navigator.pop(ctx);
+                _doShareToNetwork(
+                  mode: _ShareMode.updateExisting,
+                  publicRecipeId: original.id,
+                );
+              },
+              child: const Text(
+                '更新原版',
+                style: TextStyle(color: Color(0xFF7B9E89), fontWeight: FontWeight.w700),
+              ),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.pop(ctx);
+                _doShareToNetwork(mode: _ShareMode.createNew);
+              },
+              child: const Text(
+                '创建新版本',
+                style: TextStyle(color: Color(0xFFE8956F), fontWeight: FontWeight.w700),
+              ),
+            ),
+          ] else
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('知道了', style: TextStyle(color: Color(0xFFB2AC88))),
+            ),
+        ],
+      ),
+    );
+  }
+
+  /// 生成差异列表 (字段标签, 描述文本)
+  List<(String, String)> _buildDiffs(Recipe original, Recipe current) {
+    final diffs = <(String, String)>[];
+
+    if (original.name != current.name) {
+      diffs.add(('名称', '「${original.name}」→「${current.name}」'));
+    }
+    if (original.time != current.time) {
+      diffs.add(('时间', '${original.time} → ${current.time}'));
+    }
+    if (original.difficulty != current.difficulty) {
+      diffs.add(('难度', '${original.difficulty} → ${current.difficulty}'));
+    }
+    final origIngCount = original.ingredients?.length ?? 0;
+    final currIngCount = current.ingredients?.length ?? 0;
+    if (origIngCount != currIngCount) {
+      diffs.add(('食材数量', '$origIngCount 种 → $currIngCount 种'));
+    }
+    final origStepCount = original.steps?.length ?? 0;
+    final currStepCount = current.steps?.length ?? 0;
+    if (origStepCount != currStepCount) {
+      diffs.add(('步骤数量', '$origStepCount 步 → $currStepCount 步'));
+    }
+    final origTags = original.tags.join('、');
+    final currTags = current.tags.join('、');
+    if (origTags != currTags) {
+      diffs.add(('标签', '$origTags → $currTags'));
+    }
+
+    return diffs;
+  }
+
+  void _showShareConfirmDialog({
+    String? subtitle,
+    required VoidCallback onConfirm,
+  }) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text(
+          '分享至网络',
+          style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
+        ),
+        content: Text(
+          subtitle ??
+              '菜谱提交后将进入审核，通过后在「探索发现」中公开展示。',
+          style: const TextStyle(
+            fontSize: 14, color: Color(0xFF8C8F90), height: 1.6,
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('取消', style: TextStyle(color: Color(0xFF8C8F90))),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              onConfirm();
+            },
+            child: const Text(
+              '提交审核',
+              style: TextStyle(
+                color: Color(0xFFB2AC88), fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _doShareToNetwork({
+    required _ShareMode mode,
+    String? publicRecipeId,
+  }) async {
+    if (_recipe == null) return;
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const Center(
+        child: CircularProgressIndicator(color: _sageGreen),
+      ),
+    );
+
+    try {
+      Recipe? result;
+      final sourceUrl = _recipe!.sourceUrl;
+
+      if (mode == _ShareMode.updateExisting && publicRecipeId != null) {
+        result = await _recipeService.updatePublicRecipe(
+          publicRecipeId,
+          _recipe!,
+          sourceUrl: sourceUrl,
+        );
+      } else {
+        result = await _recipeService.shareToPublic(
+          _recipe!,
+          sourceUrl: sourceUrl,
+        );
+      }
+
+      if (!mounted) return;
+      Navigator.pop(context);
+
+      if (result != null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              mode == _ShareMode.updateExisting
+                  ? '已提交更新，等待审核后生效 ✅'
+                  : '已提交审核，通过后将在探索发现中展示 ✅',
+            ),
+            backgroundColor: const Color(0xFF7B9E89),
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+            duration: const Duration(seconds: 4),
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('提交失败，请稍后重试'),
+            backgroundColor: Colors.redAccent,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      Navigator.pop(context);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('提交失败：$e'),
+          backgroundColor: Colors.redAccent,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ),
+      );
+    }
   }
 
   /// 申请编辑菜谱权限
@@ -922,7 +1204,11 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen>
 
       favorite: false,
 
-      isPublic: false, // 保存到我的私房（my_recipes 表）
+      // 公开模式（从链接获取）直接发布到探索发现；否则保存到私房
+      isPublic: widget.isPublicMode,
+      sourceUrl: widget.isPublicMode
+          ? (widget.initialData?['source'] as String?)
+          : null,
     );
 
     try {
@@ -949,7 +1235,9 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen>
         if (result != null) {
           // 根据操作类型显示不同的提示信息
           String message = '保存成功';
-          if (!widget.isFromMyRecipes && !widget.isCreateMode) {
+          if (widget.isPublicMode) {
+            message = '已提交审核，通过后将显示在探索发现 ✨';
+          } else if (!widget.isFromMyRecipes && !widget.isCreateMode) {
             message = '已加入我的私房';
           }
 
@@ -1330,6 +1618,37 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen>
               ),
             ),
           ),
+
+          // 公开模式提示横幅
+          if (widget.isPublicMode)
+            SliverToBoxAdapter(
+              child: Container(
+                margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFFF3E0),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: const Color(0xFFE8956F).withValues(alpha: 0.3),
+                  ),
+                ),
+                child: Row(
+                  children: const [
+                    Icon(Icons.public_rounded, size: 16, color: Color(0xFFE8956F)),
+                    SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        '确认后将直接发布到探索发现，经审核后对所有用户可见',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Color(0xFFE8956F),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
 
           // 2. Basic Info (Time & Difficulty) - Compact Layout
           SliverToBoxAdapter(
@@ -2025,7 +2344,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen>
                   ),
                   child: Text(
                     _isEditing
-                        ? "保存菜谱"
+                        ? (widget.isPublicMode ? "提交审核" : "保存菜谱")
                         : (widget.isFromMyRecipes ? "编辑菜谱" : "尝试做做"),
                     style: const TextStyle(
                       fontSize: 15,
@@ -2037,6 +2356,60 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen>
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+// --- Share Helpers ---
+
+/// 分享模式
+enum _ShareMode { createNew, updateExisting }
+
+/// 对比差异行 Widget（用于分享前展示与原版的差异）
+class _DiffRow extends StatelessWidget {
+  final String label;
+  final String detail;
+
+  const _DiffRow({required this.label, required this.detail});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 4,
+            height: 4,
+            margin: const EdgeInsets.fromLTRB(0, 6, 8, 0),
+            decoration: const BoxDecoration(
+              color: Color(0xFFB2AC88),
+              shape: BoxShape.circle,
+            ),
+          ),
+          Expanded(
+            child: RichText(
+              text: TextSpan(
+                style: const TextStyle(fontSize: 13, color: Color(0xFF4A4F50)),
+                children: [
+                  TextSpan(
+                    text: '$label  ',
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF4A4F50),
+                    ),
+                  ),
+                  TextSpan(
+                    text: detail,
+                    style: const TextStyle(color: Color(0xFF8C8F90)),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

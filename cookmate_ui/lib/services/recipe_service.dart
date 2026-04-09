@@ -189,6 +189,74 @@ class RecipeService {
     return null;
   }
 
+  /// 检查某 URL 是否已存在对应的公开菜谱
+  ///
+  /// 返回 null 表示不存在；否则返回 {id, name} Map
+  Future<Map<String, String>?> checkPublicRecipeByUrl(String url) async {
+    final response = await _client.get(
+      ApiConfig.publicRecipeCheckUrl,
+      queryParams: {'url': url},
+    );
+    if (response.isSuccess && response.data != null) {
+      final exists = response.data['exists'] as bool? ?? false;
+      if (exists && response.data['recipe'] != null) {
+        final r = response.data['recipe'] as Map;
+        return {
+          'id': r['id']?.toString() ?? '',
+          'name': r['name']?.toString() ?? '',
+        };
+      }
+    }
+    return null;
+  }
+
+  /// 将私房菜分享至网络（创建一份 isPublic=true 的公开副本，进入待审核）
+  /// recipe: 私房菜数据
+  /// sourceUrl: 原始链接（从 URL 导入的菜谱传入）
+  /// 返回: 创建后的公开菜谱
+  Future<Recipe?> shareToPublic(Recipe recipe, {String? sourceUrl}) async {
+    final payload = {
+      ...recipe.toJson(),
+      'isPublic': true,
+      'id': '', // 创建新记录，不带原 ID
+      if (sourceUrl != null && sourceUrl.isNotEmpty) 'sourceUrl': sourceUrl,
+    };
+
+    final response = await _client.post(ApiConfig.recipes, data: payload);
+
+    if (response.isSuccess && response.data != null) {
+      return Recipe.fromJson(response.data);
+    }
+
+    return null;
+  }
+
+  /// 更新已有公开菜谱（重新提交审核，仅创建者可用）
+  /// publicRecipeId: 要更新的公开菜谱 ID
+  /// recipe: 最新内容
+  /// sourceUrl: 原始链接（可选）
+  Future<Recipe?> updatePublicRecipe(
+    String publicRecipeId,
+    Recipe recipe, {
+    String? sourceUrl,
+  }) async {
+    final payload = {
+      ...recipe.toJson(),
+      if (sourceUrl != null && sourceUrl.isNotEmpty) 'sourceUrl': sourceUrl,
+    };
+
+    final response = await _client.put(
+      '${ApiConfig.recipes}/$publicRecipeId/publish',
+      data: payload,
+    );
+
+    if (response.isSuccess && response.data != null) {
+      return Recipe.fromJson(response.data);
+    }
+
+    return null;
+  }
+
   /// 随机推荐菜品
   /// mode: 推荐模式（inventory/random/quick）
   /// maxTime: 最大制作时间（分钟，quick模式时使用）

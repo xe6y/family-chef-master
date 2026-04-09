@@ -810,6 +810,26 @@ class _RecipesScreenState extends State<RecipesScreen>
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFFF3E0),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Row(
+                children: const [
+                  Icon(Icons.public_rounded, size: 15, color: Color(0xFFE8956F)),
+                  SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      '提取后菜谱将直接发布到探索发现（待审核）',
+                      style: TextStyle(fontSize: 12, color: Color(0xFFE8956F)),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
             const Text(
               '粘贴菜谱视频或网页链接，AI 将自动提取菜谱内容。\n支持 YouTube、Bilibili、下厨房等。',
               style: TextStyle(fontSize: 13, color: Color(0xFF8C8F90)),
@@ -847,10 +867,104 @@ class _RecipesScreenState extends State<RecipesScreen>
               final url = urlController.text.trim();
               if (url.isEmpty) return;
               Navigator.pop(ctx);
-              _startUrlExtraction(url);
+              _checkAndStartExtraction(url);
             },
             child: const Text(
               '开始提取',
+              style: TextStyle(
+                color: Color(0xFFB2AC88),
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// 查重后启动提取。有重复则弹提示；无重复则开始后台提取。
+  Future<void> _checkAndStartExtraction(String url) async {
+    // 显示加载指示
+    if (!mounted) return;
+    final loadingOverlay = OverlayEntry(
+      builder: (_) => const Center(
+        child: CircularProgressIndicator(color: Color(0xFFB2AC88)),
+      ),
+    );
+    Overlay.of(context).insert(loadingOverlay);
+
+    try {
+      final existing = await _recipeService.checkPublicRecipeByUrl(url);
+      loadingOverlay.remove();
+
+      if (!mounted) return;
+
+      if (existing != null) {
+        // 已存在 → 提示用户并提供跳转
+        _showDuplicateUrlDialog(existing);
+      } else {
+        // 不存在 → 开始提取
+        _startUrlExtraction(url);
+      }
+    } catch (_) {
+      loadingOverlay.remove();
+      if (!mounted) return;
+      // 查重失败时降级处理：直接开始提取
+      _startUrlExtraction(url);
+    }
+  }
+
+  void _showDuplicateUrlDialog(Map<String, String> existing) {
+    final recipeName = existing['name'] ?? '未知菜谱';
+    final recipeId = existing['id'] ?? '';
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text(
+          '已有相同菜谱',
+          style: TextStyle(
+            fontSize: 17,
+            fontWeight: FontWeight.w700,
+            color: Color(0xFF4A4F50),
+          ),
+        ),
+        content: RichText(
+          text: TextSpan(
+            style: const TextStyle(fontSize: 14, color: Color(0xFF6B6F70), height: 1.5),
+            children: [
+              const TextSpan(text: '该链接已被提取为菜谱\n'),
+              TextSpan(
+                text: '「$recipeName」',
+                style: const TextStyle(
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFF4A4F50),
+                ),
+              ),
+              const TextSpan(text: '\n\n可以直接前往查看或保存到私房。'),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('取消', style: TextStyle(color: Color(0xFF8C8F90))),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              if (recipeId.isNotEmpty) {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => RecipeDetailScreen(recipeId: recipeId),
+                  ),
+                );
+              }
+            },
+            child: const Text(
+              '去查看',
               style: TextStyle(
                 color: Color(0xFFB2AC88),
                 fontWeight: FontWeight.w700,
@@ -866,6 +980,7 @@ class _RecipesScreenState extends State<RecipesScreen>
     // 异步启动提取，不阻塞 UI；DraftService 监听器会在完成时刷新界面
     _draftService.extractFromUrl(url, ApiConfig.extractorBaseUrl);
 
+    if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: const Text('正在后台提取菜谱，完成后将出现在草稿箱 ✨'),
@@ -965,32 +1080,44 @@ class _RecipesScreenState extends State<RecipesScreen>
           content: Text(draft.errorMessage ?? '未知错误'),
           actions: [
             TextButton(
+              onPressed: () {
+                Navigator.pop(ctx);
+                _draftService.deleteDraft(draft.id);
+              },
+              child: const Text(
+                '删除',
+                style: TextStyle(color: Colors.red),
+              ),
+            ),
+            TextButton(
               onPressed: () => Navigator.pop(ctx),
               child: const Text('关闭'),
             ),
-            if (draft.sourceUrl != null)
-              TextButton(
-                onPressed: () {
-                  Navigator.pop(ctx);
-                  _draftService.deleteDraft(draft.id);
-                  _startUrlExtraction(draft.sourceUrl!);
-                },
-                child: const Text(
-                  '重试',
-                  style: TextStyle(color: Color(0xFFB2AC88)),
-                ),
-              ),
+                  if (draft.sourceUrl != null)
+                    TextButton(
+                      onPressed: () {
+                        Navigator.pop(ctx);
+                        _draftService.deleteDraft(draft.id);
+                        // 重试也要先做查重
+                        _checkAndStartExtraction(draft.sourceUrl!);
+                      },
+                      child: const Text(
+                        '重试',
+                        style: TextStyle(color: Color(0xFFB2AC88)),
+                      ),
+                    ),
           ],
         ),
       );
       return;
     }
-    // 草稿已就绪，打开预填充的菜谱编辑界面
+    // 草稿已就绪，以公开模式打开预填充的菜谱编辑界面（直接发布到探索发现）
     Navigator.push(
       context,
       MaterialPageRoute(
         builder: (_) => RecipeDetailScreen(
           isCreateMode: true,
+          isPublicMode: true,
           initialData: draft.extractedData,
           draftId: draft.id,
         ),
@@ -1095,7 +1222,7 @@ class _AddRecipeSheet extends StatelessWidget {
           _OptionTile(
             icon: Icons.edit_note_rounded,
             title: '手动创建',
-            subtitle: '从零开始填写菜谱信息',
+            subtitle: '从零开始填写，保存到我的私房',
             color: const Color(0xFF7B9E89),
             onTap: onManual,
           ),
@@ -1103,7 +1230,8 @@ class _AddRecipeSheet extends StatelessWidget {
           _OptionTile(
             icon: Icons.link_rounded,
             title: '从链接获取',
-            subtitle: 'AI 自动从视频或网页中提取菜谱',
+            subtitle: 'AI 提取菜谱，直接发布到探索发现',
+            badge: '公开',
             color: const Color(0xFFE8956F),
             onTap: onFromUrl,
           ),
@@ -1119,6 +1247,7 @@ class _OptionTile extends StatelessWidget {
   final String subtitle;
   final Color color;
   final VoidCallback onTap;
+  final String? badge;
 
   const _OptionTile({
     required this.icon,
@@ -1126,6 +1255,7 @@ class _OptionTile extends StatelessWidget {
     required this.subtitle,
     required this.color,
     required this.onTap,
+    this.badge,
   });
 
   @override
@@ -1174,6 +1304,25 @@ class _OptionTile extends StatelessWidget {
                 ],
               ),
             ),
+            if (badge != null) ...[
+              const SizedBox(width: 6),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Text(
+                  badge!,
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: color,
+                  ),
+                ),
+              ),
+            ],
+            const SizedBox(width: 4),
             Icon(
               Icons.chevron_right_rounded,
               color: color.withValues(alpha: 0.5),
